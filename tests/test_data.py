@@ -457,3 +457,32 @@ def test_apply_command_feedback_updates_scheduled_charging():
     assert updated.charge_appoint_plan is not None
     assert updated.charge_appoint_plan["startTime"] == 480
     assert updated.charge_appoint_plan["timeConsuming"] == 360
+
+
+def test_from_realtime_maps_charge_status_and_remaining_time():
+    data = CheryData.from_realtime(
+        {
+            "chargeState": "1",
+            "appointmentChargeState": "2",
+            "remainChargeTime": "42",
+            "lSeatHeatingState2": "1",
+        },
+        vin="VIN123",
+    )
+
+    assert data.charge_status == "charging"
+    assert data.appointment_charge_status == "running"
+    assert data.remain_charge_time_min == 42.0
+    assert data.rear_left_seat_heating is True
+
+
+def test_apply_command_feedback_updates_covers_and_seats():
+    base = CheryData(vin="VIN123")
+    opened = apply_command_feedback(base, "ve_1205", action="open")
+    heated = apply_command_feedback(
+        base, "ve_1204", enabled=True, seat_field="mSeatHeating"
+    )
+
+    assert opened.trunk_open is True
+    assert heated.driver_seat_heating is True
+    assert heated.driver_seat_ventilation is False

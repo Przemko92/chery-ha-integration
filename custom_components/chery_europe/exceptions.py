@@ -19,6 +19,10 @@ class CheryEuropeCommandError(CheryEuropeException):
     """Raised when a vehicle command fails."""
 
 
+class CheryEuropePermissionError(CheryEuropeCommandError):
+    """Raised when the vehicle is not allowed to run a command."""
+
+
 class CheryEuropeTimeoutError(CheryEuropeException):
     """Raised when a request times out."""
 

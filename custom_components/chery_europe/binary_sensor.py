@@ -77,25 +77,11 @@ BINARY_SENSOR_DESCRIPTIONS: tuple[CheryEuropeBinarySensorEntityDescription, ...]
         value_fn=lambda data: data.hv_high_voltage_on,
     ),
     CheryEuropeBinarySensorEntityDescription(
-        key="steering_wheel_heating",
-        name="Steering wheel heating",
-        translation_key="steering_wheel_heating",
-        device_class=BinarySensorDeviceClass.HEAT,
-        value_fn=lambda data: data.steering_wheel_heating,
-    ),
-    CheryEuropeBinarySensorEntityDescription(
         key="air_purification",
         name="Air purification",
         translation_key="air_purification",
         icon="mdi:air-filter",
         value_fn=lambda data: data.air_purification,
-    ),
-    CheryEuropeBinarySensorEntityDescription(
-        key="sunroof",
-        name="Sunroof",
-        translation_key="sunroof",
-        icon="mdi:car-select",
-        value_fn=lambda data: data.sunroof_open,
     ),
     CheryEuropeBinarySensorEntityDescription(
         key="door_front_left",
@@ -126,13 +112,6 @@ BINARY_SENSOR_DESCRIPTIONS: tuple[CheryEuropeBinarySensorEntityDescription, ...]
         value_fn=lambda data: data.door_rear_right_open,
     ),
     CheryEuropeBinarySensorEntityDescription(
-        key="trunk",
-        name="Trunk",
-        translation_key="trunk",
-        device_class=BinarySensorDeviceClass.DOOR,
-        value_fn=lambda data: data.trunk_open,
-    ),
-    CheryEuropeBinarySensorEntityDescription(
         key="window_front_left",
         name="Front left window",
         translation_key="window_front_left",
@@ -159,34 +138,6 @@ BINARY_SENSOR_DESCRIPTIONS: tuple[CheryEuropeBinarySensorEntityDescription, ...]
         translation_key="window_rear_right",
         device_class=BinarySensorDeviceClass.WINDOW,
         value_fn=lambda data: data.window_rear_right_open,
-    ),
-    CheryEuropeBinarySensorEntityDescription(
-        key="driver_seat_heating",
-        name="Driver seat heating",
-        translation_key="driver_seat_heating",
-        device_class=BinarySensorDeviceClass.HEAT,
-        value_fn=lambda data: data.driver_seat_heating,
-    ),
-    CheryEuropeBinarySensorEntityDescription(
-        key="passenger_seat_heating",
-        name="Passenger seat heating",
-        translation_key="passenger_seat_heating",
-        device_class=BinarySensorDeviceClass.HEAT,
-        value_fn=lambda data: data.passenger_seat_heating,
-    ),
-    CheryEuropeBinarySensorEntityDescription(
-        key="driver_seat_ventilation",
-        name="Driver seat ventilation",
-        translation_key="driver_seat_ventilation",
-        icon="mdi:car-seat-cooler",
-        value_fn=lambda data: data.driver_seat_ventilation,
-    ),
-    CheryEuropeBinarySensorEntityDescription(
-        key="passenger_seat_ventilation",
-        name="Passenger seat ventilation",
-        translation_key="passenger_seat_ventilation",
-        icon="mdi:car-seat-cooler",
-        value_fn=lambda data: data.passenger_seat_ventilation,
     ),
 )
 

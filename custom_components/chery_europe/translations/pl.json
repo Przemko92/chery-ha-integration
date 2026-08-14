@@ -94,6 +94,25 @@
       "fuel_consumption": {
         "name": "Spalanie"
       },
+      "remain_charge_time": {
+        "name": "Pozostały czas ładowania"
+      },
+      "charge_status": {
+        "name": "Stan ładowania",
+        "state": {
+          "not_charging": "Nie ładuje",
+          "charging": "Ładowanie",
+          "charge_complete": "Ładowanie zakończone"
+        }
+      },
+      "appointment_charge_status": {
+        "name": "Stan zaplanowanego ładowania",
+        "state": {
+          "off": "Wyłączone",
+          "enabled": "Włączone",
+          "running": "W toku"
+        }
+      },
       "vehicle_nickname": {
         "name": "Nazwa pojazdu"
       },
@@ -147,14 +166,8 @@
       "high_voltage": {
         "name": "Układ wysokiego napięcia"
       },
-      "steering_wheel_heating": {
-        "name": "Ogrzewanie kierownicy"
-      },
       "air_purification": {
         "name": "Oczyszczanie powietrza"
-      },
-      "sunroof": {
-        "name": "Szyberdach"
       },
       "door_front_left": {
         "name": "Drzwi przednie lewe"
@@ -168,9 +181,6 @@
       "door_rear_right": {
         "name": "Drzwi tylne prawe"
       },
-      "trunk": {
-        "name": "Bagażnik"
-      },
       "window_front_left": {
         "name": "Szyba przednia lewa"
       },
@@ -182,6 +192,17 @@
       },
       "window_rear_right": {
         "name": "Szyba tylna prawa"
+      }
+    },
+    "switch": {
+      "front_windshield_heating": {
+        "name": "Ogrzewanie przedniej szyby"
+      },
+      "rear_window_defrost": {
+        "name": "Ogrzewanie tylnej szyby"
+      },
+      "steering_wheel_heating": {
+        "name": "Ogrzewanie kierownicy"
       },
       "driver_seat_heating": {
         "name": "Ogrzewanie fotela kierowcy"
@@ -194,17 +215,27 @@
       },
       "passenger_seat_ventilation": {
         "name": "Wentylacja fotela pasażera"
-      }
-    },
-    "switch": {
-      "front_windshield_heating": {
-        "name": "Ogrzewanie przedniej szyby"
+      },
+      "rear_left_seat_heating": {
+        "name": "Ogrzewanie fotela tylnego lewego"
+      },
+      "rear_right_seat_heating": {
+        "name": "Ogrzewanie fotela tylnego prawego"
+      },
+      "rear_left_seat_ventilation": {
+        "name": "Wentylacja fotela tylnego lewego"
+      },
+      "rear_right_seat_ventilation": {
+        "name": "Wentylacja fotela tylnego prawego"
       },
       "charging": {
         "name": "Ładowanie"
       },
       "scheduled_charging": {
         "name": "Zaplanowane ładowanie"
+      },
+      "automatic_updates": {
+        "name": "Aktualizacje automatyczne"
       }
     },
     "time": {
@@ -225,6 +256,50 @@
     "climate": {
       "hvac": {
         "name": "Klimatyzacja"
+      }
+    },
+    "cover": {
+      "trunk": {
+        "name": "Bagażnik"
+      },
+      "windows": {
+        "name": "Szyby"
+      },
+      "sunroof": {
+        "name": "Szyberdach"
+      }
+    },
+    "button": {
+      "locate": {
+        "name": "Zlokalizuj"
+      },
+      "find_car": {
+        "name": "Znajdź auto"
+      }
+    },
+    "device_tracker": {
+      "position": {
+        "name": "Pozycja"
+      }
+    }
+  },
+  "services": {
+    "set_scheduled_charging": {
+      "name": "Ustaw zaplanowane ładowanie",
+      "description": "Włącza lub aktualizuje plan ładowania pojazdu. Używa PIN z opcji integracji.",
+      "fields": {
+        "start_time": {
+          "name": "Godzina rozpoczęcia",
+          "description": "Lokalna godzina rozpoczęcia ładowania."
+        },
+        "duration_hours": {
+          "name": "Czas trwania",
+          "description": "Jak długo ma trwać ładowanie, w godzinach (1–12)."
+        },
+        "enabled": {
+          "name": "Włączone",
+          "description": "Ustaw na false, aby wyłączyć plan ładowania."
+        }
       }
     }
   }

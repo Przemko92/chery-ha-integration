@@ -6,17 +6,15 @@ from typing import Any
 
 from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
-from .const import ATTR_PIN
+from .command_exec import async_send_vehicle_command
 from .coordinator import CheryEuropeDataUpdateCoordinator
-from .data import CheryData, apply_command_feedback
+from .data import CheryData
 from .entity import CheryEuropeEntity
-from .pin import resolve_pin
-from .exceptions import CheryEuropeCommandError, CheryEuropeException
 
 PARALLEL_UPDATES = 0
 
@@ -27,6 +25,7 @@ class CheryEuropeSwitchEntityDescription(SwitchEntityDescription):
 
     command_id: str
     state_fn: Callable[[CheryData], bool | None]
+    command_values: dict[str, Any] | None = None
 
 
 SWITCH_DESCRIPTIONS: tuple[CheryEuropeSwitchEntityDescription, ...] = (
@@ -36,13 +35,95 @@ SWITCH_DESCRIPTIONS: tuple[CheryEuropeSwitchEntityDescription, ...] = (
         translation_key="front_windshield_heating",
         icon="mdi:car-defrost-front",
         command_id="ve_1103",
-        state_fn=lambda data: _feedback_state(
-            data,
-            "front_windshield_heating",
-            "frontWindshieldHeating",
-            "front_windshield_defrost",
-            "ve_1103",
-        ),
+        state_fn=lambda data: data.front_windshield_heating,
+    ),
+    CheryEuropeSwitchEntityDescription(
+        key="rear_window_defrost",
+        name="Rear window heating",
+        translation_key="rear_window_defrost",
+        icon="mdi:car-defrost-rear",
+        command_id="ve_1135",
+        state_fn=lambda data: data.rear_window_defrost,
+    ),
+    CheryEuropeSwitchEntityDescription(
+        key="steering_wheel_heating",
+        name="Steering wheel heating",
+        translation_key="steering_wheel_heating",
+        icon="mdi:steering",
+        command_id="ve_1203",
+        state_fn=lambda data: data.steering_wheel_heating,
+    ),
+    CheryEuropeSwitchEntityDescription(
+        key="driver_seat_heating",
+        name="Driver seat heating",
+        translation_key="driver_seat_heating",
+        icon="mdi:car-seat-heater",
+        command_id="ve_1204",
+        command_values={"seat_field": "mSeatHeating"},
+        state_fn=lambda data: data.driver_seat_heating,
+    ),
+    CheryEuropeSwitchEntityDescription(
+        key="passenger_seat_heating",
+        name="Passenger seat heating",
+        translation_key="passenger_seat_heating",
+        icon="mdi:car-seat-heater",
+        command_id="ve_1204",
+        command_values={"seat_field": "pSeatHeating"},
+        state_fn=lambda data: data.passenger_seat_heating,
+    ),
+    CheryEuropeSwitchEntityDescription(
+        key="driver_seat_ventilation",
+        name="Driver seat ventilation",
+        translation_key="driver_seat_ventilation",
+        icon="mdi:car-seat-cooler",
+        command_id="ve_1204",
+        command_values={"seat_field": "mSeatAiry"},
+        state_fn=lambda data: data.driver_seat_ventilation,
+    ),
+    CheryEuropeSwitchEntityDescription(
+        key="passenger_seat_ventilation",
+        name="Passenger seat ventilation",
+        translation_key="passenger_seat_ventilation",
+        icon="mdi:car-seat-cooler",
+        command_id="ve_1204",
+        command_values={"seat_field": "pSeatAiry"},
+        state_fn=lambda data: data.passenger_seat_ventilation,
+    ),
+    CheryEuropeSwitchEntityDescription(
+        key="rear_left_seat_heating",
+        name="Rear left seat heating",
+        translation_key="rear_left_seat_heating",
+        icon="mdi:car-seat-heater",
+        command_id="ve_1204",
+        command_values={"seat_field": "blSeatHeating"},
+        state_fn=lambda data: data.rear_left_seat_heating,
+    ),
+    CheryEuropeSwitchEntityDescription(
+        key="rear_right_seat_heating",
+        name="Rear right seat heating",
+        translation_key="rear_right_seat_heating",
+        icon="mdi:car-seat-heater",
+        command_id="ve_1204",
+        command_values={"seat_field": "brSeatHeating"},
+        state_fn=lambda data: data.rear_right_seat_heating,
+    ),
+    CheryEuropeSwitchEntityDescription(
+        key="rear_left_seat_ventilation",
+        name="Rear left seat ventilation",
+        translation_key="rear_left_seat_ventilation",
+        icon="mdi:car-seat-cooler",
+        command_id="ve_1204",
+        command_values={"seat_field": "blSeatAiry"},
+        state_fn=lambda data: data.rear_left_seat_ventilation,
+    ),
+    CheryEuropeSwitchEntityDescription(
+        key="rear_right_seat_ventilation",
+        name="Rear right seat ventilation",
+        translation_key="rear_right_seat_ventilation",
+        icon="mdi:car-seat-cooler",
+        command_id="ve_1204",
+        command_values={"seat_field": "brSeatAiry"},
+        state_fn=lambda data: data.rear_right_seat_ventilation,
     ),
 )
 
@@ -61,6 +142,7 @@ async def async_setup_entry(
         [
             CheryEuropeChargeSwitch(coordinator, entry),
             CheryEuropeScheduledChargeSwitch(coordinator, entry),
+            CheryEuropePollingSwitch(coordinator, entry),
         ]
     )
     async_add_entities(entities)
@@ -103,13 +185,15 @@ class CheryEuropeCommandSwitch(CheryEuropeEntity, SwitchEntity):
 
     async def _send_command(self, kwargs: dict[str, Any], *, enabled: bool) -> None:
         """Send this switch command without storing or logging the PIN."""
-        await _async_send_switch_command(
+        extra = dict(self.command_description.command_values or {})
+        extra["enabled"] = enabled
+        await async_send_vehicle_command(
             self.coordinator,
             self._entry,
             self.chery_data.vin,
             kwargs,
             command_id=self.command_description.command_id,
-            enabled=enabled,
+            **extra,
         )
 
     @property
@@ -125,13 +209,63 @@ class CheryEuropeCommandSwitch(CheryEuropeEntity, SwitchEntity):
         return description
 
 
-def _feedback_state(data: CheryData, *keys: str) -> bool | None:
-    """Return boolean switch feedback from normalized data when present."""
-    for key in keys:
-        value = getattr(data, key, None)
-        if isinstance(value, bool):
-            return value
-    return None
+POLLING_SWITCH_DESCRIPTION = SwitchEntityDescription(
+    key="automatic_updates",
+    name="Automatic updates",
+    translation_key="automatic_updates",
+    icon="mdi:autorenew",
+    entity_category=EntityCategory.CONFIG,
+)
+
+CHARGING_SWITCH_DESCRIPTION = SwitchEntityDescription(
+    key="charging_switch",
+    name="Charging",
+    translation_key="charging",
+    icon="mdi:battery-charging",
+)
+
+SCHEDULED_CHARGING_SWITCH_DESCRIPTION = SwitchEntityDescription(
+    key="scheduled_charging",
+    name="Scheduled charging",
+    translation_key="scheduled_charging",
+    icon="mdi:calendar-clock",
+)
+
+
+class CheryEuropePollingSwitch(CheryEuropeEntity, SwitchEntity, RestoreEntity):
+    """Enable or disable automatic telemetry polling."""
+
+    def __init__(
+        self,
+        coordinator: CheryEuropeDataUpdateCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        super().__init__(coordinator, POLLING_SWITCH_DESCRIPTION, entry)
+        vin = self.chery_data.vin or entry.entry_id
+        self._attr_unique_id = f"{vin}_{POLLING_SWITCH_DESCRIPTION.key}"
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        last = await self.async_get_last_state()
+        if last is not None and last.state in ("on", "off"):
+            self.coordinator.poll_enabled = last.state == "on"
+            if self.coordinator.data is not None:
+                self.coordinator._apply_scan_interval(self.coordinator.data)
+
+    @property
+    def is_on(self) -> bool:
+        return bool(self.coordinator.poll_enabled)
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        self.coordinator.poll_enabled = True
+        if self.coordinator.data is not None:
+            self.coordinator._apply_scan_interval(self.coordinator.data)
+        self.async_write_ha_state()
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        self.coordinator.poll_enabled = False
+        self.coordinator.update_interval = None
+        self.async_write_ha_state()
 
 
 async def _async_send_switch_command(
@@ -145,47 +279,23 @@ async def _async_send_switch_command(
     start_minutes: int | None = None,
     duration_hours: int | None = None,
 ) -> None:
-    """Send a remote switch command and apply optimistic coordinator feedback."""
-    pin = resolve_pin(entry, kwargs)
-    if not vin:
-        raise HomeAssistantError("Vehicle VIN is unavailable")
-    command_kwargs: dict[str, Any] = {"enabled": enabled}
+    extra: dict[str, Any] = {"enabled": enabled}
     if start_minutes is not None:
-        command_kwargs["start_minutes"] = start_minutes
+        extra["start_minutes"] = start_minutes
     if duration_hours is not None:
-        command_kwargs["duration_hours"] = duration_hours
-    try:
-        response = await coordinator.api.send_command(
-            vin,
-            command_id,
-            pin,
-            **command_kwargs,
-        )
-        if not response.get("ok"):
-            message = response.get("message") or response.get("code")
-            raise CheryEuropeCommandError(f"Chery Europe command failed: {message}")
-        if coordinator.data is not None:
-            coordinator.async_set_updated_data(
-                apply_command_feedback(
-                    coordinator.data,
-                    command_id,
-                    enabled=enabled,
-                    start_minutes=start_minutes,
-                    duration_hours=duration_hours,
-                )
-            )
-        coordinator.schedule_refresh_after_command()
-    except CheryEuropeException:
-        raise
-    except Exception as err:  # noqa: BLE001
-        raise HomeAssistantError("Failed to send Chery Europe switch command") from err
+        extra["duration_hours"] = duration_hours
+    await async_send_vehicle_command(
+        coordinator,
+        entry,
+        vin,
+        kwargs,
+        command_id=command_id,
+        **extra,
+    )
 
 
 class CheryEuropeChargeSwitch(CheryEuropeEntity, SwitchEntity, RestoreEntity):
     """Start or stop immediate charging through chargeStartStopControl."""
-
-    _attr_icon = "mdi:battery-charging"
-    _attr_translation_key = "charging"
 
     def __init__(
         self,
@@ -193,11 +303,11 @@ class CheryEuropeChargeSwitch(CheryEuropeEntity, SwitchEntity, RestoreEntity):
         entry: ConfigEntry,
     ) -> None:
         """Initialize the immediate charging switch."""
-        super().__init__(coordinator, None, entry)
+        super().__init__(coordinator, CHARGING_SWITCH_DESCRIPTION, entry)
         self._optimistic: bool | None = None
         self._restored: bool | None = None
         vin = self.chery_data.vin or entry.entry_id
-        self._attr_unique_id = f"{vin}_charging"
+        self._attr_unique_id = f"{vin}_{CHARGING_SWITCH_DESCRIPTION.key}"
 
     async def async_added_to_hass(self) -> None:
         """Restore the last known charging switch state."""
@@ -254,20 +364,17 @@ class CheryEuropeChargeSwitch(CheryEuropeEntity, SwitchEntity, RestoreEntity):
 class CheryEuropeScheduledChargeSwitch(CheryEuropeEntity, SwitchEntity, RestoreEntity):
     """Enable or disable scheduled charging through chargeAppointControl."""
 
-    _attr_icon = "mdi:calendar-clock"
-    _attr_translation_key = "scheduled_charging"
-
     def __init__(
         self,
         coordinator: CheryEuropeDataUpdateCoordinator,
         entry: ConfigEntry,
     ) -> None:
         """Initialize the scheduled charging switch."""
-        super().__init__(coordinator, None, entry)
+        super().__init__(coordinator, SCHEDULED_CHARGING_SWITCH_DESCRIPTION, entry)
         self._optimistic: bool | None = None
         self._restored: bool | None = None
         vin = self.chery_data.vin or entry.entry_id
-        self._attr_unique_id = f"{vin}_scheduled_charging"
+        self._attr_unique_id = f"{vin}_{SCHEDULED_CHARGING_SWITCH_DESCRIPTION.key}"
 
     async def async_added_to_hass(self) -> None:
         """Restore the last known scheduled charging switch state."""

@@ -20,7 +20,10 @@ class CheryEuropeEntity(CoordinatorEntity[CheryEuropeDataUpdateCoordinator]):
     ) -> None:
         """Initialize the entity."""
         super().__init__(coordinator)
-        self.entity_description = description
+        # Never assign None: newer HA reads device_class / placeholders
+        # from entity_description without a null check.
+        if description is not None:
+            self.entity_description = description
         self._entry = entry
 
     @property

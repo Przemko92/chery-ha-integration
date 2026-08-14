@@ -2,10 +2,42 @@ from __future__ import annotations
 
 import ast
 from dataclasses import dataclass, replace
+from datetime import datetime, timezone
 from typing import Any
 
 from .types.vehicle_models import VehicleStatus
 from .vehicle_commands import build_charge_plan
+
+CHARGE_STATUS_MAP = {
+    "0": "not_charging",
+    "1": "charging",
+    "2": "charge_complete",
+}
+APPOINTMENT_CHARGE_STATUS_MAP = {
+    "0": "off",
+    "1": "enabled",
+    "2": "running",
+}
+SEAT_FIELD_TO_ATTR = {
+    "mSeatHeating": "driver_seat_heating",
+    "pSeatHeating": "passenger_seat_heating",
+    "mSeatAiry": "driver_seat_ventilation",
+    "pSeatAiry": "passenger_seat_ventilation",
+    "blSeatHeating": "rear_left_seat_heating",
+    "brSeatHeating": "rear_right_seat_heating",
+    "blSeatAiry": "rear_left_seat_ventilation",
+    "brSeatAiry": "rear_right_seat_ventilation",
+}
+SEAT_EXCLUSIVE_ATTR = {
+    "driver_seat_heating": "driver_seat_ventilation",
+    "driver_seat_ventilation": "driver_seat_heating",
+    "passenger_seat_heating": "passenger_seat_ventilation",
+    "passenger_seat_ventilation": "passenger_seat_heating",
+    "rear_left_seat_heating": "rear_left_seat_ventilation",
+    "rear_left_seat_ventilation": "rear_left_seat_heating",
+    "rear_right_seat_heating": "rear_right_seat_ventilation",
+    "rear_right_seat_ventilation": "rear_right_seat_heating",
+}
 
 
 @dataclass(frozen=True)
@@ -44,6 +76,9 @@ class CheryData:
     hv_high_voltage_on: bool | None = None
     latitude: float | None = None
     longitude: float | None = None
+    gps_time: str | None = None
+    gps_direction: float | None = None
+    gps_speed: float | None = None
     last_updated: str | None = None
     front_windshield_heating: bool | None = None
     rear_window_defrost: bool | None = None
@@ -66,6 +101,13 @@ class CheryData:
     passenger_seat_heating: bool | None = None
     driver_seat_ventilation: bool | None = None
     passenger_seat_ventilation: bool | None = None
+    rear_left_seat_heating: bool | None = None
+    rear_right_seat_heating: bool | None = None
+    rear_left_seat_ventilation: bool | None = None
+    rear_right_seat_ventilation: bool | None = None
+    remain_charge_time_min: float | None = None
+    charge_status: str | None = None
+    appointment_charge_status: str | None = None
 
     @classmethod
     def from_api_response(cls, response: dict[str, Any] | VehicleStatus | None) -> CheryData:
@@ -190,6 +232,7 @@ class CheryData:
 
         charge_state = payload.get("chargeState")
         is_charging = None
+        charge_status = _map_code(charge_state, CHARGE_STATUS_MAP)
         if charge_state is not None:
             is_charging = str(charge_state) == "1"
 
@@ -243,11 +286,19 @@ class CheryData:
             charge_appoint_plan=charge_plan,
             charge_gun_connected=_state_on(payload.get("chargeGunState")),
             fast_charge_gun_connected=_state_on(payload.get("fastChargingGunStatus")),
+            remain_charge_time_min=_remain_charge_time(payload.get("remainChargeTime")),
+            charge_status=charge_status,
+            appointment_charge_status=_map_code(
+                payload.get("appointmentChargeState"), APPOINTMENT_CHARGE_STATUS_MAP
+            ),
             engine_on=_state_on(payload.get("engineState")),
             online=_state_on(payload.get("onlineStatus")),
             hv_high_voltage_on=_state_on(payload.get("hVoltageState")),
-            latitude=_as_float(_first(payload, "lat", "latitude")),
-            longitude=_as_float(_first(payload, "lon", "longitude", "lng")),
+            latitude=_as_float(_first(payload, "lat", "latitude", "wgsLat", "gcjLat")),
+            longitude=_as_float(_first(payload, "lon", "longitude", "lng", "wgsLon", "gcjLon")),
+            gps_time=_format_gps_time(_first(payload, "gpsTime", "positionTime")),
+            gps_direction=_as_float(_first(payload, "direction", "heading")),
+            gps_speed=_as_float(payload.get("gpsSpeed")),
             last_updated=_first(payload, "resultTime", "lastUpdated", "timestamp"),
             front_windshield_heating=_state_on(
                 _first(payload, "frontWindshieldHeat", "fWinHeatingState", "frontWindHeatState")
@@ -275,12 +326,76 @@ class CheryData:
             passenger_seat_heating=_state_on(payload.get("pSeatHeatingState")),
             driver_seat_ventilation=_state_on(payload.get("dSeatVentilateState")),
             passenger_seat_ventilation=_state_on(payload.get("pSeatVentilateState")),
+            rear_left_seat_heating=_state_on(payload.get("lSeatHeatingState2")),
+            rear_right_seat_heating=_state_on(payload.get("rSeatHeatingState2")),
+            rear_left_seat_ventilation=_state_on(payload.get("lSeatVentilateState2")),
+            rear_right_seat_ventilation=_state_on(payload.get("rSeatVentilateState2")),
         )
 
 
 def vehicle_display_name(data: CheryData) -> str:
     """Return the user-facing vehicle label."""
     return data.vehicle_nickname or data.vehicle_full_name or "Chery Vehicle"
+
+
+def extract_coordinates(payload: dict[str, Any] | None) -> tuple[float | None, float | None]:
+    """Return WGS/GCJ lat/lon from a location or MQTT payload."""
+    if not isinstance(payload, dict):
+        return None, None
+    lat = _as_float(_first(payload, "lat", "latitude", "wgsLat", "gcjLat"))
+    lon = _as_float(_first(payload, "lon", "lng", "longitude", "wgsLon", "gcjLon"))
+    return lat, lon
+
+
+def is_command_ack(payload: dict[str, Any] | None) -> bool:
+    """True when MQTT data is a command confirmation without telemetry or GPS."""
+    if not isinstance(payload, dict):
+        return False
+    if payload.get("result") is None and payload.get("seq") is None:
+        return False
+    lat, lon = extract_coordinates(payload)
+    if lat is not None and lon is not None:
+        return False
+    for key in ("dumpEnergy", "odometer", "doorLock", "chargeState", "hVoltageState"):
+        if payload.get(key) not in (None, ""):
+            return False
+    return True
+
+
+def apply_location(data: CheryData, payload: dict[str, Any] | None) -> CheryData:
+    """Merge GPS fields from a 1301 push or queryVehicleLocation payload."""
+    lat, lon = extract_coordinates(payload)
+    if lat is None or lon is None or not isinstance(payload, dict):
+        return data
+    updates: dict[str, Any] = {"latitude": lat, "longitude": lon}
+    gps_time = _format_gps_time(_first(payload, "gpsTime", "positionTime", "resultTime"))
+    if gps_time:
+        updates["gps_time"] = gps_time
+    direction = _as_float(_first(payload, "direction", "heading"))
+    if direction is not None:
+        updates["gps_direction"] = direction
+    speed = _as_float(_first(payload, "gpsSpeed", "vehicleSpeed", "speed"))
+    if speed is not None:
+        updates["gps_speed"] = speed
+    return replace(data, **updates)
+
+
+def _format_gps_time(value: Any) -> str | None:
+    """Convert epoch millis/seconds or ISO strings to an ISO-8601 UTC timestamp."""
+    if value in (None, ""):
+        return None
+    if isinstance(value, str) and "T" in value:
+        return value
+    try:
+        stamp = float(value)
+    except (TypeError, ValueError):
+        return None
+    if stamp > 10_000_000_000:
+        stamp /= 1000
+    try:
+        return datetime.fromtimestamp(stamp, tz=timezone.utc).isoformat()
+    except (OSError, OverflowError, ValueError):
+        return None
 
 
 def merge_chery_data(base: CheryData, update: CheryData) -> CheryData:
@@ -333,6 +448,25 @@ def apply_command_feedback(data: CheryData, command_id: str, **kwargs: Any) -> C
                 scheduled_charge_enabled=enabled,
                 charge_appoint_plan=plan,
             )
+    if command_id == "ve_1203":
+        enabled = kwargs.get("enabled")
+        if enabled is not None:
+            return replace(data, steering_wheel_heating=enabled)
+    if command_id == "ve_1204":
+        return _apply_seat_feedback(data, kwargs)
+    if command_id == "ve_1205":
+        return replace(data, trunk_open=str(kwargs.get("action", "open")).lower() == "open")
+    if command_id == "ve_1206":
+        opened = str(kwargs.get("action", "open")).lower() != "close"
+        return replace(
+            data,
+            window_front_left_open=opened,
+            window_front_right_open=opened,
+            window_rear_left_open=opened,
+            window_rear_right_open=opened,
+        )
+    if command_id == "ve_1207":
+        return replace(data, sunroof_open=str(kwargs.get("action", "open")).lower() == "open")
     return data
 
 
@@ -429,3 +563,30 @@ def _plan_switch_on(plan: dict[str, Any] | None) -> bool | None:
     if status in (None, ""):
         return None
     return str(status) == "1"
+
+
+def _map_code(value: Any, mapping: dict[str, str]) -> str | None:
+    if value in (None, ""):
+        return None
+    code = str(value)
+    return mapping.get(code)
+
+
+def _remain_charge_time(value: Any) -> float | None:
+    minutes = _as_float(value)
+    if minutes is None or minutes <= 0:
+        return None
+    return minutes
+
+
+def _apply_seat_feedback(data: CheryData, kwargs: dict[str, Any]) -> CheryData:
+    field = str(kwargs.get("seat_field", ""))
+    enabled = kwargs.get("enabled")
+    attr = SEAT_FIELD_TO_ATTR.get(field)
+    if attr is None or enabled is None:
+        return data
+    updates: dict[str, Any] = {attr: enabled}
+    exclusive = SEAT_EXCLUSIVE_ATTR.get(attr)
+    if enabled and exclusive:
+        updates[exclusive] = False
+    return replace(data, **updates)

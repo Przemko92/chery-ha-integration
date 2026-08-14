@@ -17,13 +17,31 @@ LOCK = "lock"
 CLIMATE = "climate"
 TIME = "time"
 NUMBER = "number"
-PLATFORMS = [SENSOR, BINARY_SENSOR, SWITCH, LOCK, CLIMATE, TIME, NUMBER]
+COVER = "cover"
+DEVICE_TRACKER = "device_tracker"
+BUTTON = "button"
+PLATFORMS = [
+    SENSOR,
+    BINARY_SENSOR,
+    SWITCH,
+    LOCK,
+    CLIMATE,
+    TIME,
+    NUMBER,
+    COVER,
+    DEVICE_TRACKER,
+    BUTTON,
+]
 
 # Services
 SERVICE_SEND_COMMAND = "send_command"
+SERVICE_SET_SCHEDULED_CHARGING = "set_scheduled_charging"
 ATTR_VIN = "vin"
 ATTR_COMMAND_ID = "command_id"
 ATTR_PIN = "pin"
+ATTR_START_TIME = "start_time"
+ATTR_DURATION_HOURS = "duration_hours"
+ATTR_ENABLED = "enabled"
 
 # Configuration and options
 CONF_LOGIN = "login"
@@ -69,10 +87,12 @@ DEFAULT_CHANNEL_ID = 5
 API_TSP_LOGIN_PATH = "/api/tsp/v1/app/auth/login"
 API_VMC_QUERY_LIST_PATH = "/api/tsp/v1/app/vmc/queryList"
 API_VMC_SET_VEC_DEFAULT_PATH = "/api/tsp/v1/app/vmc/setVecDefault"
+API_VMC_QUERY_AUTHORITY_PATH = "/api/tsp/v1/app/vmc/queryVehicleAuthority"
 API_CPM_CHECK_PASSWORD_PATH = "/api/tsp/v1/app/cpm/checkPassword"
 API_VAC_ADD_PATH = "/api/tsp/v1/app/vac/add"
 DEFAULT_TSP_HOST = "https://tspconsole-eu.cheryinternational.com"
 API_REALTIME_PATH = "/asr/manager/realtime"
+API_QUERY_LOCATION_PATH = "/asc/vehicleControl/queryVehicleLocation"
 TSP_CODE_OK = "000000"
 TSP_CODE_ASLEEP = "A07900"
 DEFAULT_USER_AGENT = "CheryEurope/1.0.4 Flutter/Dio"
@@ -86,6 +106,12 @@ DEFAULT_ENV_URL = (
 
 # Defaults
 DEFAULT_SCAN_INTERVAL = timedelta(minutes=15)
+HV_POLL_INTERVAL = timedelta(seconds=60)
+CHARGING_POLL_INTERVAL = timedelta(seconds=120)
+DRIVE_WATCH_INTERVAL = timedelta(seconds=180)
+DEFAULT_MQTT_HOST = "tspemqx-app-eu.cheryinternational.com"
+DEFAULT_MQTT_PORT = 8083
+MQTT_PASSWORD_SEED = "fa89db3abe8045919d70c6ed3cc65bc5"
 
 STARTUP_MESSAGE = f"""
 -------------------------------------------------------------------

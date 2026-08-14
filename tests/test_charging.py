@@ -88,3 +88,17 @@ async def test_charge_switch_turn_on_sends_start_command():
         "1234",
         enabled=True,
     )
+
+
+def test_charge_entities_have_entity_descriptions():
+    """Newer HA requires entity_description; unique_id must not collide with binary_sensor.charging."""
+    charge = CheryEuropeChargeSwitch(_coordinator(), _entry())
+    scheduled = CheryEuropeScheduledChargeSwitch(_coordinator(), _entry())
+
+    assert charge.entity_description is not None
+    assert charge.entity_description.device_class is None
+    assert charge.entity_description.translation_placeholders is None
+    assert charge.unique_id == f"{VIN}_charging_switch"
+
+    assert scheduled.entity_description is not None
+    assert scheduled.unique_id == f"{VIN}_scheduled_charging"

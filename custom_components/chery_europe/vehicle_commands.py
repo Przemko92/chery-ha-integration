@@ -20,7 +20,7 @@ class VehicleCommandSpec:
     """Describe how to map a legacy command id to a tspconsole endpoint."""
 
     endpoint: str
-    build_body: Callable[[dict[str, Any]], dict[str, str]]
+    build_body: Callable[[dict[str, Any]], dict[str, Any]]
 
 
 def build_air_control_body(values: dict[str, Any]) -> dict[str, str]:
@@ -97,6 +97,36 @@ def build_charge_start_stop_body(values: dict[str, Any]) -> dict[str, str]:
     return {"controlType": "1" if enabled else "0"}
 
 
+def build_steering_wheel_body(values: dict[str, Any]) -> dict[str, str]:
+    enabled = values.get("enabled", True)
+    return {"controlType": "1" if enabled else "0"}
+
+
+def build_seat_control_body(values: dict[str, Any]) -> dict[str, str]:
+    field = str(values.get("seat_field", "mSeatHeating"))
+    enabled = values.get("enabled", True)
+    body = {field: "3" if enabled else "0"}
+    if enabled:
+        body["times"] = str(values.get("duration", DEFAULT_AIR_DURATION))
+    return body
+
+
+def build_control_type_body(values: dict[str, Any]) -> dict[str, str]:
+    action = str(values.get("action", "open")).lower()
+    mapping = {"open": "1", "close": "0", "vent": "2", "on": "1", "off": "0"}
+    return {"controlType": mapping.get(action, "1")}
+
+
+def build_skylight_body(values: dict[str, Any]) -> dict[str, str]:
+    body = build_control_type_body(values)
+    body["skylightType"] = "1"
+    return body
+
+
+def build_empty_body(_values: dict[str, Any]) -> dict[str, Any]:
+    return {}
+
+
 COMMAND_SPECS: dict[str, VehicleCommandSpec] = {
     "ve_1104": VehicleCommandSpec("airControl", build_air_control_body),
     "ve_1105": VehicleCommandSpec("lockControl", build_lock_control_body),
@@ -104,6 +134,13 @@ COMMAND_SPECS: dict[str, VehicleCommandSpec] = {
     "ve_1135": VehicleCommandSpec("backDefrostingControl", build_rear_defrost_body),
     "ve_1201": VehicleCommandSpec("chargeStartStopControl", build_charge_start_stop_body),
     "ve_1202": VehicleCommandSpec("chargeAppointControl", build_charge_appoint_body),
+    "ve_1203": VehicleCommandSpec("steeringWheelControl", build_steering_wheel_body),
+    "ve_1204": VehicleCommandSpec("seatControl", build_seat_control_body),
+    "ve_1205": VehicleCommandSpec("powerLiftgateControl", build_control_type_body),
+    "ve_1206": VehicleCommandSpec("windowControl", build_control_type_body),
+    "ve_1207": VehicleCommandSpec("skylightControl", build_skylight_body),
+    "ve_1208": VehicleCommandSpec("findCar", build_empty_body),
+    "ve_1209": VehicleCommandSpec("vehicleLocation", build_empty_body),
 }
 
 

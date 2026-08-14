@@ -139,7 +139,19 @@ async def test_get_vehicle_status_asleep_returns_none():
 
 
 @pytest.mark.asyncio
-async def test_api_request_no_params_omits_keys_header():
+async def test_get_vehicle_location_uses_query_endpoint():
+    session = _Session(
+        responses=[(200, {"code": "000000", "data": {"lat": "50.06", "lon": "19.93"}})]
+    )
+    api = _api(_auth(), session)
+
+    result = await api.get_vehicle_location(vin="TESTVIN")
+
+    assert result == {"lat": "50.06", "lon": "19.93"}
+    method, url, kwargs = session.last_call
+    assert "/asc/vehicleControl/queryVehicleLocation" in url
+    assert json.loads(kwargs["data"])["vin"] == "TESTVIN"
+
     """get_vehicle_list (POST after TSP login) omits the `keys` header."""
     session = _Session(responses=[_TSP_LOGIN_OK, (200, {"data": []})])
     api = CheryEuropeApi(_auth(), session)
@@ -328,3 +340,23 @@ async def test_api_retry_exhaustion_raises_typed_error(monkeypatch):
     assert session.request_count == 1 + MAX_RETRIES
     # Backoff is 2**attempt; sleep before retries 1 and 2, not before the last.
     assert sleep_calls == [1, 2]
+
+
+@pytest.mark.asyncio
+async def test_api_424_raises_auth_error_without_retry(monkeypatch):
+    """424 means the session is dead; do not retry, force a fresh login."""
+    session = _Session(responses=[_TSP_LOGIN_OK, (424, {"error": "failed dependency"})])
+    api = CheryEuropeApi(_auth(), session)
+
+    sleep_calls = []
+
+    async def _fake_sleep(delay):
+        sleep_calls.append(delay)
+
+    monkeypatch.setattr(asyncio, "sleep", _fake_sleep)
+
+    with pytest.raises(CheryEuropeAuthError):
+        await api.get_vehicle_list()
+
+    assert session.request_count == 2
+    assert sleep_calls == []

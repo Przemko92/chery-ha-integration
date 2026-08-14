@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import time
 
-from homeassistant.components.time import TimeEntity
+from homeassistant.components.time import TimeEntity, TimeEntityDescription
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
@@ -15,6 +15,14 @@ from .coordinator import CheryEuropeDataUpdateCoordinator
 from .entity import CheryEuropeEntity
 
 PARALLEL_UPDATES = 0
+
+CHARGE_START_TIME_DESCRIPTION = TimeEntityDescription(
+    key="charge_start_time",
+    name="Scheduled charging start time",
+    translation_key="charge_start_time",
+    icon="mdi:clock-start",
+    entity_category=EntityCategory.CONFIG,
+)
 
 
 async def async_setup_entry(
@@ -30,20 +38,16 @@ async def async_setup_entry(
 class CheryEuropeChargeStartTime(CheryEuropeEntity, TimeEntity, RestoreEntity):
     """Scheduled charging start time stored locally and used when enabling the plan."""
 
-    _attr_entity_category = EntityCategory.CONFIG
-    _attr_icon = "mdi:clock-start"
-    _attr_translation_key = "charge_start_time"
-
     def __init__(
         self,
         coordinator: CheryEuropeDataUpdateCoordinator,
         entry: ConfigEntry,
     ) -> None:
         """Initialize the charge start time entity."""
-        super().__init__(coordinator, None, entry)
+        super().__init__(coordinator, CHARGE_START_TIME_DESCRIPTION, entry)
         self._value = time(hour=8, minute=0)
         vin = self.chery_data.vin or entry.entry_id
-        self._attr_unique_id = f"{vin}_charge_start_time"
+        self._attr_unique_id = f"{vin}_{CHARGE_START_TIME_DESCRIPTION.key}"
         coordinator.charge_start_minutes = self._value.hour * 60 + self._value.minute
 
     async def async_added_to_hass(self) -> None:

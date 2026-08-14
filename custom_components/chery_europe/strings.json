@@ -94,6 +94,25 @@
       "fuel_consumption": {
         "name": "Fuel consumption"
       },
+      "remain_charge_time": {
+        "name": "Remaining charge time"
+      },
+      "charge_status": {
+        "name": "Charge status",
+        "state": {
+          "not_charging": "Not charging",
+          "charging": "Charging",
+          "charge_complete": "Charge complete"
+        }
+      },
+      "appointment_charge_status": {
+        "name": "Scheduled charging status",
+        "state": {
+          "off": "Off",
+          "enabled": "Enabled",
+          "running": "Running"
+        }
+      },
       "vehicle_nickname": {
         "name": "Vehicle nickname"
       },
@@ -147,14 +166,8 @@
       "high_voltage": {
         "name": "High voltage system"
       },
-      "steering_wheel_heating": {
-        "name": "Steering wheel heating"
-      },
       "air_purification": {
         "name": "Air purification"
-      },
-      "sunroof": {
-        "name": "Sunroof"
       },
       "door_front_left": {
         "name": "Front left door"
@@ -168,9 +181,6 @@
       "door_rear_right": {
         "name": "Rear right door"
       },
-      "trunk": {
-        "name": "Trunk"
-      },
       "window_front_left": {
         "name": "Front left window"
       },
@@ -182,6 +192,17 @@
       },
       "window_rear_right": {
         "name": "Rear right window"
+      }
+    },
+    "switch": {
+      "front_windshield_heating": {
+        "name": "Front windshield heating"
+      },
+      "rear_window_defrost": {
+        "name": "Rear window heating"
+      },
+      "steering_wheel_heating": {
+        "name": "Steering wheel heating"
       },
       "driver_seat_heating": {
         "name": "Driver seat heating"
@@ -194,17 +215,27 @@
       },
       "passenger_seat_ventilation": {
         "name": "Passenger seat ventilation"
-      }
-    },
-    "switch": {
-      "front_windshield_heating": {
-        "name": "Front windshield heating"
+      },
+      "rear_left_seat_heating": {
+        "name": "Rear left seat heating"
+      },
+      "rear_right_seat_heating": {
+        "name": "Rear right seat heating"
+      },
+      "rear_left_seat_ventilation": {
+        "name": "Rear left seat ventilation"
+      },
+      "rear_right_seat_ventilation": {
+        "name": "Rear right seat ventilation"
       },
       "charging": {
         "name": "Charging"
       },
       "scheduled_charging": {
         "name": "Scheduled charging"
+      },
+      "automatic_updates": {
+        "name": "Automatic updates"
       }
     },
     "time": {
@@ -225,6 +256,50 @@
     "climate": {
       "hvac": {
         "name": "HVAC"
+      }
+    },
+    "cover": {
+      "trunk": {
+        "name": "Trunk"
+      },
+      "windows": {
+        "name": "Windows"
+      },
+      "sunroof": {
+        "name": "Sunroof"
+      }
+    },
+    "button": {
+      "locate": {
+        "name": "Locate"
+      },
+      "find_car": {
+        "name": "Find car"
+      }
+    },
+    "device_tracker": {
+      "position": {
+        "name": "Position"
+      }
+    }
+  },
+  "services": {
+    "set_scheduled_charging": {
+      "name": "Set scheduled charging",
+      "description": "Enable or update the vehicle charging schedule. Uses the PIN from integration options.",
+      "fields": {
+        "start_time": {
+          "name": "Start time",
+          "description": "Local time when charging should start."
+        },
+        "duration_hours": {
+          "name": "Duration",
+          "description": "How long charging should run, in hours (1–12)."
+        },
+        "enabled": {
+          "name": "Enabled",
+          "description": "Set to false to disable the charging schedule."
+        }
       }
     }
   }

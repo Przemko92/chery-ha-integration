@@ -7,7 +7,10 @@ from custom_components.chery_europe.vehicle_commands import (
     build_charge_appoint_body,
     build_charge_plan,
     build_charge_start_stop_body,
+    build_control_type_body,
     build_lock_control_body,
+    build_seat_control_body,
+    build_skylight_body,
     command_result,
 )
 
@@ -78,3 +81,19 @@ def test_command_result_failure():
     result = command_result({"code": 1, "msg": "try later", "key": "try.again.later"})
     assert result["ok"] is False
     assert result["message"] == "try later"
+
+
+def test_build_seat_control_body():
+    body = build_seat_control_body({"enabled": True, "seat_field": "pSeatHeating"})
+    assert body["pSeatHeating"] == "3"
+    assert body["times"] == "15"
+
+
+def test_build_window_and_skylight_bodies():
+    assert build_control_type_body({"action": "open"}) == {"controlType": "1"}
+    assert build_control_type_body({"action": "close"}) == {"controlType": "0"}
+    assert build_control_type_body({"action": "vent"}) == {"controlType": "2"}
+    assert build_skylight_body({"action": "open"}) == {
+        "controlType": "1",
+        "skylightType": "1",
+    }

@@ -46,6 +46,10 @@ async def test_coordinator_update_fetches_vehicle_status_for_first_vehicle():
     api = SimpleNamespace(
         get_vehicle_list=AsyncMock(return_value=[DEMO_VEHICLE]),
         get_vehicle_status=AsyncMock(return_value=DEMO_STATUS),
+        get_vehicle_location=AsyncMock(
+            return_value={"lat": "50.06", "lon": "19.93"}
+        ),
+        get_vehicle_authority=AsyncMock(return_value={}),
     )
     coordinator = _coordinator(api)
     device_registry = Mock(async_get_device=Mock(return_value=None))
@@ -61,7 +65,10 @@ async def test_coordinator_update_fetches_vehicle_status_for_first_vehicle():
     assert data.average_fuel_consumption == 6.2
     assert data.min_temperature == 16.0
     assert data.max_temperature == 30.0
+    assert data.latitude == pytest.approx(50.06)
+    assert data.longitude == pytest.approx(19.93)
     api.get_vehicle_status.assert_awaited_once_with("DEMO1234567890")
+    api.get_vehicle_location.assert_awaited_once_with("DEMO1234567890")
 
 
 @pytest.mark.asyncio

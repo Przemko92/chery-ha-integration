@@ -9,8 +9,10 @@ import aiohttp
 from .auth import CheryEuropeAuth
 from .const import (
     API_CPM_CHECK_PASSWORD_PATH,
+    API_QUERY_LOCATION_PATH,
     API_REALTIME_PATH,
     API_TSP_LOGIN_PATH,
+    API_VMC_QUERY_AUTHORITY_PATH,
     API_VMC_QUERY_LIST_PATH,
     API_VMC_SET_VEC_DEFAULT_PATH,
     DEFAULT_BASE_URL,
@@ -23,6 +25,7 @@ from .crypto import encrypt_command_pin
 from .signing import SIGN_SECRET, get_identity_headers
 from .tsp_sign import auth_headers, sign_body
 from .vehicle_commands import COMMAND_SPECS, command_result
+from .permissions import UNKNOWN, adapt_command, normalize_permissions
 from .exceptions import (
     CheryEuropeAuthError,
     CheryEuropeConnectionError,
@@ -58,6 +61,7 @@ class CheryEuropeApi:
         self._t_user_id: str | None = None
         self._user_token: str | None = None
         self._task_ids: dict[str, tuple[str, float]] = {}
+        self._permissions: dict[int, int] = UNKNOWN
 
     async def _request(self, method: str, endpoint: str, **kwargs: Any) -> Any:
         """Perform an authenticated request with retry and token refresh."""
@@ -85,6 +89,16 @@ class CheryEuropeApi:
         self._user_token = str(user_token) if user_token else None
         _LOGGER.debug("Chery Europe TSP login succeeded")
 
+    @property
+    def t_user_id(self) -> str | None:
+        """Return the TSP user id after login."""
+        return self._t_user_id
+
+    @property
+    def channel_id(self) -> int:
+        """Return the BFF channel id used by this session."""
+        return self._channel_id
+
     async def _ensure_tsp_session(self) -> None:
         if self._t_user_id:
             return
@@ -102,26 +116,39 @@ class CheryEuropeApi:
 
     async def get_vehicle_status(self, vin: str) -> dict[str, Any] | None:
         """Return live telemetry for a vehicle from tspconsole realtime."""
+        return await self._tsp_query_payload(API_REALTIME_PATH, vin)
+
+    async def get_vehicle_location(self, vin: str) -> dict[str, Any] | None:
+        """Return GPS coordinates from queryVehicleLocation when the car is awake."""
+        payload = await self._tsp_query_payload(API_QUERY_LOCATION_PATH, vin)
+        if payload:
+            return payload
+        return None
+
+    async def _tsp_query_payload(self, path: str, vin: str) -> dict[str, Any] | None:
+        """Return a tspconsole dict payload, or None when the vehicle is asleep."""
         await self._ensure_tsp_session()
         if not self._user_token:
-            _LOGGER.debug("Chery Europe TSP userToken missing; skipping realtime fetch")
+            _LOGGER.debug("Chery Europe TSP userToken missing; skipping %s", path)
             return None
 
-        response = await self._tsp_signed_post(API_REALTIME_PATH, {"vin": vin})
+        response = await self._tsp_signed_post(path, {"vin": vin})
         if not isinstance(response, dict):
             return None
 
         code = response.get("code")
         if code == TSP_CODE_ASLEEP:
-            _LOGGER.debug("Vehicle %s asleep (realtime code %s)", vin, code)
+            _LOGGER.debug("Vehicle %s asleep (%s code %s)", vin, path, code)
             return None
         if code not in (TSP_CODE_OK, 0, "0"):
-            _LOGGER.debug("Vehicle realtime returned code %s for %s", code, vin)
+            _LOGGER.debug("Vehicle %s returned code %s for %s", vin, code, path)
             return None
 
         payload = _extract_realtime_payload(response)
         if isinstance(payload, dict):
             return payload
+        if any(response.get(key) not in (None, "") for key in ("lat", "latitude", "lon", "longitude")):
+            return response
         return None
 
     async def send_command(
@@ -137,13 +164,33 @@ class CheryEuropeApi:
             raise CheryEuropeConnectionError(f"Unsupported command id: {command_id}")
 
         body = spec.build_body(kwargs)
+        endpoint, body = adapt_command(spec.endpoint, body, self._permissions)
         response = await self._send_vehicle_control(
             vin=vin,
             pin=pin,
-            endpoint=spec.endpoint,
+            endpoint=endpoint,
             body=body,
         )
         return command_result(response)
+
+    async def get_vehicle_authority(self, vin: str) -> dict[int, int]:
+        """Return the vehicle command permission map, or UNKNOWN on failure."""
+        await self._ensure_tsp_session()
+        try:
+            response = await self._request(
+                "POST",
+                API_VMC_QUERY_AUTHORITY_PATH,
+                json={
+                    "vin": vin,
+                    "tUserId": self._t_user_id,
+                    "channelId": self._channel_id,
+                },
+            )
+            self._permissions = normalize_permissions(response)
+        except Exception as exc:  # noqa: BLE001
+            _LOGGER.debug("Vehicle authority unavailable for %s: %s", vin, exc)
+            self._permissions = UNKNOWN
+        return self._permissions
 
     async def _send_vehicle_control(
         self,
@@ -262,7 +309,7 @@ class CheryEuropeApi:
                     url,
                     response.status,
                 )
-                if response.status == 401:
+                if response.status in {401, 424}:
                     raise CheryEuropeAuthError("TSP authentication failed")
                 if response.status == 429:
                     raise CheryEuropeRateLimitError("Rate limit exceeded")
@@ -379,6 +426,10 @@ class CheryEuropeApi:
                     )
                 if response.status == 401:
                     raise CheryEuropeAuthError("Authentication failed")
+                if response.status == 424:
+                    raise CheryEuropeAuthError(
+                        "Chery Europe session expired; sign in again"
+                    )
                 if response.status == 429:
                     raise CheryEuropeRateLimitError("Rate limit exceeded")
                 if response.status >= 400:

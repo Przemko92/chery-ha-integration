@@ -6,7 +6,7 @@ from typing import Any
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorEntityDescription, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import PERCENTAGE, UnitOfLength, UnitOfPressure, UnitOfTemperature, UnitOfVolume
+from homeassistant.const import PERCENTAGE, UnitOfLength, UnitOfPressure, UnitOfTemperature, UnitOfTime, UnitOfVolume
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -135,6 +135,33 @@ SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
         icon="mdi:gas-station",
         native_unit_of_measurement="L/100km",
         value_fn=lambda data: data.average_fuel_consumption,
+    ),
+    CheryEuropeSensorEntityDescription(
+        key="remain_charge_time",
+        name="Remaining charge time",
+        translation_key="remain_charge_time",
+        device_class=SensorDeviceClass.DURATION,
+        native_unit_of_measurement=UnitOfTime.MINUTES,
+        icon="mdi:timer-sand",
+        value_fn=lambda data: data.remain_charge_time_min,
+    ),
+    CheryEuropeSensorEntityDescription(
+        key="charge_status",
+        name="Charge status",
+        translation_key="charge_status",
+        device_class=SensorDeviceClass.ENUM,
+        options=["not_charging", "charging", "charge_complete"],
+        icon="mdi:ev-station",
+        value_fn=lambda data: data.charge_status,
+    ),
+    CheryEuropeSensorEntityDescription(
+        key="appointment_charge_status",
+        name="Scheduled charging status",
+        translation_key="appointment_charge_status",
+        device_class=SensorDeviceClass.ENUM,
+        options=["off", "enabled", "running"],
+        icon="mdi:calendar-clock",
+        value_fn=lambda data: data.appointment_charge_status,
     ),
     CheryEuropeSensorEntityDescription(
         key="vehicle_nickname",
