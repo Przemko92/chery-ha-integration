@@ -108,6 +108,9 @@ class CheryData:
     remain_charge_time_min: float | None = None
     charge_status: str | None = None
     appointment_charge_status: str | None = None
+    command_status: str | None = None
+    wake_status: str | None = None
+    probe_status: str | None = None
 
     @classmethod
     def from_api_response(cls, response: dict[str, Any] | VehicleStatus | None) -> CheryData:

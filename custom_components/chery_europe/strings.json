@@ -48,7 +48,10 @@
       "init": {
         "title": "Chery Europe options",
         "data": {
-          "pin": "Vehicle control PIN"
+          "pin": "Vehicle control PIN",
+          "poll_normal_min": "Update interval when parked (minutes, 0 = off)",
+          "poll_charging_min": "Update interval when charging (minutes, 0 = use parked interval)",
+          "poll_hv_min": "Update interval when HV is on (minutes, 0 = use parked interval)"
         }
       }
     }
@@ -130,6 +133,15 @@
       },
       "climate_max_temperature": {
         "name": "Climate maximum temperature"
+      },
+      "command_status": {
+        "name": "Command result"
+      },
+      "wake_status": {
+        "name": "Wake result"
+      },
+      "probe_status": {
+        "name": "Position probe result"
       },
       "tire_temperature_front_left": {
         "name": "Front left tire temperature"
@@ -275,6 +287,15 @@
       },
       "find_car": {
         "name": "Find car"
+      },
+      "wake": {
+        "name": "Wake vehicle"
+      },
+      "refresh_position": {
+        "name": "Refresh position"
+      },
+      "refresh_full_status": {
+        "name": "Refresh full status"
       }
     },
     "device_tracker": {

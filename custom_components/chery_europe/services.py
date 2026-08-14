@@ -97,12 +97,20 @@ def async_setup_services(hass: HomeAssistant) -> None:
                     )
                 )
 
+            if hasattr(coordinator, "_update_status"):
+                coordinator._update_status(
+                    command_status=f"Command sent ✅ ({call.data[ATTR_COMMAND_ID]})"
+                )
             coordinator.schedule_refresh_after_command()
         except HomeAssistantError:
             raise
-        except CheryEuropeException:
+        except CheryEuropeException as exc:
+            if hasattr(coordinator, "_update_status"):
+                coordinator._update_status(command_status=f"Command failed ❌: {exc}")
             raise
         except Exception as err:  # noqa: BLE001
+            if hasattr(coordinator, "_update_status"):
+                coordinator._update_status(command_status="Command failed ❌: network error")
             _LOGGER.exception("Unexpected Chery Europe command failure")
             raise HomeAssistantError("Failed to send Chery Europe command") from err
         return {"success": True}

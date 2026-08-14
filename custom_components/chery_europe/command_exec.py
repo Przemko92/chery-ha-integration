@@ -44,10 +44,16 @@ async def async_send_vehicle_command(
                     **command_kwargs,
                 )
             )
+        if hasattr(coordinator, "_update_status"):
+            coordinator._update_status(command_status=f"Command sent ✅ ({command_id})")
         coordinator.schedule_refresh_after_command()
         if command_id == "ve_1209":
             coordinator.schedule_location_refresh()
-    except CheryEuropeException:
+    except CheryEuropeException as exc:
+        if hasattr(coordinator, "_update_status"):
+            coordinator._update_status(command_status=f"Command failed ❌: {exc}")
         raise
     except Exception as err:  # noqa: BLE001
+        if hasattr(coordinator, "_update_status"):
+            coordinator._update_status(command_status="Command failed ❌: network error")
         raise HomeAssistantError("Failed to send Chery Europe command") from err

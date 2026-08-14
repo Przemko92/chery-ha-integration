@@ -1,0 +1,103 @@
+blueprint:
+  name: Chery Europe — Failed command alert
+  description: >
+    Shows a popup in Home Assistant (and, if you want, sends a push notification) when a
+    command sent to the car through the **Chery Europe** integration does not go
+    through: vehicle busy, car unreachable, rate limit, network error, expired session,
+    or any other fault reported by the car.
+
+
+    It recognises real failures only: successful results (✅) and intermediate steps
+    are ignored, so no false alarms. Messages with ⏳ are treated as in-progress, not
+    failures.
+
+
+    The popup uses a fixed id, so repeated failures update the same notification instead
+    of stacking up, and it **dismisses itself** as soon as a command succeeds.
+  domain: automation
+  author: Chery Europe
+  homeassistant:
+    min_version: 2024.10.0
+  input:
+    esito_sensor:
+      name: "\"Command result\" sensor"
+      description: >
+        The integration sensor that reports the result of the last command.
+        Pick the diagnostic sensor named "Command result" on your vehicle device.
+      selector:
+        entity:
+          integration: chery_europe
+          domain: sensor
+    popup_ha:
+      name: Popup in Home Assistant
+      description: >
+        Creates a persistent notification, visible in HA (app and browser).
+      default: true
+      selector:
+        boolean: {}
+    push_service:
+      name: Push notification (optional)
+      description: >
+        Optional notify service, for example `notify.mobile_app_my_phone`.
+        Leave empty for no push.
+      default: ""
+      selector:
+        text: {}
+
+mode: queued
+max: 10
+max_exceeded: silent
+
+triggers:
+  - trigger: state
+    entity_id: !input esito_sensor
+
+variables:
+  esito: "{{ trigger.to_state.state if trigger is defined and trigger.to_state is defined else '' }}"
+  riuscito: "{{ '✅' in esito }}"
+  fallito: >
+    {{ esito not in ['unknown', 'unavailable', ''] and not riuscito and (
+         '❌' in esito or '🚫' in esito
+         or 'failed' in esito or 'fallit' in esito
+         or 'network error' in esito) }}
+  popup_ha: !input popup_ha
+  push_service: !input push_service
+
+conditions:
+  - condition: template
+    value_template: "{{ fallito or riuscito }}"
+
+actions:
+  - if:
+      - condition: template
+        value_template: "{{ riuscito }}"
+    then:
+      - action: persistent_notification.dismiss
+        data:
+          notification_id: chery_europe_command_failed
+    else:
+      - if:
+          - condition: template
+            value_template: "{{ popup_ha }}"
+        then:
+          - action: persistent_notification.create
+            data:
+              notification_id: chery_europe_command_failed
+              title: "❌ Chery command failed"
+              message: >
+                **{{ esito }}**
+
+
+                Try again in a few seconds. If the car is busy, wait for the previous
+                command to finish. If the session expired, re-authenticate the integration.
+
+
+                _updated at {{ now().strftime('%H:%M:%S') }}_
+      - if:
+          - condition: template
+            value_template: "{{ push_service | trim != '' }}"
+        then:
+          - action: "{{ push_service }}"
+            data:
+              title: "❌ Chery command failed"
+              message: "{{ esito }}"

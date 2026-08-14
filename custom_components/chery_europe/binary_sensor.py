@@ -11,6 +11,7 @@ from homeassistant.components.binary_sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.restore_state import RestoreEntity
 
 from .coordinator import CheryEuropeDataUpdateCoordinator
 from .data import CheryData
@@ -155,7 +156,7 @@ async def async_setup_entry(
     )
 
 
-class CheryEuropeBinarySensor(CheryEuropeEntity, BinarySensorEntity):
+class CheryEuropeBinarySensor(CheryEuropeEntity, BinarySensorEntity, RestoreEntity):
     """Representation of a Chery Europe vehicle binary sensor."""
 
     entity_description: CheryEuropeBinarySensorEntityDescription
@@ -171,13 +172,27 @@ class CheryEuropeBinarySensor(CheryEuropeEntity, BinarySensorEntity):
         self._attr_translation_key = description.translation_key
         vin = self.chery_data.vin or entry.entry_id
         self._attr_unique_id = f"{vin}_{description.key}"
+        self._restored: bool | None = None
+        self._last_known: bool | None = None
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        last = await self.async_get_last_state()
+        if last is not None and last.state in ("on", "off"):
+            self._restored = last.state == "on"
 
     @property
     def is_on(self) -> bool | None:
         """Return the binary sensor state from coordinator data."""
-        if self.coordinator.data is None:
-            return None
-        try:
-            return self.entity_description.value_fn(self.chery_data)
-        except (KeyError, TypeError, ValueError, AttributeError):
-            return None
+        live = None
+        if self.coordinator.data is not None:
+            try:
+                live = self.entity_description.value_fn(self.chery_data)
+            except (KeyError, TypeError, ValueError, AttributeError):
+                live = None
+        if live is not None:
+            self._last_known = live
+            return live
+        if self._last_known is not None:
+            return self._last_known
+        return self._restored

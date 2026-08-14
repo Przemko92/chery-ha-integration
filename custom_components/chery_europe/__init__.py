@@ -92,7 +92,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     entry.runtime_data = coordinator
     await coordinator.async_start_live_updates()
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    entry.async_on_unload(entry.add_update_listener(_async_options_updated))
     return True
+
+
+async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Apply polling option changes without reloading the whole integration."""
+    coordinator = entry.runtime_data
+    if coordinator is None:
+        return
+    coordinator.update_poll_options(entry.options)
+    if coordinator.data is not None:
+        coordinator._apply_scan_interval(coordinator.data)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

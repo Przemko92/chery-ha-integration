@@ -4,7 +4,13 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorEntityDescription, SensorStateClass
+from homeassistant.components.sensor import (
+    RestoreSensor,
+    SensorDeviceClass,
+    SensorEntity,
+    SensorEntityDescription,
+    SensorStateClass,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import PERCENTAGE, UnitOfLength, UnitOfPressure, UnitOfTemperature, UnitOfTime, UnitOfVolume
 from homeassistant.core import HomeAssistant
@@ -247,6 +253,33 @@ SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
     ),
 )
 
+STATUS_SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
+    CheryEuropeSensorEntityDescription(
+        key="command_status",
+        name="Command result",
+        translation_key="command_status",
+        icon="mdi:car-cog",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda data: data.command_status,
+    ),
+    CheryEuropeSensorEntityDescription(
+        key="wake_status",
+        name="Wake result",
+        translation_key="wake_status",
+        icon="mdi:car-connected",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda data: data.wake_status,
+    ),
+    CheryEuropeSensorEntityDescription(
+        key="probe_status",
+        name="Position probe result",
+        translation_key="probe_status",
+        icon="mdi:crosshairs-gps",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda data: data.probe_status,
+    ),
+)
+
 
 def _tire_pressure(data: CheryData, key: str) -> float | None:
     """Return a tire pressure by normalized tire position key."""
@@ -269,15 +302,51 @@ async def async_setup_entry(
 ) -> None:
     """Set up Chery Europe sensors from a config entry."""
     coordinator: CheryEuropeDataUpdateCoordinator = entry.runtime_data
-    async_add_entities(
-        CheryEuropeSensor(coordinator, description, entry) for description in SENSOR_DESCRIPTIONS
+    entities = [
+        CheryEuropeSensor(coordinator, description, entry)
+        for description in SENSOR_DESCRIPTIONS
+    ]
+    entities.extend(
+        CheryEuropeStatusSensor(coordinator, description, entry)
+        for description in STATUS_SENSOR_DESCRIPTIONS
     )
+    async_add_entities(entities)
 
 
-class CheryEuropeSensor(CheryEuropeEntity, SensorEntity):
-    """Representation of a Chery Europe vehicle sensor."""
+class _CheryEuropeRestoreSensor(CheryEuropeEntity, RestoreSensor):
+    """Sensor that keeps the last known value across HA restarts."""
 
     entity_description: CheryEuropeSensorEntityDescription
+    _restored: StateType = None
+    _last_known: StateType = None
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        last = await self.async_get_last_sensor_data()
+        if last is not None:
+            self._restored = last.native_value
+
+    def _live_value(self) -> StateType:
+        if self.coordinator.data is None:
+            return None
+        try:
+            return self.entity_description.value_fn(self.chery_data)
+        except (KeyError, TypeError, ValueError, AttributeError):
+            return None
+
+    @property
+    def native_value(self) -> StateType:
+        live = self._live_value()
+        if live is not None:
+            self._last_known = live
+            return live
+        if self._last_known is not None:
+            return self._last_known
+        return self._restored
+
+
+class CheryEuropeSensor(_CheryEuropeRestoreSensor):
+    """Representation of a Chery Europe vehicle sensor."""
 
     def __init__(
         self,
@@ -294,12 +363,7 @@ class CheryEuropeSensor(CheryEuropeEntity, SensorEntity):
     @property
     def native_value(self) -> StateType:
         """Return the sensor value from coordinator data."""
-        if self.coordinator.data is None:
-            return None
-        try:
-            value = self.entity_description.value_fn(self.chery_data)
-        except (KeyError, TypeError, ValueError, AttributeError):
-            return None
+        value = super().native_value
         if value is None:
             return None
         if isinstance(value, str):
@@ -328,6 +392,21 @@ class CheryEuropeSensor(CheryEuropeEntity, SensorEntity):
     def available(self) -> bool:
         """Return if entity data is available."""
         return self.coordinator.data is not None and super().available
+
+
+class CheryEuropeStatusSensor(_CheryEuropeRestoreSensor):
+    """Diagnostic text sensor for command/wake/probe results."""
+
+    def __init__(
+        self,
+        coordinator: CheryEuropeDataUpdateCoordinator,
+        description: CheryEuropeSensorEntityDescription,
+        entry: ConfigEntry,
+    ) -> None:
+        super().__init__(coordinator, description, entry)
+        self._attr_translation_key = description.translation_key
+        vin = self.chery_data.vin or entry.entry_id
+        self._attr_unique_id = f"{vin}_{description.key}"
 
 
 # Backwards compatibility alias for tests and external consumers

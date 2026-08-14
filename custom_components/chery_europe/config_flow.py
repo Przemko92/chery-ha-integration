@@ -18,7 +18,13 @@ from .const import (
     CONF_CODE,
     CONF_LOGIN,
     CONF_PIN,
+    CONF_POLL_CHARGING,
+    CONF_POLL_HV,
+    CONF_POLL_NORMAL,
     DEFAULT_BASE_URL,
+    DEFAULT_POLL_CHARGING_MIN,
+    DEFAULT_POLL_HV_MIN,
+    DEFAULT_POLL_NORMAL_MIN,
     DOMAIN,
 )
 from .exceptions import (
@@ -259,14 +265,29 @@ class CheryEuropeOptionsFlowHandler(OptionsFlow):
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
+        options = self._config_entry.options or {}
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema(
                 {
                     vol.Required(
                         CONF_PIN,
-                        default=self._config_entry.options.get(CONF_PIN, ""),
+                        default=options.get(CONF_PIN, ""),
                     ): cv.string,
+                    vol.Optional(
+                        CONF_POLL_NORMAL,
+                        default=options.get(CONF_POLL_NORMAL, DEFAULT_POLL_NORMAL_MIN),
+                    ): vol.All(vol.Coerce(int), vol.Range(min=0, max=1440)),
+                    vol.Optional(
+                        CONF_POLL_CHARGING,
+                        default=options.get(
+                            CONF_POLL_CHARGING, DEFAULT_POLL_CHARGING_MIN
+                        ),
+                    ): vol.All(vol.Coerce(int), vol.Range(min=0, max=1440)),
+                    vol.Optional(
+                        CONF_POLL_HV,
+                        default=options.get(CONF_POLL_HV, DEFAULT_POLL_HV_MIN),
+                    ): vol.All(vol.Coerce(int), vol.Range(min=0, max=1440)),
                 }
             ),
         )

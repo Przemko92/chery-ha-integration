@@ -48,7 +48,10 @@
       "init": {
         "title": "Opcje Chery Europe",
         "data": {
-          "pin": "PIN do sterowania pojazdem"
+          "pin": "PIN do sterowania pojazdem",
+          "poll_normal_min": "Interwał odświeżania na postoju (minuty, 0 = wył.)",
+          "poll_charging_min": "Interwał podczas ładowania (minuty, 0 = użyj postoju)",
+          "poll_hv_min": "Interwał przy włączonym HV (minuty, 0 = użyj postoju)"
         }
       }
     }
@@ -130,6 +133,15 @@
       },
       "climate_max_temperature": {
         "name": "Maksymalna temperatura klimatyzacji"
+      },
+      "command_status": {
+        "name": "Wynik komendy"
+      },
+      "wake_status": {
+        "name": "Wynik wybudzenia"
+      },
+      "probe_status": {
+        "name": "Wynik odczytu pozycji"
       },
       "tire_temperature_front_left": {
         "name": "Temperatura przedniej lewej opony"
@@ -275,6 +287,15 @@
       },
       "find_car": {
         "name": "Znajdź auto"
+      },
+      "wake": {
+        "name": "Wybudź auto"
+      },
+      "refresh_position": {
+        "name": "Odśwież pozycję"
+      },
+      "refresh_full_status": {
+        "name": "Odśwież pełny status"
       }
     },
     "device_tracker": {

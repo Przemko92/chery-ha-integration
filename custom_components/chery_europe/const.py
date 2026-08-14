@@ -53,6 +53,15 @@ CONF_CLIENT_ID = "client_id"
 CONF_CLIENT_SECRET = "client_secret"
 CONF_DEVICE_ID = "device_id"
 CONF_PIN = "pin"
+CONF_POLL_NORMAL = "poll_normal_min"
+CONF_POLL_CHARGING = "poll_charging_min"
+CONF_POLL_HV = "poll_hv_min"
+
+DEFAULT_POLL_NORMAL_MIN = 15
+DEFAULT_POLL_CHARGING_MIN = 2
+DEFAULT_POLL_HV_MIN = 1
+REFRESH_HV_WAIT_SECONDS = 25
+STATUS_MAX_LEN = 255
 
 # Login identity prefix used by the legend BFF email OTP grant.
 LOGIN_MODULE = "APP-LOGIN"

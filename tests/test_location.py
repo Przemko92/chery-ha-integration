@@ -45,7 +45,9 @@ def _coordinator(api=None):
             hass, api or SimpleNamespace(), entry, None
         )
     coordinator.hass = hass
-    coordinator.async_set_updated_data = Mock()
+    coordinator.async_set_updated_data = Mock(
+        side_effect=lambda data: setattr(coordinator, "data", data) or data
+    )
     coordinator.data = CheryData(vin=VIN)
     return coordinator
 
