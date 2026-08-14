@@ -1,0 +1,231 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Konfiguracja Chery Europe",
+        "description": "Podaj adres e-mail zarejestrowany w aplikacji Chery Europe. Na ten adres zostanie wysłany jednorazowy kod logowania.",
+        "data": {
+          "login": "E-mail"
+        }
+      },
+      "code": {
+        "title": "Wpisz kod logowania",
+        "description": "Wpisz kod logowania wysłany na adres {email}.",
+        "data": {
+          "code": "Kod logowania"
+        }
+      },
+      "pin": {
+        "title": "PIN do sterowania pojazdem",
+        "description": "Wpisz PIN używany w aplikacji Chery Europe do zdalnych poleceń (zamek, klimatyzacja itd.).",
+        "data": {
+          "pin": "PIN pojazdu"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Ponowne logowanie Chery Europe",
+        "description": "Wyślij nowy kod logowania, aby ponownie uwierzytelnić konto Chery Europe.",
+        "data": {
+          "login": "E-mail"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Nieprawidłowy lub wygasły kod logowania.",
+      "otp_send_failed": "Nie udało się wysłać kodu logowania. Sprawdź adres e-mail i spróbuj ponownie.",
+      "captcha_failed": "Weryfikacja captcha nie powiodła się. Spróbuj ponownie.",
+      "cannot_connect": "Nie można połączyć się z Chery Europe. Sprawdź połączenie internetowe.",
+      "rate_limit": "Przekroczony limit zapytań. Poczekaj przed kolejną próbą.",
+      "unknown": "Wystąpił nieoczekiwany błąd. Spróbuj ponownie później."
+    },
+    "abort": {
+      "already_configured": "To konto Chery Europe jest już skonfigurowane.",
+      "reauth_successful": "Ponowne logowanie zakończone sukcesem."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opcje Chery Europe",
+        "data": {
+          "pin": "PIN do sterowania pojazdem"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "battery_level": {
+        "name": "Poziom baterii"
+      },
+      "fuel_level": {
+        "name": "Pozostałe paliwo"
+      },
+      "range": {
+        "name": "Zasięg"
+      },
+      "tire_pressure_front_left": {
+        "name": "Ciśnienie przedniej lewej opony"
+      },
+      "tire_pressure_front_right": {
+        "name": "Ciśnienie przedniej prawej opony"
+      },
+      "tire_pressure_rear_left": {
+        "name": "Ciśnienie tylnej lewej opony"
+      },
+      "tire_pressure_rear_right": {
+        "name": "Ciśnienie tylnej prawej opony"
+      },
+      "odometer": {
+        "name": "Przebieg"
+      },
+      "electric_range": {
+        "name": "Zasięg elektryczny"
+      },
+      "electric_odometer": {
+        "name": "Przebieg na prądzie"
+      },
+      "fuel_range": {
+        "name": "Zasięg na paliwie"
+      },
+      "power_consumption": {
+        "name": "Zużycie prądu"
+      },
+      "fuel_consumption": {
+        "name": "Spalanie"
+      },
+      "vehicle_nickname": {
+        "name": "Nazwa pojazdu"
+      },
+      "vehicle_full_name": {
+        "name": "Model pojazdu"
+      },
+      "vehicle_color": {
+        "name": "Kolor pojazdu"
+      },
+      "vehicle_picture": {
+        "name": "Zdjęcie pojazdu"
+      },
+      "climate_min_temperature": {
+        "name": "Minimalna temperatura klimatyzacji"
+      },
+      "climate_max_temperature": {
+        "name": "Maksymalna temperatura klimatyzacji"
+      },
+      "tire_temperature_front_left": {
+        "name": "Temperatura przedniej lewej opony"
+      },
+      "tire_temperature_front_right": {
+        "name": "Temperatura przedniej prawej opony"
+      },
+      "tire_temperature_rear_left": {
+        "name": "Temperatura tylnej lewej opony"
+      },
+      "tire_temperature_rear_right": {
+        "name": "Temperatura tylnej prawej opony"
+      }
+    },
+    "binary_sensor": {
+      "online": {
+        "name": "Online"
+      },
+      "charging": {
+        "name": "Ładowanie"
+      },
+      "appointment_charging": {
+        "name": "Zaplanowane ładowanie"
+      },
+      "charge_gun_connected": {
+        "name": "Kabel ładowania podłączony"
+      },
+      "fast_charge_gun_connected": {
+        "name": "Szybka ładowarka podłączona"
+      },
+      "engine": {
+        "name": "Silnik"
+      },
+      "high_voltage": {
+        "name": "Układ wysokiego napięcia"
+      },
+      "steering_wheel_heating": {
+        "name": "Ogrzewanie kierownicy"
+      },
+      "air_purification": {
+        "name": "Oczyszczanie powietrza"
+      },
+      "sunroof": {
+        "name": "Szyberdach"
+      },
+      "door_front_left": {
+        "name": "Drzwi przednie lewe"
+      },
+      "door_front_right": {
+        "name": "Drzwi przednie prawe"
+      },
+      "door_rear_left": {
+        "name": "Drzwi tylne lewe"
+      },
+      "door_rear_right": {
+        "name": "Drzwi tylne prawe"
+      },
+      "trunk": {
+        "name": "Bagażnik"
+      },
+      "window_front_left": {
+        "name": "Szyba przednia lewa"
+      },
+      "window_front_right": {
+        "name": "Szyba przednia prawa"
+      },
+      "window_rear_left": {
+        "name": "Szyba tylna lewa"
+      },
+      "window_rear_right": {
+        "name": "Szyba tylna prawa"
+      },
+      "driver_seat_heating": {
+        "name": "Ogrzewanie fotela kierowcy"
+      },
+      "passenger_seat_heating": {
+        "name": "Ogrzewanie fotela pasażera"
+      },
+      "driver_seat_ventilation": {
+        "name": "Wentylacja fotela kierowcy"
+      },
+      "passenger_seat_ventilation": {
+        "name": "Wentylacja fotela pasażera"
+      }
+    },
+    "switch": {
+      "front_windshield_heating": {
+        "name": "Ogrzewanie przedniej szyby"
+      },
+      "charging": {
+        "name": "Ładowanie"
+      },
+      "scheduled_charging": {
+        "name": "Zaplanowane ładowanie"
+      }
+    },
+    "time": {
+      "charge_start_time": {
+        "name": "Godzina rozpoczęcia ładowania"
+      }
+    },
+    "number": {
+      "charge_duration_hours": {
+        "name": "Czas trwania ładowania"
+      }
+    },
+    "lock": {
+      "doors": {
+        "name": "Drzwi"
+      }
+    },
+    "climate": {
+      "hvac": {
+        "name": "Klimatyzacja"
+      }
+    }
+  }
+}

@@ -1,0 +1,25 @@
+send_command:
+  name: Send command
+  description: Send a remote command to a Chery Europe vehicle. The PIN is only used for this call and is not stored.
+  fields:
+    vin:
+      name: VIN
+      description: Vehicle identification number for the target vehicle.
+      required: true
+      example: "LVVDB21B0PD123456"
+      selector:
+        text:
+    command_id:
+      name: Command ID
+      description: Chery Europe remote command identifier to send, for example ve_1101 for horn.
+      required: true
+      example: "ve_1101"
+      selector:
+        text:
+    pin:
+      name: PIN
+      description: Vehicle remote-control PIN. It is sent to Chery Europe and is not stored by Home Assistant.
+      required: true
+      selector:
+        text:
+          type: password

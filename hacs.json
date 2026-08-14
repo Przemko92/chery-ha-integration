@@ -1,0 +1,10 @@
+{
+  "name": "Chery Europe",
+  "content_in_root": false,
+  "country": [
+    "PL",
+    "EU"
+  ],
+  "homeassistant": "2026.5.4",
+  "render_readme": true
+}

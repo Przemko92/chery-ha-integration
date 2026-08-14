@@ -1,0 +1,231 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Chery Europe Setup",
+        "description": "Enter the email address registered in the Chery Europe app. A one-time login code will be sent to that address.",
+        "data": {
+          "login": "Email"
+        }
+      },
+      "code": {
+        "title": "Enter login code",
+        "description": "Enter the login code sent to {email}.",
+        "data": {
+          "code": "Login code"
+        }
+      },
+      "pin": {
+        "title": "Vehicle control PIN",
+        "description": "Enter the PIN used in the Chery Europe app for remote commands (lock, climate, etc.).",
+        "data": {
+          "pin": "Vehicle PIN"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Reauthenticate Chery Europe",
+        "description": "Send a new login code to reauthenticate your Chery Europe account.",
+        "data": {
+          "login": "Email"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Invalid or expired login code.",
+      "otp_send_failed": "Could not send the login code. Check the email address and try again.",
+      "captcha_failed": "Captcha verification failed. Please try again.",
+      "cannot_connect": "Unable to connect to Chery Europe. Check your internet connection.",
+      "rate_limit": "Rate limit exceeded. Please wait before trying again.",
+      "unknown": "An unexpected error occurred. Please try again later."
+    },
+    "abort": {
+      "already_configured": "This Chery Europe account is already configured.",
+      "reauth_successful": "Reauthentication successful."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Chery Europe options",
+        "data": {
+          "pin": "Vehicle control PIN"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "battery_level": {
+        "name": "Battery level"
+      },
+      "fuel_level": {
+        "name": "Fuel remaining"
+      },
+      "range": {
+        "name": "Range"
+      },
+      "tire_pressure_front_left": {
+        "name": "Front left tire pressure"
+      },
+      "tire_pressure_front_right": {
+        "name": "Front right tire pressure"
+      },
+      "tire_pressure_rear_left": {
+        "name": "Rear left tire pressure"
+      },
+      "tire_pressure_rear_right": {
+        "name": "Rear right tire pressure"
+      },
+      "odometer": {
+        "name": "Odometer"
+      },
+      "electric_range": {
+        "name": "Electric range"
+      },
+      "electric_odometer": {
+        "name": "Electric odometer"
+      },
+      "fuel_range": {
+        "name": "Fuel range"
+      },
+      "power_consumption": {
+        "name": "Power consumption"
+      },
+      "fuel_consumption": {
+        "name": "Fuel consumption"
+      },
+      "vehicle_nickname": {
+        "name": "Vehicle nickname"
+      },
+      "vehicle_full_name": {
+        "name": "Vehicle model"
+      },
+      "vehicle_color": {
+        "name": "Vehicle color"
+      },
+      "vehicle_picture": {
+        "name": "Vehicle picture"
+      },
+      "climate_min_temperature": {
+        "name": "Climate minimum temperature"
+      },
+      "climate_max_temperature": {
+        "name": "Climate maximum temperature"
+      },
+      "tire_temperature_front_left": {
+        "name": "Front left tire temperature"
+      },
+      "tire_temperature_front_right": {
+        "name": "Front right tire temperature"
+      },
+      "tire_temperature_rear_left": {
+        "name": "Rear left tire temperature"
+      },
+      "tire_temperature_rear_right": {
+        "name": "Rear right tire temperature"
+      }
+    },
+    "binary_sensor": {
+      "online": {
+        "name": "Online"
+      },
+      "charging": {
+        "name": "Charging"
+      },
+      "appointment_charging": {
+        "name": "Scheduled charging"
+      },
+      "charge_gun_connected": {
+        "name": "Charge cable connected"
+      },
+      "fast_charge_gun_connected": {
+        "name": "Fast charger connected"
+      },
+      "engine": {
+        "name": "Engine"
+      },
+      "high_voltage": {
+        "name": "High voltage system"
+      },
+      "steering_wheel_heating": {
+        "name": "Steering wheel heating"
+      },
+      "air_purification": {
+        "name": "Air purification"
+      },
+      "sunroof": {
+        "name": "Sunroof"
+      },
+      "door_front_left": {
+        "name": "Front left door"
+      },
+      "door_front_right": {
+        "name": "Front right door"
+      },
+      "door_rear_left": {
+        "name": "Rear left door"
+      },
+      "door_rear_right": {
+        "name": "Rear right door"
+      },
+      "trunk": {
+        "name": "Trunk"
+      },
+      "window_front_left": {
+        "name": "Front left window"
+      },
+      "window_front_right": {
+        "name": "Front right window"
+      },
+      "window_rear_left": {
+        "name": "Rear left window"
+      },
+      "window_rear_right": {
+        "name": "Rear right window"
+      },
+      "driver_seat_heating": {
+        "name": "Driver seat heating"
+      },
+      "passenger_seat_heating": {
+        "name": "Passenger seat heating"
+      },
+      "driver_seat_ventilation": {
+        "name": "Driver seat ventilation"
+      },
+      "passenger_seat_ventilation": {
+        "name": "Passenger seat ventilation"
+      }
+    },
+    "switch": {
+      "front_windshield_heating": {
+        "name": "Front windshield heating"
+      },
+      "charging": {
+        "name": "Charging"
+      },
+      "scheduled_charging": {
+        "name": "Scheduled charging"
+      }
+    },
+    "time": {
+      "charge_start_time": {
+        "name": "Scheduled charging start time"
+      }
+    },
+    "number": {
+      "charge_duration_hours": {
+        "name": "Scheduled charging duration"
+      }
+    },
+    "lock": {
+      "doors": {
+        "name": "Doors"
+      }
+    },
+    "climate": {
+      "hvac": {
+        "name": "HVAC"
+      }
+    }
+  }
+}

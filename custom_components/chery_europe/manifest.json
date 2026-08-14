@@ -1,0 +1,17 @@
+{
+  "domain": "chery_europe",
+  "name": "Chery Europe",
+  "documentation": "https://github.com/Przemko92/home-assistant-chery-europe",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/Przemko92/home-assistant-chery-europe/issues",
+  "version": "0.2.0",
+  "config_flow": true,
+  "codeowners": [
+    "@Przemko92"
+  ],
+  "requirements": [
+    "gmssl>=3.2.2",
+    "numpy==2.2.0",
+    "Pillow==11.0.0"
+  ]
+}
