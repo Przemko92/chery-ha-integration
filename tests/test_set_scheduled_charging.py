@@ -3,7 +3,7 @@
 
 from datetime import time
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
@@ -65,22 +65,27 @@ def _make_hass():
 async def test_set_scheduled_charging_sends_ve_1202():
     hass, coordinator = _make_hass()
 
-    result = await hass.services.async_call(
-        DOMAIN,
-        SERVICE_SET_SCHEDULED_CHARGING,
-        {"start_time": "23:00:00", "duration_hours": 4},
-        blocking=True,
-    )
+    with patch(
+        "custom_components.chery_europe.services.local_time_to_utc_minutes",
+        return_value=1260,
+    ) as convert:
+        result = await hass.services.async_call(
+            DOMAIN,
+            SERVICE_SET_SCHEDULED_CHARGING,
+            {"start_time": "23:00:00", "duration_hours": 4},
+            blocking=True,
+        )
 
+    convert.assert_called_once()
     coordinator.api.send_command.assert_awaited_once_with(
         VIN,
         "ve_1202",
         PIN,
         enabled=True,
-        start_minutes=1380,
+        start_minutes=1260,
         duration_hours=4,
     )
-    assert coordinator.charge_start_minutes == 1380
+    assert coordinator.charge_start_minutes == 1260
     assert coordinator.charge_duration_hours == 4
     assert result == {
         "success": True,
@@ -94,16 +99,20 @@ async def test_set_scheduled_charging_sends_ve_1202():
 async def test_set_scheduled_charging_can_disable():
     hass, coordinator = _make_hass()
 
-    await hass.services.async_call(
-        DOMAIN,
-        SERVICE_SET_SCHEDULED_CHARGING,
-        {
-            "start_time": time(8, 0),
-            "duration_hours": 6,
-            "enabled": False,
-        },
-        blocking=True,
-    )
+    with patch(
+        "custom_components.chery_europe.services.local_time_to_utc_minutes",
+        return_value=480,
+    ):
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_SET_SCHEDULED_CHARGING,
+            {
+                "start_time": time(8, 0),
+                "duration_hours": 6,
+                "enabled": False,
+            },
+            blocking=True,
+        )
 
     call = coordinator.api.send_command.await_args
     assert call.kwargs["enabled"] is False

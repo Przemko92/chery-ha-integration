@@ -11,6 +11,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
+from .charge_schedule import format_utc_minutes_as_local
 from .command_exec import async_send_vehicle_command
 from .coordinator import CheryEuropeDataUpdateCoordinator
 from .data import CheryData
@@ -407,7 +408,7 @@ class CheryEuropeScheduledChargeSwitch(CheryEuropeEntity, SwitchEntity, RestoreE
         try:
             minutes = int(plan["startTime"])
             if 0 <= minutes < 1440:
-                attrs["vehicle_start_time"] = f"{minutes // 60:02d}:{minutes % 60:02d}"
+                attrs["vehicle_start_time"] = format_utc_minutes_as_local(minutes)
         except (KeyError, TypeError, ValueError):
             pass
         try:

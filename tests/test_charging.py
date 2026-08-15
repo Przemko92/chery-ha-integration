@@ -2,7 +2,7 @@
 """Tests for Chery Europe charging switches."""
 
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -50,9 +50,13 @@ def test_scheduled_charge_switch_reads_vehicle_plan():
     )
 
     assert switch.is_on is True
-    attrs = switch.extra_state_attributes
+    with patch(
+        "custom_components.chery_europe.switch.format_utc_minutes_as_local",
+        return_value="09:45",
+    ):
+        attrs = switch.extra_state_attributes
     assert attrs is not None
-    assert attrs["vehicle_start_time"] == "07:45"
+    assert attrs["vehicle_start_time"] == "09:45"
     assert attrs["vehicle_duration_hours"] == 6.0
 
 
