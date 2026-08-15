@@ -1,7 +1,13 @@
-# Chery Europe — Home Assistant integration / Integracja z Home Assistant
+# Chery Europe — Home Assistant integration
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+[![GitHub Release][releases-shield]][releases]
+[![GitHub Activity][commits-shield]][commits]
+
+[![hacs][hacsbadge]][hacs]
+[![BuyMeCoffee][buymecoffeebadge]][buymecoffee]
 
 > 🇬🇧 English version below · 🇵🇱 Polska wersja poniżej
 
@@ -363,3 +369,19 @@ szablon Chery Europe i wskaż sensor **Wynik komendy**.
 ### Licencja
 
 MIT — zobacz [LICENSE](LICENSE).
+
+[buymecoffee]: https://www.buymeacoffee.com/przemko92
+[buymecoffeebadge]: https://img.shields.io/badge/buy%20me%20a%20coffee-donate-yellow.svg?style=for-the-badge
+
+[maintainer]: https://github.com/Przemko92
+[maintainer-shield]: https://img.shields.io/badge/maintainer-%40Przemko92-blue.svg?style=for-the-badge
+
+[commits]: https://github.com/Przemko92/chery-ha-integration/commits/main
+[commits-shield]: https://img.shields.io/github/commit-activity/y/Przemko92/chery-ha-integration.svg?style=for-the-badge
+
+[hacs]: https://github.com/custom-components/hacs
+[hacsbadge]: https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge
+
+
+[releases]: https://github.com/Przemko92/chery-ha-integration/releases
+[releases-shield]: https://img.shields.io/github/release/Przemko92/chery-ha-integration.svg?style=for-the-badge
