@@ -79,6 +79,10 @@ The PIN is **not** written to logs or diagnostics.
 
 ### First login
 
+> **⚠️ Logging in here signs out the official mobile app** on the same account
+> (one active session). Prefer a **separate account with shared vehicle access**
+> for Home Assistant, and keep your main account for the phone app.
+
 1. Enter the **email** registered in the Chery Europe app.
 2. Receive a **one-time code** by email and enter it in Home Assistant.
 3. Enter the vehicle **remote-control PIN** (used for lock, climate, charging, etc.).
@@ -102,8 +106,10 @@ Also enable **Automatic updates** on the device page to allow background polling
 
 ### Daily use
 
-- **Do not use the official app** at the same time as the integration on the
-  same account — they can disconnect each other and may require a new OTP.
+- **Do not use the official app** on the same account as the integration —
+  logging into Home Assistant **signs out the mobile app**, and using the app
+  can disconnect the integration (new OTP may be needed). Prefer a **second
+  account with shared access** for Home Assistant.
 - Many values show `unknown` while the car is in **deep sleep**; restored
   values appear after a Home Assistant restart until fresh data arrives.
 - Battery and odometer refresh reliably when the car is **driving or charging**.
@@ -152,7 +158,8 @@ Chery Europe template and select the **Command result** sensor.
 - **One vehicle per account** — only the first vehicle from the cloud list is exposed.
 - **Unofficial API** — Chery may change the backend without notice.
 - **Deep sleep** — many commands and readings fail with “vehicle asleep” until the car wakes.
-- **Simultaneous app use** — the official app and this integration share one session.
+- **Simultaneous app use** — one session per account: HA login signs out the
+  official app. Use a separate account with shared vehicle access if you need both.
 
 ### Security & privacy
 
@@ -252,6 +259,10 @@ akcji. PIN **nie** trafia do logów ani diagnostyki.
 
 ### Pierwsze logowanie
 
+> **⚠️ Logowanie tutaj wyloguje oficjalną aplikację mobilną** na tym samym
+> koncie (jedna aktywna sesja). Zalecane jest **osobne konto z udostępnionym
+> dostępem** do pojazdu dla Home Assistant, a główne konto zostaw pod telefon.
+
 1. Wpisz **e-mail** zarejestrowany w aplikacji Chery Europe.
 2. Wpisz **kod jednorazowy** z wiadomości e-mail.
 3. Wpisz **PIN** do zdalnego sterowania pojazdem.
@@ -275,8 +286,10 @@ Włącz też **Automatyczne aktualizacje** na stronie urządzenia, żeby polling
 
 ### Codzienne użytkowanie
 
-- **Nie używaj oficjalnej aplikacji** równolegle z integracją na tym samym
-  koncie — mogą się wzajemnie rozłączać i wymagać nowego OTP.
+- **Nie używaj oficjalnej aplikacji** na tym samym koncie co integracja —
+  logowanie do Home Assistant **wyloguje aplikację mobilną**, a użycie appki
+  może rozłączyć integrację (może być potrzebny nowy OTP). Zalecane jest
+  **drugie konto z udostępnionym dostępem** pod Home Assistant.
 - Wiele wartości to `unknown`, gdy auto **śpi głęboko**; po restarcie HA
   widać ostatnie znane wartości do czasu świeżych danych.
 - Bateria i przebieg odświeżają się wiarygodnie w **jeździe lub przy ładowaniu**.
@@ -324,7 +337,8 @@ szablon Chery Europe i wskaż sensor **Wynik komendy**.
 - **Jeden pojazd na konto** — tylko pierwszy pojazd z listy w chmurze.
 - **Nieoficjalne API** — Chery może zmienić backend bez ostrzeżenia.
 - **Głęboki sen** — wiele komend i odczytów pada, dopóki auto nie obudzi.
-- **Równoległa aplikacja** — oficjalna app i integracja dzielą jedną sesję.
+- **Równoległa aplikacja** — jedna sesja na konto: logowanie w HA wyloguje
+  oficjalną app. Jeśli potrzebujesz obu, użyj osobnego konta z udostępnionym dostępem.
 
 ### Bezpieczeństwo i prywatność
 
