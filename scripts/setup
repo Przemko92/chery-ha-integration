@@ -15,4 +15,4 @@ CONSTRAINTS="$(
 python3 -m pip install \
     --constraint "${CONSTRAINTS}" \
     $(sed -n '3,79p' "${CONSTRAINTS}") \
-    numpy==2.3.2
+    numpy
