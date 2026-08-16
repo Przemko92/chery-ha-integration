@@ -11,13 +11,13 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback, async_get
 from .const import ATTR_COMMAND_ID, ATTR_PIN, ATTR_VIN, DOMAIN, SERVICE_SEND_COMMAND
 from .coordinator import CheryEuropeDataUpdateCoordinator
 from .entity import CheryEuropeEntity
-from .pin import resolve_pin
+from .pin import ask_for_pin, resolve_pin
 
 PARALLEL_UPDATES = 0
 
 LOCK_COMMAND_ID = "ve_1105"
 PIN_SCHEMA = cv.make_entity_service_schema(
-    {vol.Required(ATTR_PIN): vol.All(cv.string, vol.Length(min=1))}
+    {vol.Optional(ATTR_PIN): vol.All(cv.string, vol.Length(min=1))}
 )
 
 LOCK_DESCRIPTION = LockEntityDescription(
@@ -55,7 +55,6 @@ class CheryEuropeLock(CheryEuropeEntity, LockEntity):
     """Representation of Chery Europe vehicle door locks."""
 
     entity_description: LockEntityDescription
-    _attr_code_format = r".+"
     _attr_assumed_state = False
 
     def __init__(
@@ -69,6 +68,13 @@ class CheryEuropeLock(CheryEuropeEntity, LockEntity):
         self._attr_translation_key = description.translation_key
         vin = self.chery_data.vin or entry.entry_id
         self._attr_unique_id = f"{vin}_{description.key}_lock"
+
+    @property
+    def code_format(self) -> str | None:
+        """Require a code when Ask for PIN is enabled."""
+        if ask_for_pin(self._entry):
+            return r".+"
+        return None
 
     @property
     def is_locked(self) -> bool | None:  # type: ignore[reportIncompatibleVariableOverride]
@@ -94,7 +100,7 @@ class CheryEuropeLock(CheryEuropeEntity, LockEntity):
         await self._send_lock_command("unlock", kwargs)
 
     async def _send_lock_command(self, action: str, kwargs: dict[str, Any]) -> None:
-        """Call the Chery Europe command service without storing the PIN."""
+        """Call the Chery Europe command service with the resolved PIN."""
         pin = resolve_pin(self._entry, kwargs)
         vin = self.chery_data.vin
         if not vin:

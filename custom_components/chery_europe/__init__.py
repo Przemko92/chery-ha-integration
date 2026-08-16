@@ -21,7 +21,8 @@ from .exceptions import (
     CheryEuropeRateLimitError,
     CheryEuropeTimeoutError,
 )
-from .token_storage import read_client_secret, read_tokens
+from .token_storage import read_client_secret, read_token_expiry, read_tokens, write_tokens
+from .types.auth_models import AuthResponse
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -46,6 +47,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     client_id = entry.data.get(CONF_CLIENT_ID)
     client_secret = read_client_secret(entry)
+    expires_in, obtained_at = read_token_expiry(entry)
 
     session = async_get_clientsession(hass)
     auth = CheryEuropeAuth(
@@ -54,7 +56,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         client_id=client_id,
         client_secret=client_secret,
     )
-    auth.set_tokens(access_token, refresh_token)
+    auth.set_tokens(
+        access_token,
+        refresh_token,
+        expires_in=expires_in,
+        obtained_at=obtained_at,
+    )
 
     # Discover OAuth client_id/client_secret/channel at runtime. Vehicle API
     # calls always go through the public EU gateway, not the tspconsole host
@@ -76,12 +83,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             "Chery Europe env bootstrap failed; using fallback channel id and TSP host"
         )
 
+    def _persist_tokens(response: AuthResponse) -> None:
+        # Refresh tokens rotate on every use; losing them forces a new OTP.
+        write_tokens(
+            hass,
+            entry,
+            response,
+            client_secret=auth._resolve_client_secret(),
+            obtained_at=auth.token_obtained_at,
+        )
+
     api = CheryEuropeApi(
         auth,
         session,
         base_url=DEFAULT_BASE_URL,
         channel_id=channel_id,
         tsp_host=tsp_host,
+        on_tokens_updated=_persist_tokens,
     )
     coordinator = CheryEuropeDataUpdateCoordinator(
         hass, api, entry, DEFAULT_SCAN_INTERVAL

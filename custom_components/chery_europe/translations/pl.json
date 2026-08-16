@@ -3,39 +3,62 @@
     "step": {
       "user": {
         "title": "Konfiguracja Chery Europe",
+        "description": "Wybierz sposób logowania. Zalecane jest logowanie e-mailem. SMS wybierz tylko wtedy, gdy konto Chery Europe jest zarejestrowane na numer telefonu zamiast e-maila.",
+        "menu_options": {
+          "login_email": "Zaloguj e-mailem (zalecane)",
+          "login_phone": "Zaloguj numerem telefonu (SMS)"
+        }
+      },
+      "login_email": {
+        "title": "Logowanie e-mailem",
         "description": "Podaj adres e-mail zarejestrowany w aplikacji Chery Europe. Na ten adres zostanie wysłany jednorazowy kod logowania.",
         "data": {
           "login": "E-mail"
         }
       },
+      "login_phone": {
+        "title": "Logowanie telefonem (SMS)",
+        "description": "Podaj numer telefonu zarejestrowany w aplikacji Chery Europe oraz numer kierunkowy kraju w cyfrach (Polska = 48, bez +). Kod weryfikacyjny przyjdzie SMS-em. Jeśli konto ma e-mail, lepiej użyć logowania e-mailem.",
+        "data": {
+          "phone": "Numer telefonu (bez numeru kierunkowego)",
+          "area_code": "Numer kierunkowy kraju w cyfrach (np. 48)"
+        }
+      },
       "code": {
         "title": "Wpisz kod logowania",
-        "description": "Wpisz kod logowania wysłany na adres {email}.",
+        "description": "Wpisz kod logowania wysłany na {destination}.",
         "data": {
           "code": "Kod logowania"
         }
       },
       "pin": {
         "title": "PIN do sterowania pojazdem",
-        "description": "Wpisz PIN używany w aplikacji Chery Europe do zdalnych poleceń (zamek, klimatyzacja itd.).",
+        "description": "Wpisz PIN używany w aplikacji Chery Europe do zdalnych poleceń (zamek, klimatyzacja itd.). Podaj go dwa razy, żeby uniknąć pomyłki. Jest zawsze zapisywany w opcjach integracji. Włącz Pytaj o PIN, jeśli chcesz potwierdzać go przy każdej akcji.",
         "data": {
-          "pin": "PIN pojazdu"
+          "pin": "PIN pojazdu",
+          "pin_confirm": "Potwierdź PIN",
+          "ask_for_pin": "Pytaj o PIN"
         }
       },
       "reauth_confirm": {
         "title": "Ponowne logowanie Chery Europe",
-        "description": "Wyślij nowy kod logowania, aby ponownie uwierzytelnić konto Chery Europe.",
+        "description": "Wyślij nowy kod logowania na {destination}, aby ponownie uwierzytelnić konto Chery Europe.",
         "data": {
-          "login": "E-mail"
+          "login": "E-mail",
+          "phone": "Numer telefonu (bez numeru kierunkowego)",
+          "area_code": "Numer kierunkowy kraju w cyfrach (np. 48)"
         }
       }
     },
     "error": {
       "invalid_auth": "Nieprawidłowy lub wygasły kod logowania.",
-      "otp_send_failed": "Nie udało się wysłać kodu logowania. Sprawdź adres e-mail i spróbuj ponownie.",
+      "otp_send_failed": "Nie udało się wysłać kodu logowania. Sprawdź e-mail lub numer telefonu i spróbuj ponownie.",
+      "phone_invalid": "Nieprawidłowy numer telefonu lub kierunkowy. Podaj numer krajowy bez kierunkowego oraz kierunkowy tylko w cyfrach (np. 48).",
       "captcha_failed": "Weryfikacja captcha nie powiodła się. Spróbuj ponownie.",
       "cannot_connect": "Nie można połączyć się z Chery Europe. Sprawdź połączenie internetowe.",
       "rate_limit": "Przekroczony limit zapytań. Poczekaj przed kolejną próbą.",
+      "pin_mismatch": "Potwierdzenie PIN-u nie zgadza się.",
+      "pin_required": "PIN jest wymagany.",
       "unknown": "Wystąpił nieoczekiwany błąd. Spróbuj ponownie później."
     },
     "abort": {
@@ -48,10 +71,15 @@
       "init": {
         "title": "Opcje Chery Europe",
         "data": {
-          "pin": "PIN do sterowania pojazdem",
+          "pin": "PIN do sterowania pojazdem (pusty = wyczyść)",
+          "pin_confirm": "Potwierdź PIN (wymagane przy ustawianiu nowego PIN-u)",
+          "ask_for_pin": "Pytaj o PIN przy każdej akcji",
           "poll_normal_min": "Interwał odświeżania na postoju (minuty, 0 = wył.)",
           "poll_charging_min": "Interwał podczas ładowania (minuty, 0 = użyj postoju)",
           "poll_hv_min": "Interwał przy włączonym HV (minuty, 0 = użyj postoju)"
+        },
+        "error": {
+          "pin_mismatch": "Potwierdzenie PIN-u nie zgadza się."
         }
       }
     }

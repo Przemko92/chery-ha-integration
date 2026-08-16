@@ -93,3 +93,44 @@ async def test_coordinator_auth_failure_requests_reauth():
 
     with pytest.raises(ConfigEntryAuthFailed):
         await coordinator._async_update_data()
+
+
+@pytest.mark.asyncio
+async def test_keepalive_refreshes_near_expiry_token():
+    api = SimpleNamespace(ensure_fresh_token=AsyncMock(return_value=True))
+    coordinator = _coordinator(api)
+
+    await coordinator._async_keepalive(None)
+
+    api.ensure_fresh_token.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_keepalive_auth_error_does_not_raise():
+    api = SimpleNamespace(
+        ensure_fresh_token=AsyncMock(side_effect=CheryEuropeAuthError("revoked"))
+    )
+    coordinator = _coordinator(api)
+
+    await coordinator._async_keepalive(None)
+
+
+@pytest.mark.asyncio
+async def test_start_and_stop_keepalive_registers_timer():
+    api = SimpleNamespace()
+    coordinator = _coordinator(api)
+    unsub = Mock()
+
+    with patch(
+        "custom_components.chery_europe.coordinator.async_track_time_interval",
+        return_value=unsub,
+    ) as track:
+        coordinator.async_start_keepalive()
+        coordinator.async_start_keepalive()  # idempotent
+
+    track.assert_called_once()
+    assert coordinator._keepalive_unsub is unsub
+
+    await coordinator.async_stop_live_updates()
+    unsub.assert_called_once()
+    assert coordinator._keepalive_unsub is None

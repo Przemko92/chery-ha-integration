@@ -1,6 +1,6 @@
 send_command:
   name: Send command
-  description: Send a remote command to a Chery Europe vehicle. The PIN is only used for this call and is not stored.
+  description: Send a remote command to a Chery Europe vehicle. Uses the PIN from the service call or from integration options.
   fields:
     vin:
       name: VIN
@@ -18,8 +18,8 @@ send_command:
         text:
     pin:
       name: PIN
-      description: Vehicle remote-control PIN. It is sent to Chery Europe and is not stored by Home Assistant.
-      required: true
+      description: Vehicle remote-control PIN. Optional when a PIN is stored in integration options.
+      required: false
       selector:
         text:
           type: password

@@ -22,6 +22,7 @@ from .const import (
     DEFAULT_POLL_HV_MIN,
     DEFAULT_POLL_NORMAL_MIN,
     DEFAULT_SCAN_INTERVAL,
+    DEFAULT_SESSION_KEEPALIVE,
     DOMAIN,
     DRIVE_WATCH_INTERVAL,
     REFRESH_HV_WAIT_SECONDS,
@@ -52,6 +53,7 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
         self.poll_enabled = True
         self._mqtt: CheryEuropeMqttClient | None = None
         self._watch_unsub = None
+        self._keepalive_unsub = None
         self._location_refresh_task = None
         self._wake_task: asyncio.Task | None = None
         self.update_poll_options(entry.options)
@@ -370,7 +372,7 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
         return bool(self.data.hv_high_voltage_on or self.data.engine_on)
 
     async def async_start_live_updates(self) -> None:
-        """Start MQTT push and a lightweight drive-watch poller."""
+        """Start MQTT push, drive-watch poller, and session keep-alive."""
         await self.hass.async_add_executor_job(self._start_mqtt)
         if self._watch_unsub is None:
             self._watch_unsub = async_track_time_interval(
@@ -378,6 +380,31 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
                 self._async_drive_watch,
                 DRIVE_WATCH_INTERVAL,
             )
+        self.async_start_keepalive()
+
+    def async_start_keepalive(self) -> None:
+        """Refresh OAuth tokens before they expire so reload stays OTP-free."""
+        if self._keepalive_unsub is not None:
+            return
+        self._keepalive_unsub = async_track_time_interval(
+            self.hass,
+            self._async_keepalive,
+            DEFAULT_SESSION_KEEPALIVE,
+        )
+
+    async def _async_keepalive(self, _now) -> None:
+        """Proactively rotate tokens while the session is still valid."""
+        try:
+            refreshed = await self.api.ensure_fresh_token()
+            if refreshed:
+                _LOGGER.debug("Chery Europe session token refreshed by keep-alive")
+        except CheryEuropeAuthError as exc:
+            # Do not raise ConfigEntryAuthFailed from the timer: a transient
+            # rejection should surface on the next coordinator poll instead of
+            # immediately forcing OTP. Network-looking failures are also logged.
+            _LOGGER.warning("Chery Europe keep-alive refresh failed: %s", exc)
+        except Exception as exc:  # noqa: BLE001
+            _LOGGER.debug("Chery Europe keep-alive error (non-fatal): %s", exc)
 
     def _start_mqtt(self) -> None:
         t_user_id = self.api.t_user_id
@@ -438,7 +465,10 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
         self.async_set_updated_data(self._preserve_status(merged))
 
     async def async_stop_live_updates(self) -> None:
-        """Stop MQTT and the drive-watch timer."""
+        """Stop MQTT, drive-watch, and session keep-alive timers."""
+        if self._keepalive_unsub is not None:
+            self._keepalive_unsub()
+            self._keepalive_unsub = None
         if self._watch_unsub is not None:
             self._watch_unsub()
             self._watch_unsub = None

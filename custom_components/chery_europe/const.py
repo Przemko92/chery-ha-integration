@@ -48,14 +48,26 @@ CONF_LOGIN = "login"
 CONF_CODE = "code"
 CONF_ACCESS_TOKEN = "access_token"
 CONF_REFRESH_TOKEN = "refresh_token"
+CONF_EXPIRES_IN = "expires_in"
+CONF_TOKEN_OBTAINED_AT = "token_obtained_at"
 CONF_BASE_URL = "base_url"
 CONF_CLIENT_ID = "client_id"
 CONF_CLIENT_SECRET = "client_secret"
 CONF_DEVICE_ID = "device_id"
 CONF_PIN = "pin"
+CONF_PIN_CONFIRM = "pin_confirm"
+CONF_ASK_FOR_PIN = "ask_for_pin"
 CONF_POLL_NORMAL = "poll_normal_min"
 CONF_POLL_CHARGING = "poll_charging_min"
 CONF_POLL_HV = "poll_hv_min"
+# SMS login (optional alternative to email). When phone is set, OTP uses sendSmsCode
+# and the OAuth grant is grant_type=mobile (same legend BFF pattern as Omoda).
+CONF_PHONE = "phone"
+CONF_AREA_CODE = "area_code"
+CONF_LOGIN_METHOD = "login_method"
+LOGIN_METHOD_EMAIL = "email"
+LOGIN_METHOD_SMS = "sms"
+DEFAULT_AREA_CODE = "48"
 
 DEFAULT_POLL_NORMAL_MIN = 15
 DEFAULT_POLL_CHARGING_MIN = 2
@@ -63,9 +75,10 @@ DEFAULT_POLL_HV_MIN = 1
 REFRESH_HV_WAIT_SECONDS = 25
 STATUS_MAX_LEN = 255
 
-# Login identity prefix used by the legend BFF email OTP grant.
+# Login identity prefix used by the legend BFF email/SMS OTP grant.
 LOGIN_MODULE = "APP-LOGIN"
 LOGIN_EMAIL_PREFIX = f"{LOGIN_MODULE}@"
+LOGIN_MOBILE_PREFIX = f"{LOGIN_MODULE}@"
 
 # Identity header constants (from chery.txt app capture)
 HEADER_AGENT = "android"
@@ -92,6 +105,8 @@ DEFAULT_LOGIN_ENDPOINT = "/api/auth/oauth2/token"
 # v3 (used by the mobile app) expects Aliyun captchaVerification tokens.
 # v2 accepts AJ-Captcha tokens from ``/api/code/create`` (same as Omoda).
 DEFAULT_SEND_MAIL_CODE_ENDPOINT = "/api/marketing/v2/app/code/sendMailCode"
+# sendSmsCode sits behind Aliyun WAF (TLS fingerprint filter); see tls_client.py.
+DEFAULT_SEND_SMS_CODE_ENDPOINT = "/api/marketing/v2/app/code/sendSmsCode"
 DEFAULT_CHANNEL_ID = 5
 API_TSP_LOGIN_PATH = "/api/tsp/v1/app/auth/login"
 API_VMC_QUERY_LIST_PATH = "/api/tsp/v1/app/vmc/queryList"
@@ -118,6 +133,12 @@ DEFAULT_SCAN_INTERVAL = timedelta(minutes=15)
 HV_POLL_INTERVAL = timedelta(seconds=60)
 CHARGING_POLL_INTERVAL = timedelta(seconds=120)
 DRIVE_WATCH_INTERVAL = timedelta(seconds=180)
+# Session keep-alive: Chery access tokens last ~12h (expires_in=43200) and the
+# refresh_token rotates on every use. Periodic proactive refresh keeps the
+# session alive across HA reloads without forcing a new OTP.
+DEFAULT_SESSION_KEEPALIVE = timedelta(seconds=900)
+TOKEN_REFRESH_QUOTA = 0.8
+DEFAULT_TOKEN_EXPIRES_IN = 43200
 DEFAULT_MQTT_HOST = "tspemqx-app-eu.cheryinternational.com"
 DEFAULT_MQTT_PORT = 8083
 MQTT_PASSWORD_SEED = "fa89db3abe8045919d70c6ed3cc65bc5"

@@ -155,6 +155,17 @@ async def test_set_hvac_mode_uses_stored_pin_from_options():
 
 
 @pytest.mark.asyncio
+async def test_set_temperature_uses_stored_pin_from_options():
+    climate = _make_climate()
+
+    await climate.async_set_temperature(temperature=22.0)
+
+    data = _service_data(climate)
+    assert data[ATTR_PIN] == PIN
+    assert data["temperature"] == 22.0
+
+
+@pytest.mark.asyncio
 async def test_set_temperature_requires_pin():
     climate = _make_climate(pin=None)
 

@@ -23,11 +23,11 @@ MAX_TEMPERATURE = 30
 DEFAULT_TARGET_TEMPERATURE = 22
 
 PIN_SCHEMA = cv.make_entity_service_schema(
-    {vol.Required(ATTR_PIN): vol.All(cv.string, vol.Length(min=1))}
+    {vol.Optional(ATTR_PIN): vol.All(cv.string, vol.Length(min=1))}
 )
 TEMPERATURE_PIN_SCHEMA = cv.make_entity_service_schema(
     {
-        vol.Required(ATTR_PIN): vol.All(cv.string, vol.Length(min=1)),
+        vol.Optional(ATTR_PIN): vol.All(cv.string, vol.Length(min=1)),
         vol.Required(ATTR_TEMPERATURE): vol.All(
             vol.Coerce(float), vol.Range(min=16, max=30)
         ),

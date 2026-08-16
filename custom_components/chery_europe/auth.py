@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import time
 from typing import Any, Mapping
 
 import aiohttp
@@ -9,6 +10,8 @@ from .const import (
     DEFAULT_ENV_URL,
     DEFAULT_LOGIN_ENDPOINT,
     DEFAULT_SEND_MAIL_CODE_ENDPOINT,
+    DEFAULT_SEND_SMS_CODE_ENDPOINT,
+    DEFAULT_TOKEN_EXPIRES_IN,
     DEFAULT_USER_AGENT,
     HEADER_ACCEPT,
     HEADER_ACCEPT_ENCODING,
@@ -18,6 +21,7 @@ from .const import (
     HEADER_FORM_CONTENT_TYPE,
     LOGIN_EMAIL_PREFIX,
     LOGIN_MODULE,
+    TOKEN_REFRESH_QUOTA,
 )
 from .exceptions import (
     CheryEuropeAuthError,
@@ -49,6 +53,8 @@ class CheryEuropeAuth:
         self._client_secret = client_secret
         self.access_token: str | None = None
         self.refresh_token_value: str | None = None
+        self.expires_in: int = 0
+        self.token_obtained_at: float | None = None
         self.env_config: EnvConfig | None = None
 
     async def fetch_env_config(self, env_url: str = DEFAULT_ENV_URL) -> EnvConfig:
@@ -144,6 +150,79 @@ class CheryEuropeAuth:
                 f"Failed to send login code (key={key}){detail}"
             )
 
+    async def send_sms_code(
+        self,
+        phone: str,
+        area_code: str,
+        *,
+        memory_path: str | None = None,
+    ) -> None:
+        """Solve AJ-Captcha and request an SMS OTP for APP-LOGIN.
+
+        ``sendSmsCode`` is behind Aliyun WAF, so the signed form POST goes through
+        :mod:`tls_client` (sync) in a worker thread. Captcha solving stays on aiohttp.
+        """
+        from .captcha import solve_captcha
+        from .signing import (
+            MARKETING_V2_SEND_SMS_CODE_URL,
+            get_marketing_v2_headers,
+        )
+        from .tls_client import post_waf
+
+        captcha_verification = await solve_captcha(
+            self._session, base_url=DEFAULT_BASE_URL
+        )
+        if not captcha_verification:
+            raise CheryEuropeAuthError("Captcha verification failed")
+
+        body = {
+            "mobile": phone,
+            "areaCode": area_code,
+            "module": LOGIN_MODULE,
+            "captchaVerification": captcha_verification,
+        }
+        headers = get_marketing_v2_headers(
+            content_type=HEADER_FORM_CONTENT_TYPE,
+            url_header=MARKETING_V2_SEND_SMS_CODE_URL,
+        )
+        headers["Content-Type"] = HEADER_FORM_CONTENT_TYPE
+        headers["Authorization"] = HEADER_BASIC_AUTH
+        headers["Accept"] = HEADER_ACCEPT
+        headers["User-Agent"] = DEFAULT_USER_AGENT
+
+        url = self._oauth_url(DEFAULT_SEND_SMS_CODE_ENDPOINT)
+        loop = asyncio.get_running_loop()
+        result = await loop.run_in_executor(
+            None,
+            lambda: post_waf(
+                url,
+                body,
+                headers,
+                memory_path=memory_path,
+            ),
+        )
+        if result.network_error:
+            raise CheryEuropeConnectionError(
+                "Unable to connect to Chery Europe SMS endpoint"
+            )
+        if result.ip_blocked:
+            raise CheryEuropeRateLimitError(
+                "SMS endpoint rate-limited; wait before retrying"
+            )
+        if not result.passed:
+            raise CheryEuropeAuthError(
+                f"Failed to send SMS code (WAF rejected, client={result.client}, "
+                f"HTTP {result.status})"
+            )
+        response = result.json()
+        if not (response.get("ok") or response.get("key") == "operation.successful"):
+            key = response.get("key")
+            msg = response.get("msg")
+            detail = f" (msg={msg})" if msg else ""
+            raise CheryEuropeAuthError(
+                f"Failed to send SMS code (key={key}){detail}"
+            )
+
     async def login(self, email: str, code: str) -> AuthResponse:
         """Authenticate with email and OTP using SM4-ECB encryption.
 
@@ -174,7 +253,40 @@ class CheryEuropeAuth:
             headers=headers,
         )
         auth_response = self._parse_auth_response(response)
-        self.set_tokens(auth_response.access_token, auth_response.refresh_token)
+        self.apply_auth_response(auth_response)
+        return auth_response
+
+    async def login_mobile(
+        self, phone: str, area_code: str, code: str
+    ) -> AuthResponse:
+        """Authenticate with phone SMS OTP using SM4-ECB encryption.
+
+        Same gateway as email login, but parameters go in the **form body**
+        (not query) with ``grant_type=mobile`` and identity
+        ``APP-LOGIN@<phone>_<area>`` — verified against the shared legend BFF
+        (Omoda ``UserService::phoneVerifyLogin``).
+        """
+        if self.env_config is None:
+            await self.fetch_env_config()
+        elif self.env_config.domain:
+            self._base_url = self.env_config.domain.rstrip("/")
+
+        from .crypto import SM4_LOGIN_KEY, sm4_encrypt_ecb_pkcs7
+
+        encrypted_code = sm4_encrypt_ecb_pkcs7(code, SM4_LOGIN_KEY)
+        params = self._build_mobile_login_params(phone, area_code, encrypted_code)
+        headers = self._build_login_identity_headers(dept_id=area_code)
+        headers["Content-Type"] = HEADER_FORM_CONTENT_TYPE
+        headers["Authorization"] = HEADER_BASIC_AUTH
+        headers["contentType"] = HEADER_FORM_CONTENT_TYPE
+
+        response = await self._post(
+            DEFAULT_LOGIN_ENDPOINT,
+            data=params,
+            headers=headers,
+        )
+        auth_response = self._parse_auth_response(response)
+        self.apply_auth_response(auth_response)
         return auth_response
 
     async def refresh_token(self, refresh_token: str) -> AuthResponse:
@@ -216,7 +328,7 @@ class CheryEuropeAuth:
             headers=headers,
         )
         auth_response = self._parse_auth_response(response)
-        self.set_tokens(auth_response.access_token, auth_response.refresh_token)
+        self.apply_auth_response(auth_response)
         return auth_response
 
     async def logout(self, access_token: str) -> None:
@@ -225,11 +337,43 @@ class CheryEuropeAuth:
             self.set_tokens(None, None)
 
     def set_tokens(
-        self, access_token: str | None, refresh_token: str | None = None
+        self,
+        access_token: str | None,
+        refresh_token: str | None = None,
+        *,
+        expires_in: int = 0,
+        obtained_at: float | None = None,
     ) -> None:
         """Set tokens for API clients without logging sensitive values."""
         self.access_token = access_token
         self.refresh_token_value = refresh_token
+        if expires_in:
+            self.expires_in = expires_in
+        self.token_obtained_at = obtained_at
+
+    def apply_auth_response(self, response: AuthResponse) -> None:
+        """Apply a fresh OAuth response to in-memory token state."""
+        self.access_token = response.access_token
+        self.refresh_token_value = response.refresh_token or None
+        if response.expires_in:
+            self.expires_in = response.expires_in
+        elif not self.expires_in:
+            self.expires_in = DEFAULT_TOKEN_EXPIRES_IN
+        self.token_obtained_at = time.time()
+
+    def token_age_seconds(self) -> float | None:
+        """Seconds since the access token was issued, or ``None`` if unknown."""
+        if self.token_obtained_at is None:
+            return None
+        return max(0.0, time.time() - self.token_obtained_at)
+
+    def needs_proactive_refresh(self, quota: float = TOKEN_REFRESH_QUOTA) -> bool:
+        """Return True when the access token has consumed ``quota`` of its life."""
+        age = self.token_age_seconds()
+        expires_in = self.expires_in or DEFAULT_TOKEN_EXPIRES_IN
+        if age is None or expires_in <= 0:
+            return False
+        return age >= expires_in * quota
 
     def _resolve_client_id(self) -> str | None:
         """Return the active OAuth2 client_id.
@@ -263,8 +407,26 @@ class CheryEuropeAuth:
             "loginAction": "1",
         }
 
-    def _build_login_identity_headers(self) -> dict[str, str]:
-        """Identity headers for the email OTP token call (no request signature)."""
+    def _build_mobile_login_params(
+        self, phone: str, area_code: str, encrypted_code: str
+    ) -> dict[str, str]:
+        """Build OAuth2 mobile-grant form body for the token endpoint."""
+        from .phone import mobile_login_identity
+
+        return {
+            "mobile": mobile_login_identity(phone, area_code),
+            "code": encrypted_code,
+            "needDecode": "0",
+            "grant_type": "mobile",
+            "scope": "server",
+            "loginType": "mobile",
+            "loginAction": "1",
+        }
+
+    def _build_login_identity_headers(
+        self, *, dept_id: str | None = None
+    ) -> dict[str, str]:
+        """Identity headers for the OTP token call (no request signature)."""
         from .signing import (
             HEADER_AGENT,
             HEADER_CLIENT_TOC,
@@ -274,11 +436,12 @@ class CheryEuropeAuth:
             HEADER_VERSION,
         )
 
+        area = "".join(ch for ch in str(dept_id or "") if ch.isdigit()).lstrip("0")
         return {
             "contentType": HEADER_CONTENT_TYPE,
             "agent": HEADER_AGENT,
             "version": HEADER_VERSION,
-            "DEPT-ID": HEADER_DEPT_ID,
+            "DEPT-ID": area or HEADER_DEPT_ID,
             "TENANT-ID": HEADER_TENANT_ID,
             "TENANT-CODE": HEADER_TENANT_CODE,
             "CLIENT-TOC": HEADER_CLIENT_TOC,

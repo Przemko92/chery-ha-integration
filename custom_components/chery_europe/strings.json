@@ -3,39 +3,62 @@
     "step": {
       "user": {
         "title": "Chery Europe Setup",
+        "description": "Choose how to sign in. Email is recommended. Use SMS only if your Chery Europe account is registered with a phone number instead of an email.",
+        "menu_options": {
+          "login_email": "Sign in with email (recommended)",
+          "login_phone": "Sign in with phone number (SMS)"
+        }
+      },
+      "login_email": {
+        "title": "Sign in with email",
         "description": "Enter the email address registered in the Chery Europe app. A one-time login code will be sent to that address.",
         "data": {
           "login": "Email"
         }
       },
+      "login_phone": {
+        "title": "Sign in with phone (SMS)",
+        "description": "Enter the phone number registered in the Chery Europe app and its country calling code in digits (Poland = 48, without +). A verification code will be sent by SMS. Prefer email login when your account has an email address.",
+        "data": {
+          "phone": "Phone number (without country code)",
+          "area_code": "Country code in digits (e.g. 48)"
+        }
+      },
       "code": {
         "title": "Enter login code",
-        "description": "Enter the login code sent to {email}.",
+        "description": "Enter the login code sent to {destination}.",
         "data": {
           "code": "Login code"
         }
       },
       "pin": {
         "title": "Vehicle control PIN",
-        "description": "Enter the PIN used in the Chery Europe app for remote commands (lock, climate, etc.).",
+        "description": "Enter the PIN used in the Chery Europe app for remote commands (lock, climate, etc.). Enter it twice to confirm. It is always stored in integration options. Enable Ask for PIN if you want to confirm it again for each action.",
         "data": {
-          "pin": "Vehicle PIN"
+          "pin": "Vehicle PIN",
+          "pin_confirm": "Confirm PIN",
+          "ask_for_pin": "Ask for PIN"
         }
       },
       "reauth_confirm": {
         "title": "Reauthenticate Chery Europe",
-        "description": "Send a new login code to reauthenticate your Chery Europe account.",
+        "description": "Send a new login code to {destination} to reauthenticate your Chery Europe account.",
         "data": {
-          "login": "Email"
+          "login": "Email",
+          "phone": "Phone number (without country code)",
+          "area_code": "Country code in digits (e.g. 48)"
         }
       }
     },
     "error": {
       "invalid_auth": "Invalid or expired login code.",
-      "otp_send_failed": "Could not send the login code. Check the email address and try again.",
+      "otp_send_failed": "Could not send the login code. Check the email or phone number and try again.",
+      "phone_invalid": "Invalid phone number or country code. Enter the national number without country code, and the country code in digits only (e.g. 48).",
       "captcha_failed": "Captcha verification failed. Please try again.",
       "cannot_connect": "Unable to connect to Chery Europe. Check your internet connection.",
       "rate_limit": "Rate limit exceeded. Please wait before trying again.",
+      "pin_mismatch": "PIN confirmation does not match.",
+      "pin_required": "PIN is required.",
       "unknown": "An unexpected error occurred. Please try again later."
     },
     "abort": {
@@ -48,10 +71,15 @@
       "init": {
         "title": "Chery Europe options",
         "data": {
-          "pin": "Vehicle control PIN",
+          "pin": "Vehicle control PIN (leave empty to clear)",
+          "pin_confirm": "Confirm PIN (required when setting a new PIN)",
+          "ask_for_pin": "Ask for PIN on each action",
           "poll_normal_min": "Update interval when parked (minutes, 0 = off)",
           "poll_charging_min": "Update interval when charging (minutes, 0 = use parked interval)",
           "poll_hv_min": "Update interval when HV is on (minutes, 0 = use parked interval)"
+        },
+        "error": {
+          "pin_mismatch": "PIN confirmation does not match."
         }
       }
     }

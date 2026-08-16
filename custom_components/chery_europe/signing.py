@@ -47,6 +47,7 @@ SIGN_NONCE = "chery_legend_h5"
 MARKETING_SIGN_SECRET = "5c7af05e6fbf562842ef483ee96e06a0"
 MARKETING_SIGN_NONCE = "chery_legend_marketing"
 MARKETING_V2_SEND_MAIL_CODE_URL = "/marketing/v2/app/code/sendMailCode"
+MARKETING_V2_SEND_SMS_CODE_URL = "/marketing/v2/app/code/sendSmsCode"
 
 # ── Identity header constants (from chery.txt capture) ───────────────────────
 
@@ -201,17 +202,20 @@ def get_marketing_v2_headers(
     *,
     timestamp_ms: int | None = None,
     content_type: str = "application/x-www-form-urlencoded",
+    url_header: str = MARKETING_V2_SEND_MAIL_CODE_URL,
 ) -> dict[str, str]:
     """Build identity headers for marketing v2 code endpoints (MD5 signing).
 
     The legend BFF v2 marketing endpoints (``sendMailCode``, ``sendSmsCode``)
     use the older MD5 digest shared with AJ-Captcha and Omoda, not the SHA-256
     ``chery_legend_h5`` scheme used by v3.
+
+    ``url_header`` must match the signed path for the endpoint being called
+    (mail vs SMS); the MD5 base includes this value.
     """
     if timestamp_ms is None:
         timestamp_ms = int(time.time() * 1000)
 
-    url_header = MARKETING_V2_SEND_MAIL_CODE_URL
     base = f"{MARKETING_SIGN_SECRET}{MARKETING_SIGN_NONCE}{url_header}{timestamp_ms}"
     signature = hashlib.md5(base.encode("utf-8"), usedforsecurity=False).hexdigest()
 

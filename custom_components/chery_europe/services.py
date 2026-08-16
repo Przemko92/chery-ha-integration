@@ -28,12 +28,13 @@ from .const import (
 from .coordinator import CheryEuropeDataUpdateCoordinator
 from .data import apply_command_feedback
 from .exceptions import CheryEuropeCommandError, CheryEuropeException
+from .pin import resolve_pin
 
 SEND_COMMAND_SCHEMA = vol.Schema(
     {
         vol.Required(ATTR_VIN): vol.All(cv.string, vol.Length(min=1)),
         vol.Required(ATTR_COMMAND_ID): vol.All(cv.string, vol.Length(min=1)),
-        vol.Required(ATTR_PIN): vol.All(cv.string, vol.Length(min=1)),
+        vol.Optional(ATTR_PIN): vol.All(cv.string, vol.Length(min=1)),
         vol.Optional("temperature"): vol.Coerce(float),
         vol.Optional(ATTR_ENABLED): cv.boolean,
         vol.Optional("hvac_mode"): cv.string,
@@ -65,11 +66,12 @@ def async_setup_services(hass: HomeAssistant) -> None:
     async def handle_send_command(call: ServiceCall) -> dict[str, Any]:
         entry = _get_loaded_entry(hass)
         coordinator: CheryEuropeDataUpdateCoordinator = entry.runtime_data
+        pin = resolve_pin(entry, call.data)
         try:
             response = await coordinator.api.send_command(
                 call.data[ATTR_VIN],
                 call.data[ATTR_COMMAND_ID],
-                call.data[ATTR_PIN],
+                pin,
                 action=call.data.get("action"),
                 temperature=call.data.get("temperature"),
                 enabled=call.data.get(ATTR_ENABLED),

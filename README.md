@@ -29,10 +29,13 @@
 connected vehicles (e.g. Tiggo 9 PHEV). It exposes live telemetry, remote
 commands, charging, GPS, and comfort features as Home Assistant entities.
 
-Authentication uses **email + one-time code** (the same flow as the official app).
-The vehicle remote-control **PIN** is collected during setup and stored in
-integration **options** so entity actions work without re-entering it each time.
-The PIN is **not** written to logs or diagnostics.
+Authentication uses **email + one-time code** (recommended; same flow as the
+official app). Accounts registered with a **phone number** can sign in via SMS
+instead. The vehicle remote-control **PIN** is collected during setup and stored
+in integration **options**. By default entity actions omit the PIN and use the
+stored value. Enable **Ask for PIN** (setup or Options) to require entering a PIN
+that matches the stored value on each action. The PIN is **not** written to logs
+or diagnostics.
 
 ### Features
 
@@ -61,7 +64,7 @@ The PIN is **not** written to logs or diagnostics.
 ### Requirements
 
 - Home Assistant **2024.10.0** or newer (blueprint import)
-- A Chery Europe account (same email as the official app)
+- A Chery Europe account (same email or phone as the official app)
 - Vehicle remote-control PIN (from the official app)
 - Internet access from Home Assistant to the Chery Europe cloud
 
@@ -89,10 +92,12 @@ The PIN is **not** written to logs or diagnostics.
 > (one active session). Prefer a **separate account with shared vehicle access**
 > for Home Assistant, and keep your main account for the phone app.
 
-1. Enter the **email** registered in the Chery Europe app.
-2. Receive a **one-time code** by email and enter it in Home Assistant.
-3. Enter the vehicle **remote-control PIN** (used for lock, climate, charging, etc.).
-4. The integration discovers your vehicle and creates all entities.
+1. Choose **email (recommended)** or **phone (SMS)** if the account has no email.
+2. Enter the **email** or **phone + country code** registered in the Chery Europe app.
+3. Receive a **one-time code** (email or SMS) and enter it in Home Assistant.
+4. Enter the vehicle **remote-control PIN** twice to confirm (always stored).
+   Optionally enable **Ask for PIN** to require matching confirmation on each action.
+5. The integration discovers your vehicle and creates all entities.
 
 If the session expires, use **Re-authenticate** on the integration card
 (**“Send me a new code”** — no code is sent until you ask).
@@ -103,7 +108,8 @@ If the session expires, use **Re-authenticate** on the integration card
 
 | Option | Default | Description |
 | ------ | ------- | ----------- |
-| Vehicle PIN | — | Remote-control PIN for commands |
+| Vehicle PIN | — | Stored remote-control PIN (leave empty to clear) |
+| Ask for PIN | off | Require entering the PIN on each action |
 | Parked interval | 15 min | Poll interval when parked (`0` = off) |
 | Charging interval | 2 min | Poll interval while charging |
 | HV interval | 1 min | Poll interval while HV/engine is on |
@@ -139,14 +145,15 @@ data:
 
 #### `chery_europe.send_command`
 
-Low-level remote command (requires `vin`, `command_id`, and `pin`).
+Low-level remote command (requires `vin` and `command_id`; `pin` is optional when
+a PIN is stored in integration options).
 
 ```yaml
 action: chery_europe.send_command
 data:
   vin: "LVVDB21B0PD123456"
   command_id: "ve_1101"
-  pin: !secret chery_pin
+  # pin: !secret chery_pin  # only needed if PIN is not stored in options
 ```
 
 ### Failed-command blueprint
@@ -209,10 +216,13 @@ MIT — see [LICENSE](LICENSE).
 Chery Europe (np. Tiggo 9 PHEV). Udostępnia telemetrię na żywo, polecenia
 zdalne, ładowanie, GPS i funkcje komfortu jako encje Home Assistant.
 
-Logowanie odbywa się przez **e-mail + kod jednorazowy** (jak w aplikacji).
-**PIN** do zdalnego sterowania podajesz przy konfiguracji i trafia do
-**opcji integracji**, żeby encje działały bez wpisywania PIN-u przy każdej
-akcji. PIN **nie** trafia do logów ani diagnostyki.
+Logowanie odbywa się przez **e-mail + kod jednorazowy** (zalecane; jak w
+aplikacji). Konta zarejestrowane na **numer telefonu** mogą użyć logowania SMS.
+**PIN** do zdalnego sterowania podajesz przy konfiguracji i jest zawsze
+zapisywany w **opcjach integracji**. Domyślnie akcje encji pomijają PIN i
+używają zapisanej wartości. Włącz **Pytaj o PIN** (przy setupie lub w Opcjach),
+żeby przy każdej akcji wymagać PIN-u zgodnego z zapisanym.
+PIN **nie** trafia do logów ani diagnostyki.
 
 ### Funkcje
 
@@ -241,7 +251,7 @@ akcji. PIN **nie** trafia do logów ani diagnostyki.
 ### Wymagania
 
 - Home Assistant **2024.10.0** lub nowszy (import blueprintu)
-- Konto Chery Europe (ten sam e-mail co w aplikacji)
+- Konto Chery Europe (ten sam e-mail lub telefon co w aplikacji)
 - PIN do zdalnego sterowania (z aplikacji)
 - Dostęp do Internetu z Home Assistant do chmury Chery Europe
 
@@ -269,10 +279,12 @@ akcji. PIN **nie** trafia do logów ani diagnostyki.
 > koncie (jedna aktywna sesja). Zalecane jest **osobne konto z udostępnionym
 > dostępem** do pojazdu dla Home Assistant, a główne konto zostaw pod telefon.
 
-1. Wpisz **e-mail** zarejestrowany w aplikacji Chery Europe.
-2. Wpisz **kod jednorazowy** z wiadomości e-mail.
-3. Wpisz **PIN** do zdalnego sterowania pojazdem.
-4. Integracja wykryje pojazd i utworzy encje.
+1. Wybierz **e-mail (zalecane)** albo **telefon (SMS)**, jeśli konto nie ma e-maila.
+2. Podaj **e-mail** albo **numer + kierunkowy** z aplikacji Chery Europe.
+3. Wpisz **kod jednorazowy** z e-maila lub SMS-a.
+4. Wpisz **PIN** do zdalnego sterowania dwa razy (zawsze zapisywany). Opcjonalnie
+   włącz **Pytaj o PIN**, żeby przy każdej akcji wymagać PIN-u zgodnego z zapisanym.
+5. Integracja wykryje pojazd i utworzy encje.
 
 Po wygaśnięciu sesji użyj **Ponownej autoryzacji** na karcie integracji
 (**„Wyślij mi nowy kod”** — kod nie leci, dopóki o to nie poprosisz).
@@ -283,7 +295,8 @@ Po wygaśnięciu sesji użyj **Ponownej autoryzacji** na karcie integracji
 
 | Opcja | Domyślnie | Opis |
 | ----- | --------- | ---- |
-| PIN pojazdu | — | PIN do poleceń zdalnych |
+| PIN pojazdu | — | Zapisany PIN do poleceń (pusty = wyczyść) |
+| Pytaj o PIN | wył. | Wymagaj PIN-u przy każdej akcji |
 | Interwał na postoju | 15 min | Odświeżanie na postoju (`0` = wył.) |
 | Interwał przy ładowaniu | 2 min | Odświeżanie podczas ładowania |
 | Interwał przy HV | 1 min | Odświeżanie przy włączonym HV/silniku |
@@ -318,14 +331,15 @@ data:
 
 #### `chery_europe.send_command`
 
-Niskopoziomowa komenda (wymaga `vin`, `command_id`, `pin`).
+Niskopoziomowa komenda (wymaga `vin` i `command_id`; `pin` opcjonalny, gdy
+PIN jest zapisany w opcjach integracji).
 
 ```yaml
 action: chery_europe.send_command
 data:
   vin: "LVVDB21B0PD123456"
   command_id: "ve_1101"
-  pin: !secret chery_pin
+  # pin: !secret chery_pin  # tylko gdy PIN nie jest zapisany w opcjach
 ```
 
 ### Blueprint nieudanej komendy

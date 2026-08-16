@@ -1,10 +1,8 @@
-# pyright: reportArgumentType=false, reportOptionalSubscript=false
 """Tests for the Chery Europe lock entity action passthrough.
 
 Verifies that ``async_lock``/``async_unlock`` flow the ``action`` field all the
 way through the ``send_command`` service to ``coordinator.api.send_command``
-with ``command_id="ve_1105"`` and the PIN from the service call, without ever
-storing the PIN.
+with ``command_id="ve_1105"``, using the PIN from the service call or options.
 """
 
 from types import SimpleNamespace
@@ -16,6 +14,7 @@ pytest.importorskip("homeassistant")
 
 from homeassistant.exceptions import HomeAssistantError
 
+from custom_components.chery_europe.const import CONF_ASK_FOR_PIN, CONF_PIN
 from custom_components.chery_europe.data import CheryData
 from custom_components.chery_europe.lock import LOCK_COMMAND_ID, LOCK_DESCRIPTION, CheryEuropeLock
 from custom_components.chery_europe.services import async_setup_services
@@ -43,7 +42,7 @@ class _FakeServiceRegistry:
         return await handler(call)
 
 
-def _make_lock():
+def _make_lock(*, options: dict | None = None):
     """Build a CheryEuropeLock wired to a real send_command service handler."""
     coordinator = SimpleNamespace(
         data=CheryData(vin=VIN, is_locked=True),
@@ -55,7 +54,11 @@ def _make_lock():
         async_set_updated_data=Mock(),
         schedule_refresh_after_command=Mock(),
     )
-    entry = SimpleNamespace(entry_id="entry-1", runtime_data=coordinator, options={})
+    entry = SimpleNamespace(
+        entry_id="entry-1",
+        runtime_data=coordinator,
+        options=options if options is not None else {},
+    )
     hass = SimpleNamespace(
         services=_FakeServiceRegistry(),
         config_entries=SimpleNamespace(async_entries=lambda _domain: [entry]),
@@ -102,6 +105,19 @@ async def test_async_lock_sends_lock_action_with_pin():
 
 
 @pytest.mark.asyncio
+async def test_async_unlock_uses_stored_pin_from_options():
+    """Stored options PIN allows unlock without an inline pin/code."""
+    lock, coordinator = _make_lock(options={CONF_PIN: PIN})
+
+    await lock.async_unlock()
+
+    coordinator.api.send_command.assert_awaited_once()
+    call = coordinator.api.send_command.await_args
+    assert call.args == (VIN, LOCK_COMMAND_ID, PIN)
+    assert call.kwargs["action"] == "unlock"
+
+
+@pytest.mark.asyncio
 async def test_async_unlock_without_pin_raises_homeassistant_error():
     """Missing PIN/code must raise HomeAssistantError before any service call."""
     lock, coordinator = _make_lock()
@@ -110,3 +126,44 @@ async def test_async_unlock_without_pin_raises_homeassistant_error():
         await lock.async_unlock()
 
     coordinator.api.send_command.assert_not_awaited()
+
+
+def test_code_format_none_when_ask_for_pin_disabled():
+    lock, _ = _make_lock(options={CONF_PIN: PIN, CONF_ASK_FOR_PIN: False})
+    assert lock.code_format is None
+
+
+def test_code_format_required_when_ask_for_pin_enabled():
+    lock, _ = _make_lock(options={CONF_PIN: PIN, CONF_ASK_FOR_PIN: True})
+    assert lock.code_format == r".+"
+
+
+@pytest.mark.asyncio
+async def test_async_unlock_ask_for_pin_requires_inline_pin():
+    lock, coordinator = _make_lock(options={CONF_PIN: PIN, CONF_ASK_FOR_PIN: True})
+
+    with pytest.raises(HomeAssistantError):
+        await lock.async_unlock()
+
+    coordinator.api.send_command.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_async_unlock_ask_for_pin_rejects_mismatch():
+    lock, coordinator = _make_lock(options={CONF_PIN: PIN, CONF_ASK_FOR_PIN: True})
+
+    with pytest.raises(HomeAssistantError, match="does not match"):
+        await lock.async_unlock(pin="9999")
+
+    coordinator.api.send_command.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_async_unlock_ask_for_pin_accepts_matching_pin():
+    lock, coordinator = _make_lock(options={CONF_PIN: PIN, CONF_ASK_FOR_PIN: True})
+
+    await lock.async_unlock(pin=PIN)
+
+    coordinator.api.send_command.assert_awaited_once()
+    call = coordinator.api.send_command.await_args
+    assert call.args == (VIN, LOCK_COMMAND_ID, PIN)

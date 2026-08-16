@@ -64,6 +64,23 @@ def test_marketing_v2_headers_sendMailCode():
     assert "keys" not in headers
 
 
+def test_marketing_v2_headers_sendSmsCode():
+    """MD5 marketing headers for v2 sendSmsCode use the SMS url path."""
+    headers = get_marketing_v2_headers(
+        timestamp_ms=1786686168819,
+        url_header="/marketing/v2/app/code/sendSmsCode",
+    )
+    assert headers["url"] == "/marketing/v2/app/code/sendSmsCode"
+    import hashlib
+
+    expected = hashlib.md5(
+        b"5c7af05e6fbf562842ef483ee96e06a0chery_legend_marketing"
+        b"/marketing/v2/app/code/sendSmsCode1786686168819",
+        usedforsecurity=False,
+    ).hexdigest()
+    assert headers["signature"] == expected
+
+
 def test_marketing_v2_headers_signature_is_md5():
     import hashlib
 
@@ -432,6 +449,72 @@ async def test_send_mail_code_raises_when_captcha_fails():
     session.post.assert_not_called()
 
 
+@pytest.mark.asyncio
+async def test_send_sms_code_posts_via_tls_client():
+    _ha()
+    from custom_components.chery_europe.auth import CheryEuropeAuth
+    from custom_components.chery_europe.tls_client import SmsPostResult
+
+    session, _ = _mock_login_post()
+    auth = CheryEuropeAuth(session)
+    result = SmsPostResult(
+        200,
+        '{"ok": true, "key": "operation.successful"}',
+        "requests+tls",
+    )
+
+    with (
+        patch(
+            "custom_components.chery_europe.captcha.solve_captcha",
+            new=AsyncMock(return_value="captcha-token"),
+        ),
+        patch(
+            "custom_components.chery_europe.tls_client.post_waf",
+            return_value=result,
+        ) as post_waf,
+    ):
+        await auth.send_sms_code("500123456", "48", memory_path="/tmp/tls.txt")  # PHONE_PLACEHOLDER
+
+    session.post.assert_not_called()
+    post_waf.assert_called_once()
+    url, body, headers = post_waf.call_args.args
+    assert url.endswith("/api/marketing/v2/app/code/sendSmsCode")
+    assert body == {
+        "mobile": "500123456",  # PHONE_PLACEHOLDER
+        "areaCode": "48",
+        "module": "APP-LOGIN",
+        "captchaVerification": "captcha-token",
+    }
+    assert headers["url"] == "/marketing/v2/app/code/sendSmsCode"
+    assert post_waf.call_args.kwargs["memory_path"] == "/tmp/tls.txt"
+
+
+@pytest.mark.asyncio
+async def test_login_mobile_posts_form_body_not_query():
+    _ha()
+    from custom_components.chery_europe.auth import CheryEuropeAuth
+
+    session, _ = _mock_login_post(200, _TOKEN_RESPONSE)
+    auth = CheryEuropeAuth(session)
+    auth.env_config = _env_config()
+
+    await auth.login_mobile("500123456", "48", "123456")  # PHONE_PLACEHOLDER
+
+    session.post.assert_called_once()
+    kwargs = session.post.call_args.kwargs
+    assert "params" not in kwargs or kwargs.get("params") is None
+    data = kwargs["data"]
+    assert data["mobile"] == "APP-LOGIN@500123456_48"  # PHONE_PLACEHOLDER
+    assert data["grant_type"] == "mobile"
+    assert data["loginType"] == "mobile"
+    assert data["needDecode"] == "0"
+    assert data["loginAction"] == "1"
+    assert data["code"] != "123456"
+    assert kwargs["headers"]["DEPT-ID"] == "48"
+    assert kwargs["headers"]["Content-Type"] == "application/x-www-form-urlencoded"
+    assert auth.access_token == "tok-123"
+
+
 # ── refresh_token integration tests ──────────────────────────────────────────
 
 
@@ -568,3 +651,46 @@ async def test_refresh_token_without_client_secret_omits_field():
     assert "client_secret" not in payload
     assert "client_id" not in payload
     assert payload["scope"] == "server"
+
+
+def test_needs_proactive_refresh_respects_quota():
+    """Access tokens near expiry should request a proactive refresh."""
+    pytest.importorskip("homeassistant")
+    import time
+
+    from custom_components.chery_europe.auth import CheryEuropeAuth
+
+    auth = CheryEuropeAuth(MagicMock())
+    auth.expires_in = 1000
+    auth.token_obtained_at = time.time() - 900  # 90% of lifetime elapsed
+    assert auth.needs_proactive_refresh(0.8) is True
+
+    auth.token_obtained_at = time.time() - 100  # 10% elapsed
+    assert auth.needs_proactive_refresh(0.8) is False
+
+    auth.token_obtained_at = None
+    assert auth.needs_proactive_refresh(0.8) is False
+
+
+def test_apply_auth_response_sets_expiry_metadata():
+    pytest.importorskip("homeassistant")
+    import time
+
+    from custom_components.chery_europe.auth import CheryEuropeAuth
+    from custom_components.chery_europe.types.auth_models import AuthResponse
+
+    auth = CheryEuropeAuth(MagicMock())
+    before = time.time()
+    auth.apply_auth_response(
+        AuthResponse(
+            access_token="a",
+            refresh_token="r",
+            expires_in=43200,
+            token_type="Bearer",
+        )
+    )
+    after = time.time()
+    assert auth.access_token == "a"
+    assert auth.refresh_token_value == "r"
+    assert auth.expires_in == 43200
+    assert before <= (auth.token_obtained_at or 0) <= after

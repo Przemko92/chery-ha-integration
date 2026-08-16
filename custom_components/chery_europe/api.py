@@ -1,7 +1,9 @@
 import asyncio
+import inspect
 import json
 import logging
 import time
+from collections.abc import Awaitable, Callable
 from typing import Any, Mapping
 
 import aiohttp
@@ -18,6 +20,7 @@ from .const import (
     DEFAULT_BASE_URL,
     DEFAULT_CHANNEL_ID,
     DEFAULT_TSP_HOST,
+    TOKEN_REFRESH_QUOTA,
     TSP_CODE_ASLEEP,
     TSP_CODE_OK,
 )
@@ -32,6 +35,7 @@ from .exceptions import (
     CheryEuropeRateLimitError,
     CheryEuropeTimeoutError,
 )
+from .types.auth_models import AuthResponse
 from .types.vehicle_models import VehicleStatus
 
 _LOGGER = logging.getLogger(__name__)
@@ -40,6 +44,8 @@ REQUEST_TIMEOUT = aiohttp.ClientTimeout(total=30)
 MAX_RETRIES = 3
 TASK_ID_TTL_SECONDS = 600
 TASK_ID_INVALID_CODES = frozenset({"A00089", "A00546", "A00567", "A00643"})
+
+TokensUpdatedCallback = Callable[[AuthResponse], Awaitable[None] | None]
 
 
 class CheryEuropeApi:
@@ -52,6 +58,7 @@ class CheryEuropeApi:
         base_url: str = DEFAULT_BASE_URL,
         channel_id: int = DEFAULT_CHANNEL_ID,
         tsp_host: str = DEFAULT_TSP_HOST,
+        on_tokens_updated: TokensUpdatedCallback | None = None,
     ) -> None:
         self._auth = auth
         self._session = session
@@ -62,6 +69,10 @@ class CheryEuropeApi:
         self._user_token: str | None = None
         self._task_ids: dict[str, tuple[str, float]] = {}
         self._permissions: dict[int, int] = UNKNOWN
+        self._on_tokens_updated = on_tokens_updated
+        # Chery rotates refresh_token on every use; parallel refreshes burn the
+        # session. Serialize and double-check like the Omoda integration.
+        self._token_lock = asyncio.Lock()
 
     async def _request(self, method: str, endpoint: str, **kwargs: Any) -> Any:
         """Perform an authenticated request with retry and token refresh."""
@@ -417,7 +428,8 @@ class CheryEuropeApi:
                     response.status,
                 )
                 if response.status == 401 and refresh_on_401:
-                    await self._refresh_token()
+                    seen_access = self._auth.access_token
+                    await self._refresh_token(seen_access_token=seen_access)
                     return await self._request_with_retry(
                         method,
                         endpoint,
@@ -456,13 +468,57 @@ class CheryEuropeApi:
         except aiohttp.ClientError as exc:
             raise CheryEuropeConnectionError("Chery Europe HTTP error") from exc
 
-    async def _refresh_token(self) -> None:
-        refresh_token = self._auth.refresh_token_value
-        if refresh_token is None:
-            raise CheryEuropeAuthError("No refresh token available")
-        self._t_user_id = None
-        self._user_token = None
-        await self._auth.refresh_token(refresh_token)
+    async def ensure_fresh_token(
+        self, quota: float = TOKEN_REFRESH_QUOTA
+    ) -> bool:
+        """Proactively refresh when the access token is near expiry.
+
+        Returns ``True`` when a refresh was performed. Network/auth failures
+        propagate to the caller (keep-alive should treat them as non-fatal).
+        """
+        if not self._auth.needs_proactive_refresh(quota):
+            return False
+        seen_access = self._auth.access_token
+        await self._refresh_token(seen_access_token=seen_access)
+        return True
+
+    async def _refresh_token(
+        self, seen_access_token: str | None = None
+    ) -> None:
+        """Refresh OAuth tokens, persist them, and clear the TSP session.
+
+        ``seen_access_token`` is the access token observed by the caller before
+        waiting on the lock. If another coroutine already refreshed past that
+        value, this call is a no-op so the new refresh_token is not burned.
+        """
+        async with self._token_lock:
+            current = self._auth.access_token
+            if (
+                seen_access_token
+                and current
+                and current != seen_access_token
+            ):
+                _LOGGER.debug(
+                    "Chery Europe token already refreshed by another request"
+                )
+                return
+
+            refresh_token = self._auth.refresh_token_value
+            if refresh_token is None:
+                raise CheryEuropeAuthError("No refresh token available")
+
+            self._t_user_id = None
+            self._user_token = None
+            auth_response = await self._auth.refresh_token(refresh_token)
+            await self._persist_tokens(auth_response)
+
+    async def _persist_tokens(self, response: AuthResponse) -> None:
+        """Persist rotated tokens when a callback is configured."""
+        if self._on_tokens_updated is None:
+            return
+        result = self._on_tokens_updated(response)
+        if inspect.isawaitable(result):
+            await result
 
 
 def _extract_realtime_payload(response: Any) -> dict[str, Any] | None:

@@ -40,7 +40,13 @@ class _Response:
 
 
 def _auth():
-    return SimpleNamespace(access_token="tok-abc", refresh_token_value="ref-xyz")
+    return SimpleNamespace(
+        access_token="tok-abc",
+        refresh_token_value="ref-xyz",
+        expires_in=43200,
+        token_obtained_at=None,
+        needs_proactive_refresh=lambda quota=0.8: False,
+    )
 
 
 def _api(auth, session):
@@ -360,3 +366,108 @@ async def test_api_424_raises_auth_error_without_retry(monkeypatch):
 
     assert session.request_count == 2
     assert sleep_calls == []
+
+
+@pytest.mark.asyncio
+async def test_api_401_persists_refreshed_tokens():
+    """Successful 401 refresh must invoke the token persistence callback."""
+    from custom_components.chery_europe.types.auth_models import AuthResponse
+
+    session = _Session(responses=[(401, {}), (200, {"data": []})])
+    auth = _auth()
+    persisted = []
+
+    async def _refresh(refresh_token):
+        auth.access_token = "tok-refreshed"
+        auth.refresh_token_value = "ref-new"
+        return AuthResponse(
+            access_token="tok-refreshed",
+            refresh_token="ref-new",
+            expires_in=43200,
+            token_type="Bearer",
+        )
+
+    auth.refresh_token = _refresh
+    api = _api(auth, session)
+    api._on_tokens_updated = lambda response: persisted.append(response)
+
+    await api.get_vehicle_list()
+
+    assert len(persisted) == 1
+    assert persisted[0].access_token == "tok-refreshed"
+    assert persisted[0].refresh_token == "ref-new"
+
+
+@pytest.mark.asyncio
+async def test_concurrent_refresh_only_runs_once():
+    """Parallel refreshes must not burn a rotated refresh_token."""
+    from custom_components.chery_europe.types.auth_models import AuthResponse
+
+    refresh_count = 0
+    started = asyncio.Event()
+    release = asyncio.Event()
+    auth = _auth()
+    auth.access_token = "tok-old"
+
+    async def _refresh(refresh_token):
+        nonlocal refresh_count
+        refresh_count += 1
+        started.set()
+        await release.wait()
+        auth.access_token = "tok-new"
+        auth.refresh_token_value = "ref-new"
+        return AuthResponse(
+            access_token="tok-new",
+            refresh_token="ref-new",
+            expires_in=43200,
+            token_type="Bearer",
+        )
+
+    auth.refresh_token = _refresh
+    api = CheryEuropeApi(auth, _Session())
+
+    first = asyncio.create_task(api._refresh_token(seen_access_token="tok-old"))
+    await started.wait()
+    second = asyncio.create_task(api._refresh_token(seen_access_token="tok-old"))
+    await asyncio.sleep(0)
+    release.set()
+    await asyncio.gather(first, second)
+
+    assert refresh_count == 1
+    assert auth.access_token == "tok-new"
+
+
+@pytest.mark.asyncio
+async def test_ensure_fresh_token_refreshes_when_near_expiry():
+    """Proactive refresh runs when the access token is past the lifetime quota."""
+    from custom_components.chery_europe.types.auth_models import AuthResponse
+
+    auth = _auth()
+    auth.needs_proactive_refresh = lambda quota=0.8: True
+    refresh_calls = []
+
+    async def _refresh(refresh_token):
+        refresh_calls.append(refresh_token)
+        auth.access_token = "tok-new"
+        return AuthResponse(
+            access_token="tok-new",
+            refresh_token="ref-new",
+            expires_in=43200,
+            token_type="Bearer",
+        )
+
+    auth.refresh_token = _refresh
+    api = CheryEuropeApi(auth, _Session())
+
+    assert await api.ensure_fresh_token() is True
+    assert refresh_calls == ["ref-xyz"]
+
+
+@pytest.mark.asyncio
+async def test_ensure_fresh_token_skips_when_not_needed():
+    auth = _auth()
+    auth.needs_proactive_refresh = lambda quota=0.8: False
+    api = CheryEuropeApi(auth, _Session())
+
+    assert await api.ensure_fresh_token() is False
+
