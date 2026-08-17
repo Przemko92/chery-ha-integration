@@ -59,11 +59,12 @@ or diagnostics.
 - Diagnostic sensors: command result, wake result, position probe result
 - Service `chery_europe.set_scheduled_charging` (time + duration only)
 - Service `chery_europe.send_command` for advanced/scripted use
-- Optional **blueprint** for failed-command alerts (EN + PL)
+- Optional **blueprints** for failed- and successful-command alerts
 
 ### Requirements
 
-- Home Assistant **2024.10.0** or newer (blueprint import)
+- Home Assistant **2026.5.4** or newer (see `hacs.json`)
+- Blueprints require Home Assistant **2024.10.0** or newer
 - A Chery Europe account (same email or phone as the official app)
 - Vehicle remote-control PIN (from the official app)
 - Internet access from Home Assistant to the Chery Europe cloud
@@ -83,8 +84,7 @@ or diagnostics.
 #### Manual installation
 
 1. Copy `custom_components/chery_europe` into `config/custom_components/`.
-2. Optionally copy `blueprints/automation/chery_europe/` into `config/blueprints/automation/`.
-3. Restart Home Assistant and add the integration.
+2. Restart Home Assistant and add the integration.
 
 ### First login
 
@@ -141,6 +141,7 @@ action: chery_europe.set_scheduled_charging
 data:
   start_time: "23:00:00"
   duration_hours: 6
+  enabled: true  # optional; false disables the schedule
 ```
 
 #### `chery_europe.send_command`
@@ -156,14 +157,17 @@ data:
   # pin: !secret chery_pin  # only needed if PIN is not stored in options
 ```
 
-### Failed-command blueprint
+### Command result blueprints
 
-Import from the repository:
+The integration ships two blueprints under
+`custom_components/chery_europe/blueprints/automation/`:
 
-- English: `blueprints/automation/chery_europe/failed_command.yaml`
-- Polish: `blueprints/automation/chery_europe/komenda_nieudana.yaml`
+- `failed_command.yaml` — alert when a remote command fails
+- `success_command.yaml` — alert when a remote command succeeds
 
-**Settings → Automations → Create automation → From blueprint** → pick the
+After installing or updating the integration, restart Home Assistant.
+
+**Settings → Automations → Create automation → From blueprint** → pick a
 Chery Europe template and select the **Command result** sensor.
 
 ### Known limitations
@@ -185,10 +189,11 @@ Chery Europe template and select the **Command result** sensor.
 #### 0.2.0
 
 - MQTT push, adaptive polling, configurable poll intervals
-- Charging + scheduled charging (entities, service, blueprint)
+- Charging + scheduled charging (entities, service, command-result blueprints)
 - Comfort switches, covers, GPS device tracker, operational buttons
 - Restore sensors after restart, command/wake/probe status sensors
-- Email OTP login, PIN in options, diagnostics redaction
+- Email or SMS OTP login, PIN in options, diagnostics redaction
+- Bundled failed/success command blueprints under `custom_components/chery_europe/blueprints/`
 
 #### 0.1.0
 
@@ -246,11 +251,12 @@ PIN **nie** trafia do logów ani diagnostyki.
 - Sensory diagnostyczne: wynik komendy, wybudzenia, odczytu pozycji
 - Usługa `chery_europe.set_scheduled_charging` (tylko godzina i czas trwania)
 - Usługa `chery_europe.send_command` do zaawansowanego użycia
-- Opcjonalny **blueprint** alertu o nieudanej komendzie (PL + EN)
+- Opcjonalne **blueprinty** alertu o nieudanej i udanej komendzie
 
 ### Wymagania
 
-- Home Assistant **2024.10.0** lub nowszy (import blueprintu)
+- Home Assistant **2026.5.4** lub nowszy (patrz `hacs.json`)
+- Blueprinty wymagają Home Assistant **2024.10.0** lub nowszego
 - Konto Chery Europe (ten sam e-mail lub telefon co w aplikacji)
 - PIN do zdalnego sterowania (z aplikacji)
 - Dostęp do Internetu z Home Assistant do chmury Chery Europe
@@ -270,8 +276,7 @@ PIN **nie** trafia do logów ani diagnostyki.
 #### Instalacja ręczna
 
 1. Skopiuj `custom_components/chery_europe` do `config/custom_components/`.
-2. Opcjonalnie skopiuj `blueprints/automation/chery_europe/` do `config/blueprints/automation/`.
-3. Uruchom ponownie Home Assistant i dodaj integrację.
+2. Uruchom ponownie Home Assistant i dodaj integrację.
 
 ### Pierwsze logowanie
 
@@ -327,6 +332,7 @@ action: chery_europe.set_scheduled_charging
 data:
   start_time: "23:00:00"
   duration_hours: 6
+  enabled: true  # opcjonalnie; false wyłącza plan
 ```
 
 #### `chery_europe.send_command`
@@ -342,12 +348,15 @@ data:
   # pin: !secret chery_pin  # tylko gdy PIN nie jest zapisany w opcjach
 ```
 
-### Blueprint nieudanej komendy
+### Blueprinty wyniku komendy
 
-Import z repozytorium:
+Integracja dołącza dwa blueprinty w
+`custom_components/chery_europe/blueprints/automation/`:
 
-- polski: `blueprints/automation/chery_europe/komenda_nieudana.yaml`
-- angielski: `blueprints/automation/chery_europe/failed_command.yaml`
+- `failed_command.yaml` — alert przy nieudanej komendzie
+- `success_command.yaml` — alert przy udanej komendzie
+
+Po instalacji lub aktualizacji uruchom ponownie Home Assistant.
 
 **Ustawienia → Automatyzacje → Utwórz automatyzację → Z blueprintu** → wybierz
 szablon Chery Europe i wskaż sensor **Wynik komendy**.
@@ -371,10 +380,11 @@ szablon Chery Europe i wskaż sensor **Wynik komendy**.
 #### 0.2.0
 
 - MQTT, adaptacyjny polling, konfigurowalne interwały
-- Ładowanie + plan ładowania (encje, usługa, blueprint)
+- Ładowanie + plan ładowania (encje, usługa, blueprinty wyniku komendy)
 - Komfort, klapy, GPS, przyciski operacyjne
 - Restore sensorów, sensory statusu komend/wybudzenia/pozycji
-- Logowanie e-mail OTP, PIN w opcjach, redakcja diagnostyki
+- Logowanie e-mail lub SMS OTP, PIN w opcjach, redakcja diagnostyki
+- Blueprinty failed/success dołączone do `custom_components/chery_europe/blueprints/`
 
 #### 0.1.0
 
@@ -390,14 +400,14 @@ MIT — zobacz [LICENSE](LICENSE).
 [maintainer]: https://github.com/Przemko92
 [maintainer-shield]: https://img.shields.io/badge/maintainer-%40Przemko92-blue.svg?style=for-the-badge
 
-[commits]: https://github.com/Przemko92/chery-ha-integration/commits/main
-[commits-shield]: https://img.shields.io/github/commit-activity/y/Przemko92/chery-ha-integration.svg?style=for-the-badge
+[commits]: https://github.com/Przemko92/home-assistant-chery-europe/commits/main
+[commits-shield]: https://img.shields.io/github/commit-activity/y/Przemko92/home-assistant-chery-europe.svg?style=for-the-badge
 
 [hacs]: https://github.com/custom-components/hacs
 [hacsbadge]: https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge
 
 
-[releases]: https://github.com/Przemko92/chery-ha-integration/releases
-[releases-shield]: https://img.shields.io/github/release/Przemko92/chery-ha-integration.svg?style=for-the-badge
+[releases]: https://github.com/Przemko92/home-assistant-chery-europe/releases
+[releases-shield]: https://img.shields.io/github/release/Przemko92/home-assistant-chery-europe.svg?style=for-the-badge
 
-[license-shield]: https://img.shields.io/github/license/Przemko92/home-assistant-allegro.svg?style=for-the-badge
+[license-shield]: https://img.shields.io/github/license/Przemko92/home-assistant-chery-europe.svg?style=for-the-badge

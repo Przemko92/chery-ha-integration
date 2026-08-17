@@ -25,6 +25,7 @@ from .const import (
     DEFAULT_SESSION_KEEPALIVE,
     DOMAIN,
     DRIVE_WATCH_INTERVAL,
+    POST_COMMAND_REFRESH_DELAYS,
     REFRESH_HV_WAIT_SECONDS,
     STATUS_MAX_LEN,
 )
@@ -234,9 +235,8 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
                 return
 
     async def _refresh_after_command_safe(self) -> None:
-        for delay in (0, 5, 10, 20):
-            if delay:
-                await asyncio.sleep(delay)
+        for delay in POST_COMMAND_REFRESH_DELAYS:
+            await asyncio.sleep(delay)
             try:
                 await self.async_request_refresh()
             except Exception as exc:

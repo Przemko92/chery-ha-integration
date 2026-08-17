@@ -10,6 +10,7 @@ pytest.importorskip("homeassistant")
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
+from custom_components.chery_europe.const import POST_COMMAND_REFRESH_DELAYS
 from custom_components.chery_europe.coordinator import CheryEuropeDataUpdateCoordinator
 from custom_components.chery_europe.exceptions import CheryEuropeAuthError, CheryEuropeTimeoutError
 
@@ -93,6 +94,31 @@ async def test_coordinator_auth_failure_requests_reauth():
 
     with pytest.raises(ConfigEntryAuthFailed):
         await coordinator._async_update_data()
+
+
+@pytest.mark.asyncio
+async def test_post_command_refresh_waits_before_first_poll():
+    """Stale telemetry must not overwrite optimistic state immediately."""
+    coordinator = _coordinator(SimpleNamespace())
+    events: list[tuple[str, float | None]] = []
+
+    async def sleep(delay):
+        events.append(("sleep", delay))
+
+    async def refresh():
+        events.append(("refresh", None))
+
+    coordinator.async_request_refresh = AsyncMock(side_effect=refresh)
+
+    with patch("custom_components.chery_europe.coordinator.asyncio.sleep", sleep):
+        await coordinator._refresh_after_command_safe()
+
+    assert events[0] == ("sleep", 5)
+    assert events == [
+        item
+        for delay in POST_COMMAND_REFRESH_DELAYS
+        for item in (("sleep", delay), ("refresh", None))
+    ]
 
 
 @pytest.mark.asyncio
