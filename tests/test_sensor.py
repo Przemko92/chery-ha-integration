@@ -8,7 +8,12 @@ pytest.importorskip("homeassistant")
 
 from custom_components.chery_europe.const import DOMAIN
 from custom_components.chery_europe.data import CheryData
-from custom_components.chery_europe.sensor import SENSOR_DESCRIPTIONS, CheryEuropeSensor
+from custom_components.chery_europe.sensor import (
+    SENSOR_DESCRIPTIONS,
+    TIMESTAMP_SENSOR_DESCRIPTIONS,
+    CheryEuropeSensor,
+    CheryEuropeTimestampSensor,
+)
 
 
 def _entry(entry_id="entry-1"):
@@ -45,6 +50,31 @@ def test_sensor_values_are_read_from_coordinator_data():
         "vin": "VIN123",
         "last_updated": "2026-06-15T12:00:00Z",
     }
+
+
+def test_vehicle_speed_sensor_reads_from_coordinator_data():
+    data = CheryData(vin="VIN123", gps_speed=38.0)
+    sensor = _sensor("vehicle_speed", data)
+
+    assert sensor.native_value == 38.0
+
+
+def test_timestamp_sensor_reads_result_time_from_coordinator_data():
+    data = CheryData(
+        vin="VIN123",
+        last_updated="2026-06-15T12:00:00+00:00",
+    )
+    description = TIMESTAMP_SENSOR_DESCRIPTIONS[0]
+    sensor = CheryEuropeTimestampSensor(
+        _coordinator(data),
+        description,
+        _entry(),
+    )
+
+    value = sensor.native_value
+
+    assert value is not None
+    assert value.isoformat() == "2026-06-15T12:00:00+00:00"
 
 
 def test_sensor_is_unavailable_when_coordinator_data_is_missing():

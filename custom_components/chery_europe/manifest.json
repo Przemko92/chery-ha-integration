@@ -1,10 +1,10 @@
 {
   "domain": "chery_europe",
   "name": "Chery Europe",
-  "documentation": "https://github.com/Przemko92/home-assistant-chery-europe",
+  "documentation": "https://github.com/Przemko92/chery-ha-integration",
   "iot_class": "cloud_polling",
-  "issue_tracker": "https://github.com/Przemko92/home-assistant-chery-europe/issues",
-  "version": "0.2.0",
+  "issue_tracker": "https://github.com/Przemko92/chery-ha-integration/issues",
+  "version": "0.2.1",
   "config_flow": true,
   "codeowners": [
     "@Przemko92"

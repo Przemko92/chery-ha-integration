@@ -116,6 +116,9 @@
       "electric_odometer": {
         "name": "Electric odometer"
       },
+      "vehicle_speed": {
+        "name": "Vehicle speed"
+      },
       "fuel_range": {
         "name": "Fuel range"
       },
@@ -161,6 +164,9 @@
       },
       "climate_max_temperature": {
         "name": "Climate maximum temperature"
+      },
+      "last_data_update": {
+        "name": "Last data update"
       },
       "command_status": {
         "name": "Command result"

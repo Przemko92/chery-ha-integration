@@ -2,6 +2,7 @@
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
 from homeassistant.components.sensor import (
@@ -12,11 +13,12 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import PERCENTAGE, UnitOfLength, UnitOfPressure, UnitOfTemperature, UnitOfTime, UnitOfVolume
+from homeassistant.const import PERCENTAGE, UnitOfLength, UnitOfPressure, UnitOfSpeed, UnitOfTemperature, UnitOfTime, UnitOfVolume
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import StateType
+from homeassistant.util import dt as dt_util
 
 from .coordinator import CheryEuropeDataUpdateCoordinator
 from .data import CheryData
@@ -116,6 +118,16 @@ SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfLength.KILOMETERS,
         state_class=SensorStateClass.TOTAL_INCREASING,
         value_fn=lambda data: data.electric_odometer_km,
+    ),
+    CheryEuropeSensorEntityDescription(
+        key="vehicle_speed",
+        name="Vehicle speed",
+        translation_key="vehicle_speed",
+        device_class=SensorDeviceClass.SPEED,
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:speedometer",
+        native_unit_of_measurement=UnitOfSpeed.KILOMETERS_PER_HOUR,
+        value_fn=lambda data: data.gps_speed,
     ),
     CheryEuropeSensorEntityDescription(
         key="fuel_range",
@@ -253,6 +265,17 @@ SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
     ),
 )
 
+TIMESTAMP_SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
+    CheryEuropeSensorEntityDescription(
+        key="last_data_update",
+        name="Last data update",
+        translation_key="last_data_update",
+        icon="mdi:database-clock",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda data: data.last_updated,
+    ),
+)
+
 STATUS_SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
     CheryEuropeSensorEntityDescription(
         key="command_status",
@@ -309,6 +332,10 @@ async def async_setup_entry(
     entities.extend(
         CheryEuropeStatusSensor(coordinator, description, entry)
         for description in STATUS_SENSOR_DESCRIPTIONS
+    )
+    entities.extend(
+        CheryEuropeTimestampSensor(coordinator, description, entry)
+        for description in TIMESTAMP_SENSOR_DESCRIPTIONS
     )
     async_add_entities(entities)
 
@@ -407,6 +434,57 @@ class CheryEuropeStatusSensor(_CheryEuropeRestoreSensor):
         self._attr_translation_key = description.translation_key
         vin = self.chery_data.vin or entry.entry_id
         self._attr_unique_id = f"{vin}_{description.key}"
+
+
+class CheryEuropeTimestampSensor(_CheryEuropeRestoreSensor):
+    """Diagnostic timestamp sensor sourced from API resultTime."""
+
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _last_known_dt: datetime | None = None
+
+    def __init__(
+        self,
+        coordinator: CheryEuropeDataUpdateCoordinator,
+        description: CheryEuropeSensorEntityDescription,
+        entry: ConfigEntry,
+    ) -> None:
+        super().__init__(coordinator, description, entry)
+        self._attr_translation_key = description.translation_key
+        vin = self.chery_data.vin or entry.entry_id
+        self._attr_unique_id = f"{vin}_{description.key}"
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        restored = self._restored
+        if isinstance(restored, str):
+            restored = dt_util.parse_datetime(restored)
+        if not (isinstance(restored, datetime) and restored.tzinfo is not None):
+            restored = None
+        self._restored = restored
+
+    def _parse_timestamp(self, value: StateType) -> datetime | None:
+        if value is None:
+            return None
+        if isinstance(value, datetime):
+            parsed = value
+        elif isinstance(value, str):
+            parsed = dt_util.parse_datetime(value)
+        else:
+            return None
+        if parsed is None or parsed.tzinfo is None:
+            return None
+        return parsed
+
+    @property
+    def native_value(self) -> datetime | None:
+        live = self._parse_timestamp(self._live_value())
+        if live is not None:
+            self._last_known_dt = live
+            return live
+        if self._last_known_dt is not None:
+            return self._last_known_dt
+        return self._parse_timestamp(self._restored)
 
 
 # Backwards compatibility alias for tests and external consumers

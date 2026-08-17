@@ -291,7 +291,13 @@ def test_from_realtime_maps_battery_range_and_tires():
     }
     assert data.is_locked is True
     assert data.is_charging is True
-    assert data.last_updated == "1721390000000"
+    assert data.last_updated == "2024-07-19T11:53:20+00:00"
+
+
+def test_from_realtime_maps_vehicle_speed():
+    data = CheryData.from_realtime({"vehicleSpeed": "38"}, vin="VIN123")
+
+    assert data.gps_speed == 38.0
 
 
 def test_merge_chery_data_keeps_base_vin_and_overlays_realtime():
@@ -371,6 +377,7 @@ def test_from_realtime_maps_extended_vehicle_state():
         "rear_left": 22.5,
         "rear_right": 22.0,
     }
+    assert data.last_updated == "2026-08-14T08:38:51.068000+00:00"
 
 
 def test_apply_command_feedback_updates_lock_and_hvac():

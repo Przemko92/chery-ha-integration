@@ -167,7 +167,9 @@ class CheryData:
                 is_charging=_as_bool(_first(response, "is_charging", "isCharging", "charging")),
                 latitude=_as_float(_first(response, "latitude", "lat")),
                 longitude=_as_float(_first(response, "longitude", "lon", "lng")),
-                last_updated=_first(response, "last_updated", "lastUpdated", "timestamp", "updateTime"),
+                last_updated=_format_timestamp(
+                    _first(response, "resultTime", "last_updated", "lastUpdated", "timestamp", "updateTime")
+                ),
                 front_windshield_heating=_as_bool(
                     _first(
                         response,
@@ -299,10 +301,12 @@ class CheryData:
             hv_high_voltage_on=_state_on(payload.get("hVoltageState")),
             latitude=_as_float(_first(payload, "lat", "latitude", "wgsLat", "gcjLat")),
             longitude=_as_float(_first(payload, "lon", "longitude", "lng", "wgsLon", "gcjLon")),
-            gps_time=_format_gps_time(_first(payload, "gpsTime", "positionTime")),
+            gps_time=_format_timestamp(_first(payload, "gpsTime", "positionTime")),
             gps_direction=_as_float(_first(payload, "direction", "heading")),
-            gps_speed=_as_float(payload.get("gpsSpeed")),
-            last_updated=_first(payload, "resultTime", "lastUpdated", "timestamp"),
+            gps_speed=_as_float(_first(payload, "vehicleSpeed", "gpsSpeed", "speed")),
+            last_updated=_format_timestamp(
+                _first(payload, "resultTime", "lastUpdated", "timestamp")
+            ),
             front_windshield_heating=_state_on(
                 _first(payload, "frontWindshieldHeat", "fWinHeatingState", "frontWindHeatState")
             ),
@@ -371,19 +375,22 @@ def apply_location(data: CheryData, payload: dict[str, Any] | None) -> CheryData
     if lat is None or lon is None or not isinstance(payload, dict):
         return data
     updates: dict[str, Any] = {"latitude": lat, "longitude": lon}
-    gps_time = _format_gps_time(_first(payload, "gpsTime", "positionTime", "resultTime"))
+    gps_time = _format_timestamp(_first(payload, "gpsTime", "positionTime"))
     if gps_time:
         updates["gps_time"] = gps_time
+    result_time = _format_timestamp(payload.get("resultTime"))
+    if result_time:
+        updates["last_updated"] = result_time
     direction = _as_float(_first(payload, "direction", "heading"))
     if direction is not None:
         updates["gps_direction"] = direction
-    speed = _as_float(_first(payload, "gpsSpeed", "vehicleSpeed", "speed"))
+    speed = _as_float(_first(payload, "vehicleSpeed", "gpsSpeed", "speed"))
     if speed is not None:
         updates["gps_speed"] = speed
     return replace(data, **updates)
 
 
-def _format_gps_time(value: Any) -> str | None:
+def _format_timestamp(value: Any) -> str | None:
     """Convert epoch millis/seconds or ISO strings to an ISO-8601 UTC timestamp."""
     if value in (None, ""):
         return None

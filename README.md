@@ -76,7 +76,7 @@ or diagnostics.
 1. Install [HACS](https://hacs.xyz/) in Home Assistant.
 2. Add this repository as a **Custom repository**:
    - HACS → ⋮ → Custom repositories
-   - Repository: `https://github.com/Przemko92/home-assistant-chery-europe`
+   - Repository: `https://github.com/Przemko92/chery-ha-integration`
    - Category: **Integration**
 3. Install **Chery Europe** and restart Home Assistant.
 4. **Settings → Devices & Services → Add Integration → Chery Europe**.
@@ -268,7 +268,7 @@ PIN **nie** trafia do logów ani diagnostyki.
 1. Zainstaluj [HACS](https://hacs.xyz/).
 2. Dodaj repozytorium jako **Custom repository**:
    - HACS → ⋮ → Custom repositories
-   - Repozytorium: `https://github.com/Przemko92/home-assistant-chery-europe`
+   - Repozytorium: `https://github.com/Przemko92/chery-ha-integration`
    - Kategoria: **Integration**
 3. Zainstaluj **Chery Europe** i uruchom ponownie Home Assistant.
 4. **Ustawienia → Urządzenia i usługi → Dodaj integrację → Chery Europe**.

@@ -116,6 +116,9 @@
       "electric_odometer": {
         "name": "Przebieg na prądzie"
       },
+      "vehicle_speed": {
+        "name": "Prędkość pojazdu"
+      },
       "fuel_range": {
         "name": "Zasięg na paliwie"
       },
@@ -161,6 +164,9 @@
       },
       "climate_max_temperature": {
         "name": "Maksymalna temperatura klimatyzacji"
+      },
+      "last_data_update": {
+        "name": "Ostatnie pobranie danych"
       },
       "command_status": {
         "name": "Wynik komendy"
