@@ -4,7 +4,7 @@
   "documentation": "https://github.com/Przemko92/home-assistant-chery-europe",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/Przemko92/home-assistant-chery-europe/issues",
-  "version": "0.2.0",
+  "version": "0.1.4",
   "config_flow": true,
   "codeowners": [
     "@Przemko92"

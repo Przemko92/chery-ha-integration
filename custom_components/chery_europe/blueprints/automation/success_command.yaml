@@ -1,40 +1,42 @@
 blueprint:
-  name: Chery Europe — Alert nieudanej komendy
+  name: Chery Europe — Successful command alert
   description: >
-    Pokazuje popup w Home Assistant (i opcjonalnie wysyła powiadomienie push), gdy
-    komenda wysłana do auta przez integrację **Chery Europe** nie przeszła: auto zajęte,
-    niedostępne, limit zapytań, błąd sieci, wygasła sesja lub inny błąd.
+    Shows a popup in Home Assistant (and, if you want, sends a push notification) when a
+    command sent to the car through the **Chery Europe** integration succeeds.
 
 
-    Reaguje tylko na prawdziwe błędy: sukces (✅) i kroki pośrednie są ignorowane.
-    Komunikaty z ⏳ traktowane są jako „w toku”, nie jako błąd.
+    It reacts only to confirmed successes (✅). Failures, in-progress steps (⏳), and
+    empty or unavailable states are ignored.
 
 
-    Popup ma stałe id — kolejne błędy aktualizują to samo powiadomienie, a znika ono
-    po pierwszej udanej komendzie.
+    The popup uses a fixed id, so repeated successes update the same notification instead
+    of stacking up, and it **dismisses itself** as soon as a command fails.
   domain: automation
   author: Chery Europe
   homeassistant:
     min_version: 2024.10.0
   input:
     esito_sensor:
-      name: "Sensor \"Wynik komendy\""
+      name: "\"Command result\" sensor"
       description: >
-        Sensor diagnostyczny z wynikiem ostatniej komendy na urządzeniu pojazdu.
+        The integration sensor that reports the result of the last command.
+        Pick the diagnostic sensor named "Command result" on your vehicle device.
       selector:
         entity:
           integration: chery_europe
           domain: sensor
     popup_ha:
-      name: Popup w Home Assistant
-      description: Trwałe powiadomienie widoczne w aplikacji i przeglądarce HA.
+      name: Popup in Home Assistant
+      description: >
+        Creates a persistent notification, visible in HA (app and browser).
       default: true
       selector:
         boolean: {}
     push_service:
-      name: Powiadomienie push (opcjonalnie)
+      name: Push notification (optional)
       description: >
-        Usługa notify, np. `notify.mobile_app_moj_telefon`. Puste = bez push.
+        Optional notify service, for example `notify.mobile_app_my_phone`.
+        Leave empty for no push.
       default: ""
       selector:
         text: {}
@@ -60,16 +62,16 @@ variables:
 
 conditions:
   - condition: template
-    value_template: "{{ fallito or riuscito }}"
+    value_template: "{{ riuscito or fallito }}"
 
 actions:
   - if:
       - condition: template
-        value_template: "{{ riuscito }}"
+        value_template: "{{ fallito }}"
     then:
       - action: persistent_notification.dismiss
         data:
-          notification_id: chery_europe_command_failed
+          notification_id: chery_europe_command_success
     else:
       - if:
           - condition: template
@@ -77,22 +79,18 @@ actions:
         then:
           - action: persistent_notification.create
             data:
-              notification_id: chery_europe_command_failed
-              title: "❌ Nieudana komenda Chery"
+              notification_id: chery_europe_command_success
+              title: "✅ Chery command succeeded"
               message: >
                 **{{ esito }}**
 
 
-                Spróbuj ponownie za chwilę. Jeśli auto jest zajęte, poczekaj na zakończenie
-                poprzedniej komendy. Przy wygasłej sesji przejdź ponowną autoryzację integracji.
-
-
-                _aktualizacja {{ now().strftime('%H:%M:%S') }}_
+                _updated at {{ now().strftime('%H:%M:%S') }}_
       - if:
           - condition: template
             value_template: "{{ push_service | trim != '' }}"
         then:
           - action: "{{ push_service }}"
             data:
-              title: "❌ Nieudana komenda Chery"
+              title: "✅ Chery command succeeded"
               message: "{{ esito }}"

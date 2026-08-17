@@ -59,7 +59,7 @@ or diagnostics.
 - Diagnostic sensors: command result, wake result, position probe result
 - Service `chery_europe.set_scheduled_charging` (time + duration only)
 - Service `chery_europe.send_command` for advanced/scripted use
-- Optional **blueprint** for failed-command alerts (EN + PL)
+- Optional **blueprints** for failed- and successful-command alerts
 
 ### Requirements
 
@@ -83,8 +83,7 @@ or diagnostics.
 #### Manual installation
 
 1. Copy `custom_components/chery_europe` into `config/custom_components/`.
-2. Optionally copy `blueprints/automation/chery_europe/` into `config/blueprints/automation/`.
-3. Restart Home Assistant and add the integration.
+2. Restart Home Assistant and add the integration.
 
 ### First login
 
@@ -156,14 +155,17 @@ data:
   # pin: !secret chery_pin  # only needed if PIN is not stored in options
 ```
 
-### Failed-command blueprint
+### Command result blueprints
 
-Import from the repository:
+The integration ships two blueprints under
+`custom_components/chery_europe/blueprints/automation/`:
 
-- English: `blueprints/automation/chery_europe/failed_command.yaml`
-- Polish: `blueprints/automation/chery_europe/komenda_nieudana.yaml`
+- `failed_command.yaml` — alert when a remote command fails
+- `success_command.yaml` — alert when a remote command succeeds
 
-**Settings → Automations → Create automation → From blueprint** → pick the
+After installing or updating the integration, restart Home Assistant.
+
+**Settings → Automations → Create automation → From blueprint** → pick a
 Chery Europe template and select the **Command result** sensor.
 
 ### Known limitations
@@ -246,7 +248,7 @@ PIN **nie** trafia do logów ani diagnostyki.
 - Sensory diagnostyczne: wynik komendy, wybudzenia, odczytu pozycji
 - Usługa `chery_europe.set_scheduled_charging` (tylko godzina i czas trwania)
 - Usługa `chery_europe.send_command` do zaawansowanego użycia
-- Opcjonalny **blueprint** alertu o nieudanej komendzie (PL + EN)
+- Opcjonalne **blueprinty** alertu o nieudanej i udanej komendzie
 
 ### Wymagania
 
@@ -270,8 +272,7 @@ PIN **nie** trafia do logów ani diagnostyki.
 #### Instalacja ręczna
 
 1. Skopiuj `custom_components/chery_europe` do `config/custom_components/`.
-2. Opcjonalnie skopiuj `blueprints/automation/chery_europe/` do `config/blueprints/automation/`.
-3. Uruchom ponownie Home Assistant i dodaj integrację.
+2. Uruchom ponownie Home Assistant i dodaj integrację.
 
 ### Pierwsze logowanie
 
@@ -342,12 +343,15 @@ data:
   # pin: !secret chery_pin  # tylko gdy PIN nie jest zapisany w opcjach
 ```
 
-### Blueprint nieudanej komendy
+### Blueprinty wyniku komendy
 
-Import z repozytorium:
+Integracja dołącza dwa blueprinty w
+`custom_components/chery_europe/blueprints/automation/`:
 
-- polski: `blueprints/automation/chery_europe/komenda_nieudana.yaml`
-- angielski: `blueprints/automation/chery_europe/failed_command.yaml`
+- `failed_command.yaml` — alert przy nieudanej komendzie
+- `success_command.yaml` — alert przy udanej komendzie
+
+Po instalacji lub aktualizacji uruchom ponownie Home Assistant.
 
 **Ustawienia → Automatyzacje → Utwórz automatyzację → Z blueprintu** → wybierz
 szablon Chery Europe i wskaż sensor **Wynik komendy**.
