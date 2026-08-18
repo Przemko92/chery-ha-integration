@@ -184,21 +184,6 @@ Chery Europe template and select the **Command result** sensor.
 - Tokens, VIN, PIN, login, and GPS are redacted from diagnostics.
 - All traffic uses HTTPS to the Chery Europe cloud; MQTT uses mutual TLS.
 
-### Changelog
-
-#### 0.2.0
-
-- MQTT push, adaptive polling, configurable poll intervals
-- Charging + scheduled charging (entities, service, command-result blueprints)
-- Comfort switches, covers, GPS device tracker, operational buttons
-- Restore sensors after restart, command/wake/probe status sensors
-- Email or SMS OTP login, PIN in options, diagnostics redaction
-- Bundled failed/success command blueprints under `custom_components/chery_europe/blueprints/`
-
-#### 0.1.0
-
-- Initial MVP: sensors, safe switches, lock, climate, `send_command`
-
 ### License
 
 MIT — see [LICENSE](LICENSE).
@@ -374,21 +359,6 @@ szablon Chery Europe i wskaż sensor **Wynik komendy**.
 - PIN jest w opcjach integracji (szyfrowane przez HA).
 - Tokeny, VIN, PIN, login i GPS są redagowane w diagnostyce.
 - Ruch idzie po HTTPS; MQTT używa mutual TLS.
-
-### Lista zmian
-
-#### 0.2.0
-
-- MQTT, adaptacyjny polling, konfigurowalne interwały
-- Ładowanie + plan ładowania (encje, usługa, blueprinty wyniku komendy)
-- Komfort, klapy, GPS, przyciski operacyjne
-- Restore sensorów, sensory statusu komend/wybudzenia/pozycji
-- Logowanie e-mail lub SMS OTP, PIN w opcjach, redakcja diagnostyki
-- Blueprinty failed/success dołączone do `custom_components/chery_europe/blueprints/`
-
-#### 0.1.0
-
-- MVP: sensory, bezpieczne przełączniki, zamek, klimat, `send_command`
 
 ### Licencja
 

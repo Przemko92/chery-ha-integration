@@ -36,6 +36,30 @@ from .pin import resolve_pin
 
 _LOGGER = logging.getLogger(__name__)
 
+_CONTROL_STATE_FIELDS = (
+    "is_locked",
+    "is_charging",
+    "appointment_charge",
+    "scheduled_charge_enabled",
+    "charge_appoint_plan",
+    "front_windshield_heating",
+    "rear_window_defrost",
+    "steering_wheel_heating",
+    "air_purification",
+    "sunroof_open",
+    "hvac_enabled",
+    "hvac_mode",
+    "target_temperature",
+    "driver_seat_heating",
+    "passenger_seat_heating",
+    "driver_seat_ventilation",
+    "passenger_seat_ventilation",
+    "rear_left_seat_heating",
+    "rear_right_seat_heating",
+    "rear_left_seat_ventilation",
+    "rear_right_seat_ventilation",
+)
+
 
 class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
     """Coordinate data updates for Chery Europe."""
@@ -125,12 +149,12 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
                 )
                 self._sync_vehicle_identity(base)
                 self._apply_scan_interval(base)
-                return self._preserve_status(base)
+                return self._preserve_control_state(self._preserve_status(base))
             if not realtime:
                 self._sync_vehicle_identity(base)
                 self._apply_scan_interval(base)
                 merged = await self._merge_location(base)
-                return self._preserve_status(merged)
+                return self._preserve_control_state(self._preserve_status(merged))
             merged = merge_chery_data(
                 base,
                 CheryData.from_realtime(realtime, vin=vin),
@@ -152,6 +176,20 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
             return data
         preserved = {}
         for field in ("command_status", "wake_status", "probe_status"):
+            value = getattr(current, field)
+            if value is not None and getattr(data, field) is None:
+                preserved[field] = value
+        if preserved:
+            return replace(data, **preserved)
+        return data
+
+    def _preserve_control_state(self, data: CheryData) -> CheryData:
+        """Keep last known control states when a refresh lacks realtime fields."""
+        current = getattr(self, "data", None)
+        if current is None:
+            return data
+        preserved = {}
+        for field in _CONTROL_STATE_FIELDS:
             value = getattr(current, field)
             if value is not None and getattr(data, field) is None:
                 preserved[field] = value

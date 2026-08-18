@@ -47,7 +47,6 @@ def test_sensor_values_are_read_from_coordinator_data():
     assert battery.native_value == 91
     assert tire.native_value == 2.4
     assert battery.extra_state_attributes == {
-        "vin": "VIN123",
         "last_updated": "2026-06-15T12:00:00Z",
     }
 

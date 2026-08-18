@@ -118,6 +118,27 @@ def test_restore_sensor_keeps_last_known_value():
     assert sensor.native_value == 55
 
 
+def test_preserve_control_state_when_realtime_is_missing():
+    coordinator = _coordinator()
+    coordinator.data = CheryData(
+        vin=VIN,
+        front_windshield_heating=True,
+        rear_window_defrost=False,
+        hvac_enabled=True,
+        target_temperature=22,
+        is_locked=True,
+    )
+
+    refreshed = coordinator._preserve_control_state(CheryData(vin=VIN, battery_level=70))
+
+    assert refreshed.front_windshield_heating is True
+    assert refreshed.rear_window_defrost is False
+    assert refreshed.hvac_enabled is True
+    assert refreshed.target_temperature == 22
+    assert refreshed.is_locked is True
+    assert refreshed.battery_level == 70
+
+
 def test_status_sensor_descriptions_exist():
     keys = {desc.key for desc in STATUS_SENSOR_DESCRIPTIONS}
     assert keys == {"command_status", "wake_status", "probe_status"}

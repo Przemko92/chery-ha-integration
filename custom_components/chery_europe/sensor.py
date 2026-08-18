@@ -411,7 +411,6 @@ class CheryEuropeSensor(_CheryEuropeRestoreSensor):
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return vehicle metadata for this sensor."""
         return {
-            "vin": self.chery_data.vin,
             "last_updated": self.chery_data.last_updated,
         }
 
