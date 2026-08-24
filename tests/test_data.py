@@ -369,6 +369,7 @@ def test_from_realtime_maps_extended_vehicle_state():
     assert data.steering_wheel_heating is True
     assert data.door_front_right_open is True
     assert data.window_front_right_open is True
+    assert data.sunroof_position == 0
     assert data.driver_seat_heating is True
     assert data.passenger_seat_ventilation is True
     assert data.tire_temperatures == {
@@ -378,6 +379,30 @@ def test_from_realtime_maps_extended_vehicle_state():
         "rear_right": 22.0,
     }
     assert data.last_updated == "2026-08-14T08:38:51.068000+00:00"
+
+
+def test_from_realtime_maps_window_and_sunroof_vent_state():
+    data = CheryData.from_realtime(
+        {
+            "frontLeftWindowState": "2",
+            "frontRightWindowState": "0",
+            "backLeftWindowState": "1",
+            "backRightWindowState": "0",
+            "sunroofState": "2",
+        },
+        vin="VIN123",
+    )
+
+    assert data.window_front_left_open is True
+    assert data.sunroof_open is True
+    assert data.sunroof_position == 50
+
+
+def test_from_realtime_maps_sunroof_open_state():
+    data = CheryData.from_realtime({"sunroofState": "3"}, vin="VIN123")
+
+    assert data.sunroof_open is True
+    assert data.sunroof_position == 100
 
 
 def test_apply_command_feedback_updates_lock_and_hvac():
@@ -489,7 +514,15 @@ def test_apply_command_feedback_updates_covers_and_seats():
     heated = apply_command_feedback(
         base, "ve_1204", enabled=True, seat_field="mSeatHeating"
     )
+    vented_windows = apply_command_feedback(base, "ve_1206", action="vent")
+    tilted_sunroof = apply_command_feedback(base, "ve_1207", action="tilt")
+    closed_sunroof = apply_command_feedback(base, "ve_1207", action="close")
 
     assert opened.trunk_open is True
     assert heated.driver_seat_heating is True
     assert heated.driver_seat_ventilation is False
+    assert vented_windows.window_front_left_open is True
+    assert tilted_sunroof.sunroof_open is True
+    assert tilted_sunroof.sunroof_position == 50
+    assert closed_sunroof.sunroof_open is False
+    assert closed_sunroof.sunroof_position == 0

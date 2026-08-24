@@ -1,4 +1,4 @@
-"""Cover platform for trunk, windows and sunroof."""
+"""Cover platform for trunk and windows."""
 
 from __future__ import annotations
 
@@ -51,15 +51,6 @@ COVER_DESCRIPTIONS: tuple[CheryEuropeCoverEntityDescription, ...] = (
         command_id="ve_1206",
         is_open_fn=lambda data: _any_window_open(data),
     ),
-    CheryEuropeCoverEntityDescription(
-        key="sunroof",
-        name="Sunroof",
-        translation_key="sunroof",
-        device_class=CoverDeviceClass.SHADE,
-        icon="mdi:car-select",
-        command_id="ve_1207",
-        is_open_fn=lambda data: data.sunroof_open,
-    ),
 )
 
 
@@ -90,7 +81,7 @@ async def async_setup_entry(
 
 
 class CheryEuropeCover(CheryEuropeEntity, CoverEntity):
-    """Motorized trunk, windows or sunroof."""
+    """Motorized trunk or windows."""
 
     entity_description: CheryEuropeCoverEntityDescription
     _attr_supported_features = CoverEntityFeature.OPEN | CoverEntityFeature.CLOSE

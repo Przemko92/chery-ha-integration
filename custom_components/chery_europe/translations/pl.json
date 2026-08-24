@@ -310,9 +310,16 @@
       },
       "windows": {
         "name": "Szyby"
-      },
+      }
+    },
+    "select": {
       "sunroof": {
-        "name": "Szyberdach"
+        "name": "Szyberdach",
+        "state": {
+          "closed": "Zamknięty",
+          "tilt": "Uchylony",
+          "open": "Otwarty"
+        }
       }
     },
     "button": {

@@ -18,6 +18,7 @@ APPOINTMENT_CHARGE_STATUS_MAP = {
     "1": "enabled",
     "2": "running",
 }
+ACTION_TO_POSITION = {"close": 0, "open": 100, "tilt": 50}
 SEAT_FIELD_TO_ATTR = {
     "mSeatHeating": "driver_seat_heating",
     "pSeatHeating": "passenger_seat_heating",
@@ -85,6 +86,7 @@ class CheryData:
     steering_wheel_heating: bool | None = None
     air_purification: bool | None = None
     sunroof_open: bool | None = None
+    sunroof_position: int | None = None
     hvac_enabled: bool | None = None
     hvac_mode: str | None = None
     target_temperature: float | None = None
@@ -316,6 +318,7 @@ class CheryData:
             steering_wheel_heating=_state_on(payload.get("steerWheelHeating")),
             air_purification=_state_on(payload.get("airPurification")),
             sunroof_open=_is_open(payload.get("sunroofState")),
+            sunroof_position=_sunroof_position(payload.get("sunroofState")),
             hvac_enabled=hvac_enabled,
             target_temperature=_as_float(
                 _first(payload, "frontSetTempLeft", "frontSetTempRight", "targetTemp")
@@ -476,7 +479,13 @@ def apply_command_feedback(data: CheryData, command_id: str, **kwargs: Any) -> C
             window_rear_right_open=opened,
         )
     if command_id == "ve_1207":
-        return replace(data, sunroof_open=str(kwargs.get("action", "open")).lower() == "open")
+        action = str(kwargs.get("action", "open")).lower()
+        opened = action != "close"
+        return replace(
+            data,
+            sunroof_open=opened,
+            sunroof_position=ACTION_TO_POSITION.get(action, 100 if opened else 0),
+        )
     return data
 
 
@@ -548,6 +557,16 @@ def _is_open(value: Any) -> bool | None:
     if value in (None, ""):
         return None
     return str(value) != "0"
+
+
+SUNROOF_STATE_TO_POSITION = {"0": 0, "2": 50, "3": 100}
+
+
+def _sunroof_position(value: Any) -> int | None:
+    """Map the sunroof's 3-way state (0=closed, 2=tilt, 3=open) to a cover position."""
+    if value in (None, ""):
+        return None
+    return SUNROOF_STATE_TO_POSITION.get(str(value))
 
 
 def _parse_charge_appoint_plan(raw: Any) -> dict[str, Any] | None:

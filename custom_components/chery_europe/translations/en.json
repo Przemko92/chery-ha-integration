@@ -310,9 +310,16 @@
       },
       "windows": {
         "name": "Windows"
-      },
+      }
+    },
+    "select": {
       "sunroof": {
-        "name": "Sunroof"
+        "name": "Sunroof",
+        "state": {
+          "closed": "Closed",
+          "tilt": "Tilt",
+          "open": "Open"
+        }
       }
     },
     "button": {
