@@ -6,6 +6,8 @@ import pytest
 
 pytest.importorskip("homeassistant")
 
+from homeassistant.const import PERCENTAGE
+
 from custom_components.chery_europe.const import DOMAIN
 from custom_components.chery_europe.data import CheryData
 from custom_components.chery_europe.sensor import (
@@ -56,6 +58,16 @@ def test_vehicle_speed_sensor_reads_from_coordinator_data():
     sensor = _sensor("vehicle_speed", data)
 
     assert sensor.native_value == 38.0
+
+
+def test_fuel_level_sensor_uses_percentage_unit():
+    """oilSurplus from the API is tank fill percentage, not liters."""
+    description = next(desc for desc in SENSOR_DESCRIPTIONS if desc.key == "fuel_level")
+    sensor = _sensor("fuel_level", CheryData(vin="VIN123", fuel_level=67.0))
+
+    assert description.native_unit_of_measurement == PERCENTAGE
+    assert sensor.native_value == 67.0
+    assert sensor.native_unit_of_measurement == PERCENTAGE
 
 
 def test_timestamp_sensor_reads_result_time_from_coordinator_data():
