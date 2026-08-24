@@ -6,7 +6,7 @@ from datetime import timedelta
 NAME = "Chery Europe"
 DOMAIN = "chery_europe"
 DOMAIN_DATA = f"{DOMAIN}_data"
-VERSION = "0.2.1"
+VERSION = "0.2.5"
 ISSUE_URL = "https://github.com/Przemko92/chery-ha-integration/issues"
 
 # Platforms

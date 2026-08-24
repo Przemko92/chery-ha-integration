@@ -162,7 +162,7 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
             merged = await self._merge_location(merged)
             self._sync_vehicle_identity(merged)
             self._apply_scan_interval(merged)
-            return self._preserve_status(merged)
+            return self._preserve_control_state(self._preserve_status(merged))
         except CheryEuropeAuthError as exc:
             raise ConfigEntryAuthFailed("Chery Europe authentication failed") from exc
         except Exception as exc:
