@@ -14,7 +14,8 @@ jobs:
       - uses: hacs/action@main
         with:
           category: integration
-          ignore: brands
+          # description/topics need GitHub repo settings; brands needs HA brands PR
+          ignore: brands description topics
 
   hassfest:
     name: Hassfest

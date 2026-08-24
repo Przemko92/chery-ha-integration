@@ -1,18 +1,18 @@
 {
   "domain": "chery_europe",
   "name": "Chery Europe",
-  "documentation": "https://github.com/Przemko92/chery-ha-integration",
-  "iot_class": "cloud_polling",
-  "issue_tracker": "https://github.com/Przemko92/chery-ha-integration/issues",
-  "version": "0.2.3",
-  "config_flow": true,
   "codeowners": [
     "@Przemko92"
   ],
+  "config_flow": true,
+  "documentation": "https://github.com/Przemko92/chery-ha-integration",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/Przemko92/chery-ha-integration/issues",
   "requirements": [
     "paho-mqtt>=2.0",
     "gmssl>=3.2.2",
     "numpy>=2.2.0",
     "Pillow>=11.0.0"
-  ]
+  ],
+  "version": "0.2.3"
 }
