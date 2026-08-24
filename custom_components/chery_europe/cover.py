@@ -1,4 +1,4 @@
-"""Cover platform for trunk and windows."""
+"""Cover platform for the trunk."""
 
 from __future__ import annotations
 
@@ -42,29 +42,7 @@ COVER_DESCRIPTIONS: tuple[CheryEuropeCoverEntityDescription, ...] = (
         command_id="ve_1205",
         is_open_fn=lambda data: data.trunk_open,
     ),
-    CheryEuropeCoverEntityDescription(
-        key="windows",
-        name="Windows",
-        translation_key="windows",
-        device_class=CoverDeviceClass.WINDOW,
-        icon="mdi:car-door",
-        command_id="ve_1206",
-        is_open_fn=lambda data: _any_window_open(data),
-    ),
 )
-
-
-def _any_window_open(data: CheryData) -> bool | None:
-    states = [
-        data.window_front_left_open,
-        data.window_front_right_open,
-        data.window_rear_left_open,
-        data.window_rear_right_open,
-    ]
-    known = [state for state in states if state is not None]
-    if not known:
-        return None
-    return any(known)
 
 
 async def async_setup_entry(
@@ -81,7 +59,7 @@ async def async_setup_entry(
 
 
 class CheryEuropeCover(CheryEuropeEntity, CoverEntity):
-    """Motorized trunk or windows."""
+    """Motorized trunk."""
 
     entity_description: CheryEuropeCoverEntityDescription
     _attr_supported_features = CoverEntityFeature.OPEN | CoverEntityFeature.CLOSE

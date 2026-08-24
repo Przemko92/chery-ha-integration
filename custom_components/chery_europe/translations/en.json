@@ -307,12 +307,17 @@
     "cover": {
       "trunk": {
         "name": "Trunk"
-      },
-      "windows": {
-        "name": "Windows"
       }
     },
     "select": {
+      "windows": {
+        "name": "Windows",
+        "state": {
+          "closed": "Closed",
+          "vent": "Ventilation",
+          "open": "Open"
+        }
+      },
       "sunroof": {
         "name": "Sunroof",
         "state": {

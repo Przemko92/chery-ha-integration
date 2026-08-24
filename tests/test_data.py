@@ -369,6 +369,8 @@ def test_from_realtime_maps_extended_vehicle_state():
     assert data.steering_wheel_heating is True
     assert data.door_front_right_open is True
     assert data.window_front_right_open is True
+    assert data.window_front_right_position == 50
+    assert data.window_front_left_position == 0
     assert data.sunroof_position == 0
     assert data.driver_seat_heating is True
     assert data.passenger_seat_ventilation is True
@@ -384,9 +386,9 @@ def test_from_realtime_maps_extended_vehicle_state():
 def test_from_realtime_maps_window_and_sunroof_vent_state():
     data = CheryData.from_realtime(
         {
-            "frontLeftWindowState": "2",
+            "frontLeftWindowState": "1",
             "frontRightWindowState": "0",
-            "backLeftWindowState": "1",
+            "backLeftWindowState": "3",
             "backRightWindowState": "0",
             "sunroofState": "2",
         },
@@ -394,6 +396,9 @@ def test_from_realtime_maps_window_and_sunroof_vent_state():
     )
 
     assert data.window_front_left_open is True
+    assert data.window_front_left_position == 50
+    assert data.window_front_right_position == 0
+    assert data.window_rear_left_position == 100
     assert data.sunroof_open is True
     assert data.sunroof_position == 50
 
@@ -522,6 +527,8 @@ def test_apply_command_feedback_updates_covers_and_seats():
     assert heated.driver_seat_heating is True
     assert heated.driver_seat_ventilation is False
     assert vented_windows.window_front_left_open is True
+    assert vented_windows.window_front_left_position == 50
+    assert vented_windows.window_rear_right_position == 50
     assert tilted_sunroof.sunroof_open is True
     assert tilted_sunroof.sunroof_position == 50
     assert closed_sunroof.sunroof_open is False
