@@ -1,0 +1,12 @@
+# Test suite dependencies (GitHub Actions CI + local development).
+# Not a runtime requirement for HACS users — only custom_components/ is installed.
+#
+# pytest-homeassistant-custom-component pulls in Home Assistant and a pytest stack
+# configured for custom integrations. Left unpinned so CI tracks current HA.
+pytest-homeassistant-custom-component
+
+# Runtime deps from manifest.json — tests import the real component modules.
+paho-mqtt>=2.0
+gmssl>=3.2.2
+numpy>=2.2.0
+Pillow>=11.0.0

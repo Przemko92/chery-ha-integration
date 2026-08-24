@@ -77,11 +77,11 @@
           "poll_normal_min": "Update interval when parked (minutes, 0 = off)",
           "poll_charging_min": "Update interval when charging (minutes, 0 = use parked interval)",
           "poll_hv_min": "Update interval when HV is on (minutes, 0 = use parked interval)"
-        },
-        "error": {
-          "pin_mismatch": "PIN confirmation does not match."
         }
       }
+    },
+    "error": {
+      "pin_mismatch": "PIN confirmation does not match."
     }
   },
   "entity": {
