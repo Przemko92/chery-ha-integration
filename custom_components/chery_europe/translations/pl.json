@@ -307,12 +307,24 @@
     "cover": {
       "trunk": {
         "name": "Bagażnik"
-      },
+      }
+    },
+    "select": {
       "windows": {
-        "name": "Szyby"
+        "name": "Szyby",
+        "state": {
+          "closed": "Zamknięte",
+          "vent": "Wentylacja",
+          "open": "Otwarte"
+        }
       },
       "sunroof": {
-        "name": "Szyberdach"
+        "name": "Szyberdach",
+        "state": {
+          "closed": "Zamknięty",
+          "tilt": "Uchylony",
+          "open": "Otwarty"
+        }
       }
     },
     "button": {

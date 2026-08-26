@@ -48,7 +48,8 @@ or diagnostics.
 **Remote control**
 - Lock/unlock, climate (16–30 °C), front/rear glass heating
 - Seat heating/ventilation, steering wheel heating
-- Covers: trunk, windows, sunroof
+- Covers: trunk
+- Selects: windows (closed / vent / open), sunroof (closed / tilt / open)
 - Charging: start/stop, scheduled charging (time + duration entities)
 - Buttons: locate, find car, **wake vehicle**, **refresh position**, **refresh full status**
 
