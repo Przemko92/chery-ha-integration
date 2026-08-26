@@ -6,7 +6,7 @@ from datetime import timedelta
 NAME = "Chery Europe"
 DOMAIN = "chery_europe"
 DOMAIN_DATA = f"{DOMAIN}_data"
-VERSION = "0.2.5"
+VERSION = "0.2.6"
 ISSUE_URL = "https://github.com/Przemko92/chery-ha-integration/issues"
 
 # Platforms
@@ -20,6 +20,7 @@ NUMBER = "number"
 COVER = "cover"
 DEVICE_TRACKER = "device_tracker"
 BUTTON = "button"
+SELECT = "select"
 PLATFORMS = [
     SENSOR,
     BINARY_SENSOR,
@@ -31,6 +32,7 @@ PLATFORMS = [
     COVER,
     DEVICE_TRACKER,
     BUTTON,
+    SELECT,
 ]
 
 # Services

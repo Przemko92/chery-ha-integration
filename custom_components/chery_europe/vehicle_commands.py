@@ -118,8 +118,11 @@ def build_control_type_body(values: dict[str, Any]) -> dict[str, str]:
 
 
 def build_skylight_body(values: dict[str, Any]) -> dict[str, str]:
-    body = build_control_type_body(values)
-    body["skylightType"] = "1"
+    action = str(values.get("action", "open")).lower()
+    mapping = {"open": "1", "close": "0", "tilt": "2"}
+    body = {"controlType": mapping.get(action, "1"), "skylightType": "1"}
+    if action == "open":
+        body["times"] = str(values.get("duration", 1))
     return body
 
 

@@ -18,6 +18,7 @@ APPOINTMENT_CHARGE_STATUS_MAP = {
     "1": "enabled",
     "2": "running",
 }
+ACTION_TO_POSITION = {"close": 0, "open": 100, "tilt": 50, "vent": 50}
 SEAT_FIELD_TO_ATTR = {
     "mSeatHeating": "driver_seat_heating",
     "pSeatHeating": "passenger_seat_heating",
@@ -85,6 +86,7 @@ class CheryData:
     steering_wheel_heating: bool | None = None
     air_purification: bool | None = None
     sunroof_open: bool | None = None
+    sunroof_position: int | None = None
     hvac_enabled: bool | None = None
     hvac_mode: str | None = None
     target_temperature: float | None = None
@@ -97,6 +99,10 @@ class CheryData:
     window_front_right_open: bool | None = None
     window_rear_left_open: bool | None = None
     window_rear_right_open: bool | None = None
+    window_front_left_position: int | None = None
+    window_front_right_position: int | None = None
+    window_rear_left_position: int | None = None
+    window_rear_right_position: int | None = None
     driver_seat_heating: bool | None = None
     passenger_seat_heating: bool | None = None
     driver_seat_ventilation: bool | None = None
@@ -316,6 +322,7 @@ class CheryData:
             steering_wheel_heating=_state_on(payload.get("steerWheelHeating")),
             air_purification=_state_on(payload.get("airPurification")),
             sunroof_open=_is_open(payload.get("sunroofState")),
+            sunroof_position=_sunroof_position(payload.get("sunroofState")),
             hvac_enabled=hvac_enabled,
             target_temperature=_as_float(
                 _first(payload, "frontSetTempLeft", "frontSetTempRight", "targetTemp")
@@ -329,6 +336,10 @@ class CheryData:
             window_front_right_open=_is_open(payload.get("frontRightWindowState")),
             window_rear_left_open=_is_open(payload.get("backLeftWindowState")),
             window_rear_right_open=_is_open(payload.get("backRightWindowState")),
+            window_front_left_position=_window_position(payload.get("frontLeftWindowState")),
+            window_front_right_position=_window_position(payload.get("frontRightWindowState")),
+            window_rear_left_position=_window_position(payload.get("backLeftWindowState")),
+            window_rear_right_position=_window_position(payload.get("backRightWindowState")),
             driver_seat_heating=_state_on(payload.get("dSeatHeatingState")),
             passenger_seat_heating=_state_on(payload.get("pSeatHeatingState")),
             driver_seat_ventilation=_state_on(payload.get("dSeatVentilateState")),
@@ -467,16 +478,28 @@ def apply_command_feedback(data: CheryData, command_id: str, **kwargs: Any) -> C
     if command_id == "ve_1205":
         return replace(data, trunk_open=str(kwargs.get("action", "open")).lower() == "open")
     if command_id == "ve_1206":
-        opened = str(kwargs.get("action", "open")).lower() != "close"
+        action = str(kwargs.get("action", "open")).lower()
+        opened = action != "close"
+        position = ACTION_TO_POSITION.get(action, 100 if opened else 0)
         return replace(
             data,
             window_front_left_open=opened,
             window_front_right_open=opened,
             window_rear_left_open=opened,
             window_rear_right_open=opened,
+            window_front_left_position=position,
+            window_front_right_position=position,
+            window_rear_left_position=position,
+            window_rear_right_position=position,
         )
     if command_id == "ve_1207":
-        return replace(data, sunroof_open=str(kwargs.get("action", "open")).lower() == "open")
+        action = str(kwargs.get("action", "open")).lower()
+        opened = action != "close"
+        return replace(
+            data,
+            sunroof_open=opened,
+            sunroof_position=ACTION_TO_POSITION.get(action, 100 if opened else 0),
+        )
     return data
 
 
@@ -548,6 +571,24 @@ def _is_open(value: Any) -> bool | None:
     if value in (None, ""):
         return None
     return str(value) != "0"
+
+
+WINDOW_STATE_TO_POSITION = {"0": 0, "1": 50, "3": 100}
+SUNROOF_STATE_TO_POSITION = {"0": 0, "2": 50, "3": 100}
+
+
+def _window_position(value: Any) -> int | None:
+    """Map a window's 3-way state (0=closed, 1=vent, 3=open) to a cover position."""
+    if value in (None, ""):
+        return None
+    return WINDOW_STATE_TO_POSITION.get(str(value))
+
+
+def _sunroof_position(value: Any) -> int | None:
+    """Map the sunroof's 3-way state (0=closed, 2=tilt, 3=open) to a cover position."""
+    if value in (None, ""):
+        return None
+    return SUNROOF_STATE_TO_POSITION.get(str(value))
 
 
 def _parse_charge_appoint_plan(raw: Any) -> dict[str, Any] | None:
