@@ -96,4 +96,13 @@ def test_build_window_and_skylight_bodies():
     assert build_skylight_body({"action": "open"}) == {
         "controlType": "1",
         "skylightType": "1",
+        "times": "1",
+    }
+    assert build_skylight_body({"action": "close"}) == {
+        "controlType": "0",
+        "skylightType": "1",
+    }
+    assert build_skylight_body({"action": "tilt"}) == {
+        "controlType": "2",
+        "skylightType": "1",
     }
