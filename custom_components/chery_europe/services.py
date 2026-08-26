@@ -12,7 +12,7 @@ from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 
-from .charge_schedule import local_time_to_utc_minutes
+from .charge_schedule import local_time_to_minutes
 from .command_exec import async_send_vehicle_command
 from .const import (
     ATTR_COMMAND_ID,
@@ -124,8 +124,8 @@ def async_setup_services(hass: HomeAssistant) -> None:
         start: time = call.data[ATTR_START_TIME]
         duration_hours: int = call.data[ATTR_DURATION_HOURS]
         enabled: bool = call.data[ATTR_ENABLED]
-        # Service start_time is local; the vehicle API expects UTC minutes.
-        start_minutes = local_time_to_utc_minutes(start)
+        # Service start_time and the vehicle API both use local minutes from midnight.
+        start_minutes = local_time_to_minutes(start)
 
         vin = call.data.get(ATTR_VIN) or (
             coordinator.data.vin if coordinator.data is not None else None
