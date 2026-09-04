@@ -64,7 +64,7 @@ or diagnostics.
 
 ### Requirements
 
-- Home Assistant **2026.5.4** or newer (see `hacs.json`)
+- Home Assistant **2026.5.0** or newer (see `hacs.json`)
 - Blueprints require Home Assistant **2024.10.0** or newer
 - A Chery Europe account (same email or phone as the official app)
 - Vehicle remote-control PIN (from the official app)
@@ -241,7 +241,7 @@ PIN **nie** trafia do logów ani diagnostyki.
 
 ### Wymagania
 
-- Home Assistant **2026.5.4** lub nowszy (patrz `hacs.json`)
+- Home Assistant **2026.5.0** lub nowszy (patrz `hacs.json`)
 - Blueprinty wymagają Home Assistant **2024.10.0** lub nowszego
 - Konto Chery Europe (ten sam e-mail lub telefon co w aplikacji)
 - PIN do zdalnego sterowania (z aplikacji)
