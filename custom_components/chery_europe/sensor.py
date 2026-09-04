@@ -41,6 +41,7 @@ SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
         translation_key="battery_level",
         device_class=SensorDeviceClass.BATTERY,
         native_unit_of_measurement=PERCENTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda data: data.battery_level,
     ),
     CheryEuropeSensorEntityDescription(
@@ -49,6 +50,7 @@ SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
         translation_key="fuel_level",
         icon="mdi:fuel",
         native_unit_of_measurement=PERCENTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda data: data.fuel_level,
     ),
     CheryEuropeSensorEntityDescription(
@@ -57,6 +59,7 @@ SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
         translation_key="range",
         device_class=SensorDeviceClass.DISTANCE,
         native_unit_of_measurement=UnitOfLength.KILOMETERS,
+        state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda data: data.range_km,
     ),
     CheryEuropeSensorEntityDescription(
@@ -65,6 +68,7 @@ SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
         translation_key="tire_pressure_front_left",
         icon="mdi:car-tire-alert",
         native_unit_of_measurement=UnitOfPressure.BAR,
+        state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda data: _tire_pressure(data, "front_left"),
     ),
     CheryEuropeSensorEntityDescription(
@@ -73,6 +77,7 @@ SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
         translation_key="tire_pressure_front_right",
         icon="mdi:car-tire-alert",
         native_unit_of_measurement=UnitOfPressure.BAR,
+        state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda data: _tire_pressure(data, "front_right"),
     ),
     CheryEuropeSensorEntityDescription(
@@ -81,6 +86,7 @@ SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
         translation_key="tire_pressure_rear_left",
         icon="mdi:car-tire-alert",
         native_unit_of_measurement=UnitOfPressure.BAR,
+        state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda data: _tire_pressure(data, "rear_left"),
     ),
     CheryEuropeSensorEntityDescription(
@@ -89,6 +95,7 @@ SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
         translation_key="tire_pressure_rear_right",
         icon="mdi:car-tire-alert",
         native_unit_of_measurement=UnitOfPressure.BAR,
+        state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda data: _tire_pressure(data, "rear_right"),
     ),
     CheryEuropeSensorEntityDescription(
@@ -98,6 +105,7 @@ SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
         device_class=SensorDeviceClass.DISTANCE,
         icon="mdi:counter",
         native_unit_of_measurement=UnitOfLength.KILOMETERS,
+        state_class=SensorStateClass.TOTAL_INCREASING,
         value_fn=lambda data: data.odometer_km,
     ),
     CheryEuropeSensorEntityDescription(
@@ -107,6 +115,7 @@ SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
         device_class=SensorDeviceClass.DISTANCE,
         icon="mdi:car-electric",
         native_unit_of_measurement=UnitOfLength.KILOMETERS,
+        state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda data: data.electric_range_km,
     ),
     CheryEuropeSensorEntityDescription(
@@ -136,6 +145,7 @@ SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
         device_class=SensorDeviceClass.DISTANCE,
         icon="mdi:gas-station",
         native_unit_of_measurement=UnitOfLength.KILOMETERS,
+        state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda data: data.fuel_range_km,
     ),
     CheryEuropeSensorEntityDescription(
@@ -144,6 +154,7 @@ SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
         translation_key="power_consumption",
         icon="mdi:flash",
         native_unit_of_measurement="kWh/100km",
+        state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda data: data.power_consumption_kwh_100km,
     ),
     CheryEuropeSensorEntityDescription(
@@ -152,6 +163,7 @@ SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
         translation_key="fuel_consumption",
         icon="mdi:gas-station",
         native_unit_of_measurement="L/100km",
+        state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda data: data.average_fuel_consumption,
     ),
     CheryEuropeSensorEntityDescription(
@@ -161,6 +173,7 @@ SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
         device_class=SensorDeviceClass.DURATION,
         native_unit_of_measurement=UnitOfTime.MINUTES,
         icon="mdi:timer-sand",
+        state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda data: data.remain_charge_time_min,
     ),
     CheryEuropeSensorEntityDescription(
@@ -237,6 +250,7 @@ SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
         translation_key="tire_temperature_front_left",
         device_class=SensorDeviceClass.TEMPERATURE,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda data: _tire_temperature(data, "front_left"),
     ),
     CheryEuropeSensorEntityDescription(
@@ -245,6 +259,7 @@ SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
         translation_key="tire_temperature_front_right",
         device_class=SensorDeviceClass.TEMPERATURE,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda data: _tire_temperature(data, "front_right"),
     ),
     CheryEuropeSensorEntityDescription(
@@ -253,6 +268,7 @@ SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
         translation_key="tire_temperature_rear_left",
         device_class=SensorDeviceClass.TEMPERATURE,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda data: _tire_temperature(data, "rear_left"),
     ),
     CheryEuropeSensorEntityDescription(
@@ -261,6 +277,7 @@ SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
         translation_key="tire_temperature_rear_right",
         device_class=SensorDeviceClass.TEMPERATURE,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda data: _tire_temperature(data, "rear_right"),
     ),
 )
