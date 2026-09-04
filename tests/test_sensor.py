@@ -6,6 +6,7 @@ import pytest
 
 pytest.importorskip("homeassistant")
 
+from homeassistant.components.sensor import SensorStateClass
 from homeassistant.const import PERCENTAGE
 
 from custom_components.chery_europe.const import DOMAIN
@@ -68,6 +69,34 @@ def test_fuel_level_sensor_uses_percentage_unit():
     assert description.native_unit_of_measurement == PERCENTAGE
     assert sensor.native_value == 67.0
     assert sensor.native_unit_of_measurement == PERCENTAGE
+
+
+def test_numeric_sensors_have_long_term_statistics_state_class():
+    """Numeric vehicle sensors must declare state_class so HA records LTS."""
+    expected = {
+        "battery_level": SensorStateClass.MEASUREMENT,
+        "fuel_level": SensorStateClass.MEASUREMENT,
+        "range": SensorStateClass.MEASUREMENT,
+        "tire_pressure_front_left": SensorStateClass.MEASUREMENT,
+        "tire_pressure_front_right": SensorStateClass.MEASUREMENT,
+        "tire_pressure_rear_left": SensorStateClass.MEASUREMENT,
+        "tire_pressure_rear_right": SensorStateClass.MEASUREMENT,
+        "odometer": SensorStateClass.TOTAL_INCREASING,
+        "electric_range": SensorStateClass.MEASUREMENT,
+        "electric_odometer": SensorStateClass.TOTAL_INCREASING,
+        "vehicle_speed": SensorStateClass.MEASUREMENT,
+        "fuel_range": SensorStateClass.MEASUREMENT,
+        "power_consumption": SensorStateClass.MEASUREMENT,
+        "fuel_consumption": SensorStateClass.MEASUREMENT,
+        "remain_charge_time": SensorStateClass.MEASUREMENT,
+        "tire_temperature_front_left": SensorStateClass.MEASUREMENT,
+        "tire_temperature_front_right": SensorStateClass.MEASUREMENT,
+        "tire_temperature_rear_left": SensorStateClass.MEASUREMENT,
+        "tire_temperature_rear_right": SensorStateClass.MEASUREMENT,
+    }
+    by_key = {desc.key: desc.state_class for desc in SENSOR_DESCRIPTIONS}
+
+    assert {key: by_key[key] for key in expected} == expected
 
 
 def test_timestamp_sensor_reads_result_time_from_coordinator_data():
