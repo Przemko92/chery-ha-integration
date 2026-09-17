@@ -54,6 +54,32 @@ def test_front_windshield_heating_on():
     assert switch.is_on is True
 
 
+def test_front_windshield_defrost_reads_its_own_field():
+    """front_windshield_defrost has its own feedback field."""
+    switch = _make_switch(
+        CheryData(vin=VIN, front_windshield_heating=False, front_windshield_defrost=True),
+        key="front_windshield_defrost",
+    )
+    assert switch.is_on is True
+
+
+@pytest.mark.asyncio
+async def test_front_windshield_defrost_sends_climate_target():
+    """ve_1108 rides on airControl and carries the current climate target."""
+    switch = _make_switch(
+        CheryData(vin=VIN, target_temperature=23.0), key="front_windshield_defrost"
+    )
+    switch.coordinator.api.send_command.return_value = {"ok": True}
+    switch.coordinator.async_set_updated_data = lambda data: None
+    switch.coordinator.schedule_refresh_after_command = lambda: None
+
+    await switch.async_turn_on()
+
+    switch.coordinator.api.send_command.assert_awaited_once_with(
+        VIN, "ve_1108", "1234", enabled=True, temperature=23.0
+    )
+
+
 def test_no_feedback_assumed_state():
     """No feedback fields -> is_on is None and assumed_state is True."""
     switch = _make_switch(CheryData(vin=VIN))
