@@ -51,6 +51,29 @@ def build_front_windshield_body(values: dict[str, Any]) -> dict[str, str]:
     return body
 
 
+def build_front_defrost_body(values: dict[str, Any]) -> dict[str, str]:
+    """Windscreen defrost by climate airflow (airControl frontDefrosting).
+
+    Envelope of the official app: on = airControl {frontDefrosting: "1"}
+    (the car answers with fWinHeatingState "1"); off = airControl
+    {airControlType: "0"}, so switching the defrost off also switches the
+    climate off, like the app does.
+    """
+    enabled = values.get("enabled", True)
+    temperature = values.get("temperature") or DEFAULT_AIR_TEMPERATURE
+    if isinstance(temperature, (int, float)):
+        temperature = f"{float(temperature):.1f}"
+    body = {
+        "airControlType": "1" if enabled else "0",
+        "airType": "1",
+        "temperature": str(temperature),
+        "times": str(values.get("duration", DEFAULT_AIR_DURATION)),
+    }
+    if enabled:
+        body["frontDefrosting"] = "1"
+    return body
+
+
 def build_rear_defrost_body(values: dict[str, Any]) -> dict[str, str]:
     enabled = values.get("enabled", True)
     body = {"backDefrosting": "1" if enabled else "0"}
@@ -135,6 +158,7 @@ COMMAND_SPECS: dict[str, VehicleCommandSpec] = {
     "ve_1105": VehicleCommandSpec("lockControl", build_lock_control_body),
     "ve_1103": VehicleCommandSpec("frontWindshieldControl", build_front_windshield_body),
     "ve_1135": VehicleCommandSpec("backDefrostingControl", build_rear_defrost_body),
+    "ve_1108": VehicleCommandSpec("airControl", build_front_defrost_body),
     "ve_1201": VehicleCommandSpec("chargeStartStopControl", build_charge_start_stop_body),
     "ve_1202": VehicleCommandSpec("chargeAppointControl", build_charge_appoint_body),
     "ve_1203": VehicleCommandSpec("steeringWheelControl", build_steering_wheel_body),

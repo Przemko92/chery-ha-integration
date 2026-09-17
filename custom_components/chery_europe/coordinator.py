@@ -43,6 +43,7 @@ _CONTROL_STATE_FIELDS = (
     "scheduled_charge_enabled",
     "charge_appoint_plan",
     "front_windshield_heating",
+    "front_windshield_defrost",
     "rear_window_defrost",
     "steering_wheel_heating",
     "air_purification",

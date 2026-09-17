@@ -82,6 +82,7 @@ class CheryData:
     gps_speed: float | None = None
     last_updated: str | None = None
     front_windshield_heating: bool | None = None
+    front_windshield_defrost: bool | None = None
     rear_window_defrost: bool | None = None
     steering_wheel_heating: bool | None = None
     air_purification: bool | None = None
@@ -316,6 +317,7 @@ class CheryData:
             front_windshield_heating=_state_on(
                 _first(payload, "frontWindshieldHeat", "fWinHeatingState", "frontWindHeatState")
             ),
+            front_windshield_defrost=_state_on(payload.get("fWinHeatingState")),
             rear_window_defrost=_state_on(
                 _first(payload, "backDefrostingState", "backDefrosting")
             ),
@@ -448,6 +450,10 @@ def apply_command_feedback(data: CheryData, command_id: str, **kwargs: Any) -> C
         enabled = kwargs.get("enabled")
         if enabled is not None:
             return replace(data, rear_window_defrost=enabled)
+    if command_id == "ve_1108":
+        enabled = kwargs.get("enabled")
+        if enabled is not None:
+            return replace(data, front_windshield_defrost=enabled, hvac_enabled=enabled)
     if command_id == "ve_1201":
         enabled = kwargs.get("enabled")
         if enabled is True:
