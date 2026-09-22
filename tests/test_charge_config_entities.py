@@ -3,7 +3,7 @@
 
 from datetime import time
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
@@ -23,16 +23,19 @@ def _coordinator(data: CheryData | None = None):
         charge_start_minutes=480,
         charge_duration_hours=6,
         api=SimpleNamespace(send_command=AsyncMock(return_value={"ok": True})),
+        async_set_updated_data=Mock(),
+        schedule_refresh_after_command=Mock(),
     )
 
 
 def _entry():
-    return SimpleNamespace(entry_id="entry-1")
+    return SimpleNamespace(entry_id="entry-1", options={"pin": "1234"})
 
 
 def _vehicle_plan(*, start: int = 1320, duration_min: int = 480) -> CheryData:
     return CheryData(
         vin=VIN,
+        scheduled_charge_enabled=True,
         charge_appoint_plan={
             "startTime": start,
             "timeConsuming": duration_min,
@@ -66,7 +69,7 @@ def test_start_time_follows_vehicle_updates_until_user_edits():
 
 
 @pytest.mark.asyncio
-async def test_user_edit_blocks_vehicle_overwrite_until_matched():
+async def test_user_edit_sends_plan_and_follows_later_vehicle_updates():
     coordinator = _coordinator(_vehicle_plan(start=1320, duration_min=480))
     start = CheryEuropeChargeStartTime(coordinator, _entry())
     duration = CheryEuropeChargeDurationNumber(coordinator, _entry())
@@ -76,18 +79,17 @@ async def test_user_edit_blocks_vehicle_overwrite_until_matched():
     await start.async_set_value(time(21, 30))
     await duration.async_set_native_value(7)
 
-    # Vehicle still reports old plan — keep the user's draft.
-    coordinator.data = _vehicle_plan(start=1320, duration_min=480)
-    start._handle_coordinator_update()
-    duration._handle_coordinator_update()
-    assert start.native_value == time(21, 30)
-    assert duration.native_value == 7.0
+    start_call = coordinator.api.send_command.await_args_list[0]
+    assert start_call.args[1] == "ve_1202"
+    assert start_call.kwargs["start_minutes"] == 21 * 60 + 30
+    assert start_call.kwargs["duration_hours"] == 8
+    assert start_call.kwargs["enabled"] is True
+    duration_call = coordinator.api.send_command.await_args_list[1]
+    assert duration_call.kwargs["duration_hours"] == 7
+    assert duration_call.kwargs["start_minutes"] == 21 * 60 + 30
 
-    # Vehicle catches up — clear the dirty flag and stay in sync.
-    coordinator.data = _vehicle_plan(start=1290, duration_min=420)
+    coordinator.data = _vehicle_plan(start=1380, duration_min=360)
     start._handle_coordinator_update()
     duration._handle_coordinator_update()
-    assert start.native_value == time(21, 30)
-    assert duration.native_value == 7.0
-    assert start._user_set is False
-    assert duration._user_set is False
+    assert start.native_value == time(23, 0)
+    assert duration.native_value == 6.0

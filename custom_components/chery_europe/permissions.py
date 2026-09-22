@@ -69,6 +69,31 @@ CYCLE_RULES = {
     "chargeAppointControl": (2131, 2132, "cycleData"),
 }
 
+# Voices the official app ORs together in RusPermissionsProvider.can*.
+# A control is hidden only when every listed voice is present and state 0.
+FEATURE_VOICES: dict[str, tuple[int, ...]] = {
+    "front_windshield_heating": (215, 2151, 20416),
+    "rear_window_defrost": (232, 2321, 20411),
+    "steering_wheel_heating": (208, 2081),
+    "driver_seat_heating": (2141, 2047),
+    "passenger_seat_heating": (2142, 2048),
+    "driver_seat_ventilation": (2143, 2049),
+    "passenger_seat_ventilation": (2144, 20410),
+    "rear_left_seat_heating": (2145, 20412),
+    "rear_right_seat_heating": (2146, 20413),
+    "rear_left_seat_ventilation": (2147, 20414),
+    "rear_right_seat_ventilation": (2148, 20415),
+    "charging_switch": (220,),
+    "scheduled_charging": (213,),
+    "charge_start_time": (213,),
+    "charge_duration_hours": (213,),
+    "windows": (206,),
+    "sunroof": (207,),
+    "trunk": (205,),
+    "hvac": (204,),
+    "doors": (203,),
+}
+
 
 def normalize_permissions(payload: Any) -> dict[int, int]:
     """Convert a queryVehicleAuthority response to ``{id: state}``."""
@@ -92,6 +117,18 @@ def allowed(perms: dict[int, int], voice: int | None) -> bool:
     if not perms or voice is None:
         return True
     return perms.get(voice, 1) != 0
+
+
+def feature_enabled(perms: dict[int, int], key: str) -> bool:
+    """Return whether a control entity should be created for this vehicle.
+
+    An empty permission map stays permissive. A known map hides the control
+    only when every voice the app checks for it is explicitly denied.
+    """
+    voices = FEATURE_VOICES.get(key)
+    if not voices or not perms:
+        return True
+    return any(allowed(perms, voice) for voice in voices)
 
 
 def category_denied(endpoint: str, perms: dict[int, int]) -> bool:

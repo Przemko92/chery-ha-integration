@@ -129,7 +129,8 @@ def test_sensor_device_info_uses_vehicle_vin_and_chery_metadata():
 
     device_info = sensor.device_info
 
-    assert device_info["identifiers"] == {(DOMAIN, "VIN123")}
+    assert device_info["identifiers"] == {(DOMAIN, "fallback-entry")}
     assert device_info["manufacturer"] == "Chery"
     assert device_info["name"] == "Chery Vehicle"
-    assert sensor.unique_id == "VIN123_battery_level"
+    assert sensor.unique_id == "fallback-entry_battery_level"
+    assert "VIN123" not in sensor.unique_id
