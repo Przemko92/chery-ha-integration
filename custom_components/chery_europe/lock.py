@@ -8,9 +8,22 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.entity_platform import AddEntitiesCallback, async_get_current_platform
 
-from .const import ATTR_COMMAND_ID, ATTR_PIN, ATTR_VIN, DOMAIN, SERVICE_SEND_COMMAND
+from .const import (
+    ATTR_COMMAND_ID,
+    ATTR_PIN,
+    DOMAIN,
+    LOCK,
+    SERVICE_SEND_COMMAND,
+)
 from .coordinator import CheryEuropeDataUpdateCoordinator
-from .entity import CheryEuropeEntity
+from .entity import (
+    CheryEuropeEntity,
+    async_remove_unsupported,
+    control_permissions,
+    keep_feature,
+    stable_unique_id,
+    vehicle_uid,
+)
 from .pin import ask_for_pin, resolve_pin
 
 PARALLEL_UPDATES = 0
@@ -48,7 +61,12 @@ async def async_setup_entry(
     )
 
     coordinator: CheryEuropeDataUpdateCoordinator = entry.runtime_data
-    async_add_entities([CheryEuropeLock(coordinator, LOCK_DESCRIPTION, entry)])
+    perms = control_permissions(coordinator)
+    vin = vehicle_uid(coordinator, entry)
+    removed: list[str] = []
+    if keep_feature(perms, LOCK_DESCRIPTION.key, f"{vin}_doors_lock", removed):
+        async_add_entities([CheryEuropeLock(coordinator, LOCK_DESCRIPTION, entry)])
+    async_remove_unsupported(hass, LOCK, removed)
 
 
 class CheryEuropeLock(CheryEuropeEntity, LockEntity):
@@ -66,8 +84,7 @@ class CheryEuropeLock(CheryEuropeEntity, LockEntity):
         """Initialize the lock."""
         super().__init__(coordinator, description, entry)
         self._attr_translation_key = description.translation_key
-        vin = self.chery_data.vin or entry.entry_id
-        self._attr_unique_id = f"{vin}_{description.key}_lock"
+        self._attr_unique_id = stable_unique_id(entry, f"{description.key}_lock")
 
     @property
     def code_format(self) -> str | None:
@@ -102,15 +119,13 @@ class CheryEuropeLock(CheryEuropeEntity, LockEntity):
     async def _send_lock_command(self, action: str, kwargs: dict[str, Any]) -> None:
         """Call the Chery Europe command service with the resolved PIN."""
         pin = resolve_pin(self._entry, kwargs)
-        vin = self.chery_data.vin
-        if not vin:
-            raise HomeAssistantError("Vehicle VIN is unavailable")
+        if not self.chery_data.vin:
+            raise HomeAssistantError("Vehicle is unavailable")
 
         await self.hass.services.async_call(
             DOMAIN,
             SERVICE_SEND_COMMAND,
             {
-                ATTR_VIN: vin,
                 ATTR_COMMAND_ID: LOCK_COMMAND_ID,
                 ATTR_PIN: pin,
                 "action": action,

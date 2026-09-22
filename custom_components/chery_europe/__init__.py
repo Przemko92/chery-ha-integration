@@ -112,6 +112,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await coordinator.async_config_entry_first_refresh()
 
     entry.runtime_data = coordinator
+    from .entity import async_drop_vin_from_names
+
+    vin = coordinator.data.vin if coordinator.data is not None else None
+    async_drop_vin_from_names(hass, entry, vin)
+
     await coordinator.async_start_live_updates()
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_async_options_updated))

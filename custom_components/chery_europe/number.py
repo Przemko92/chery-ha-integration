@@ -13,8 +13,17 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .charge_schedule import plan_duration_hours
+from .command_exec import async_send_vehicle_command
+from .const import NUMBER
 from .coordinator import CheryEuropeDataUpdateCoordinator
-from .entity import CheryEuropeEntity
+from .entity import (
+    CheryEuropeEntity,
+    async_remove_unsupported,
+    control_permissions,
+    keep_feature,
+    stable_unique_id,
+    vehicle_uid,
+)
 
 PARALLEL_UPDATES = 0
 
@@ -39,7 +48,17 @@ async def async_setup_entry(
 ) -> None:
     """Set up Chery Europe number entities from a config entry."""
     coordinator: CheryEuropeDataUpdateCoordinator = entry.runtime_data
-    async_add_entities([CheryEuropeChargeDurationNumber(coordinator, entry)])
+    perms = control_permissions(coordinator)
+    vin = vehicle_uid(coordinator, entry)
+    removed: list[str] = []
+    if keep_feature(
+        perms,
+        CHARGE_DURATION_DESCRIPTION.key,
+        f"{vin}_charge_duration_hours",
+        removed,
+    ):
+        async_add_entities([CheryEuropeChargeDurationNumber(coordinator, entry)])
+    async_remove_unsupported(hass, NUMBER, removed)
 
 
 class CheryEuropeChargeDurationNumber(CheryEuropeEntity, RestoreNumber):
@@ -53,9 +72,7 @@ class CheryEuropeChargeDurationNumber(CheryEuropeEntity, RestoreNumber):
         """Initialize the charge duration entity."""
         super().__init__(coordinator, CHARGE_DURATION_DESCRIPTION, entry)
         self._value = 6.0
-        self._user_set = False
-        vin = self.chery_data.vin or entry.entry_id
-        self._attr_unique_id = f"{vin}_{CHARGE_DURATION_DESCRIPTION.key}"
+        self._attr_unique_id = stable_unique_id(entry, CHARGE_DURATION_DESCRIPTION.key)
         self._apply_vehicle_plan()
         self._sync_coordinator()
 
@@ -76,7 +93,6 @@ class CheryEuropeChargeDurationNumber(CheryEuropeEntity, RestoreNumber):
             return False
         max_hours = int(CHARGE_DURATION_DESCRIPTION.native_max_value or 12)
         self._value = float(min(hours, max_hours))
-        self._user_set = False
         return True
 
     def _sync_coordinator(self) -> None:
@@ -84,12 +100,9 @@ class CheryEuropeChargeDurationNumber(CheryEuropeEntity, RestoreNumber):
 
     @callback
     def _handle_coordinator_update(self) -> None:
-        """Keep the entity aligned with the vehicle unless the user edited it."""
+        """Keep the entity aligned with the plan reported by the vehicle."""
         plan_hours = plan_duration_hours(self.chery_data.charge_appoint_plan)
-        if self._user_set:
-            if plan_hours is not None and float(plan_hours) == self._value:
-                self._user_set = False
-        elif plan_hours is not None and float(plan_hours) != self._value:
+        if plan_hours is not None and float(plan_hours) != self._value:
             max_hours = int(CHARGE_DURATION_DESCRIPTION.native_max_value or 12)
             self._value = float(min(plan_hours, max_hours))
             self._sync_coordinator()
@@ -101,8 +114,18 @@ class CheryEuropeChargeDurationNumber(CheryEuropeEntity, RestoreNumber):
         return self._value
 
     async def async_set_native_value(self, value: float) -> None:
-        """Persist a new scheduled charging duration."""
+        """Send a new scheduled charging duration to the vehicle."""
+        hours = int(value)
+        await async_send_vehicle_command(
+            self.coordinator,
+            self._entry,
+            self.chery_data.vin,
+            {},
+            command_id="ve_1202",
+            enabled=bool(self.chery_data.scheduled_charge_enabled),
+            start_minutes=int(self.coordinator.charge_start_minutes),
+            duration_hours=hours,
+        )
         self._value = float(value)
-        self._user_set = True
         self._sync_coordinator()
         self.async_write_ha_state()

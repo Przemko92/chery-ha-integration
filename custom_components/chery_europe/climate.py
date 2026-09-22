@@ -10,9 +10,22 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.entity_platform import AddEntitiesCallback, async_get_current_platform
 
-from .const import ATTR_COMMAND_ID, ATTR_PIN, ATTR_VIN, DOMAIN, SERVICE_SEND_COMMAND
+from .const import (
+    ATTR_COMMAND_ID,
+    ATTR_PIN,
+    CLIMATE,
+    DOMAIN,
+    SERVICE_SEND_COMMAND,
+)
 from .coordinator import CheryEuropeDataUpdateCoordinator
-from .entity import CheryEuropeEntity
+from .entity import (
+    CheryEuropeEntity,
+    async_remove_unsupported,
+    control_permissions,
+    keep_feature,
+    stable_unique_id,
+    vehicle_uid,
+)
 from .pin import resolve_pin
 
 PARALLEL_UPDATES = 0
@@ -68,7 +81,12 @@ async def async_setup_entry(
     )
 
     coordinator: CheryEuropeDataUpdateCoordinator = entry.runtime_data
-    async_add_entities([CheryEuropeClimate(coordinator, CLIMATE_DESCRIPTION, entry)])
+    perms = control_permissions(coordinator)
+    vin = vehicle_uid(coordinator, entry)
+    removed: list[str] = []
+    if keep_feature(perms, CLIMATE_DESCRIPTION.key, f"{vin}_hvac_climate", removed):
+        async_add_entities([CheryEuropeClimate(coordinator, CLIMATE_DESCRIPTION, entry)])
+    async_remove_unsupported(hass, CLIMATE, removed)
 
 
 class CheryEuropeClimate(CheryEuropeEntity, ClimateEntity):
@@ -94,8 +112,7 @@ class CheryEuropeClimate(CheryEuropeEntity, ClimateEntity):
         """Initialize the climate entity."""
         super().__init__(coordinator, description, entry)
         self._attr_translation_key = description.translation_key
-        vin = self.chery_data.vin or entry.entry_id
-        self._attr_unique_id = f"{vin}_{description.key}_climate"
+        self._attr_unique_id = stable_unique_id(entry, f"{description.key}_climate")
         self._target_temperature = _api_value(self.chery_data, "target_temperature")
         self._hvac_mode = _initial_hvac_mode(self.chery_data)
 
@@ -220,15 +237,13 @@ class CheryEuropeClimate(CheryEuropeEntity, ClimateEntity):
 
     async def _send_climate_command(self, pin: str, **data: Any) -> None:
         """Call the Chery Europe command service without storing the PIN."""
-        vin = self.chery_data.vin
-        if not vin:
-            raise HomeAssistantError("Vehicle VIN is unavailable")
+        if not self.chery_data.vin:
+            raise HomeAssistantError("Vehicle is unavailable")
 
         await self.hass.services.async_call(
             DOMAIN,
             SERVICE_SEND_COMMAND,
             {
-                ATTR_VIN: vin,
                 ATTR_COMMAND_ID: CLIMATE_COMMAND_ID,
                 ATTR_PIN: pin,
                 **data,

@@ -65,7 +65,7 @@ async def test_set_temperature_sends_temperature_and_enabled_true():
     await climate.async_set_temperature(pin=PIN, temperature=22.0)
 
     data = _service_data(climate)
-    assert data[ATTR_VIN] == VIN
+    assert ATTR_VIN not in data
     assert data[ATTR_COMMAND_ID] == CLIMATE_COMMAND_ID
     assert data[ATTR_PIN] == PIN
     assert data["temperature"] == 22.0

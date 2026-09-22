@@ -13,7 +13,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
 from .coordinator import CheryEuropeDataUpdateCoordinator
-from .entity import CheryEuropeEntity
+from .entity import CheryEuropeEntity, stable_unique_id
 
 PARALLEL_UPDATES = 0
 
@@ -44,8 +44,7 @@ class CheryEuropeDeviceTracker(CheryEuropeEntity, TrackerEntity, RestoreEntity):
         entry: ConfigEntry,
     ) -> None:
         super().__init__(coordinator, POSITION_DESCRIPTION, entry)
-        vin = self.chery_data.vin or entry.entry_id
-        self._attr_unique_id = f"{vin}_{POSITION_DESCRIPTION.key}"
+        self._attr_unique_id = stable_unique_id(entry, POSITION_DESCRIPTION.key)
         self._restored_lat: float | None = None
         self._restored_lon: float | None = None
 

@@ -12,6 +12,7 @@ from .auth import CheryEuropeAuth
 from .const import (
     API_CPM_CHECK_PASSWORD_PATH,
     API_QUERY_LOCATION_PATH,
+    API_CHARGE_APPOINT_QUERY_PATH,
     API_REALTIME_PATH,
     API_TSP_LOGIN_PATH,
     API_VMC_QUERY_AUTHORITY_PATH,
@@ -29,6 +30,7 @@ from .signing import SIGN_SECRET, get_identity_headers
 from .tsp_sign import auth_headers, sign_body
 from .vehicle_commands import COMMAND_SPECS, command_result
 from .permissions import UNKNOWN, adapt_command, normalize_permissions
+from .data import parse_charge_appointment
 from .exceptions import (
     CheryEuropeAuthError,
     CheryEuropeConnectionError,
@@ -110,6 +112,11 @@ class CheryEuropeApi:
         """Return the BFF channel id used by this session."""
         return self._channel_id
 
+    @property
+    def permissions(self) -> dict[int, int]:
+        """Return the last queryVehicleAuthority map (empty when unknown)."""
+        return self._permissions
+
     async def _ensure_tsp_session(self) -> None:
         if self._t_user_id:
             return
@@ -135,6 +142,37 @@ class CheryEuropeApi:
         if payload:
             return payload
         return None
+
+    async def query_charge_appointment(
+        self, vin: str
+    ) -> tuple[bool | None, dict[str, Any] | None] | None:
+        """Return the scheduled-charge plan from chargeAppointQuery.
+
+        ``None`` means the query failed or the car was asleep. A tuple is a
+        usable answer: enabled flag and the first plan, either of which may
+        still be missing.
+        """
+        await self._ensure_tsp_session()
+        if not self._user_token:
+            return None
+        try:
+            response = await self._tsp_signed_post(
+                API_CHARGE_APPOINT_QUERY_PATH, {"vin": vin}
+            )
+        except Exception as exc:  # noqa: BLE001
+            _LOGGER.debug("Charge appointment query failed for %s: %s", vin, exc)
+            return None
+        if not isinstance(response, dict):
+            return None
+        code = response.get("code")
+        if code == TSP_CODE_ASLEEP:
+            return None
+        if code not in (TSP_CODE_OK, 0, "0", None):
+            _LOGGER.debug(
+                "Charge appointment query for %s returned code %s", vin, code
+            )
+            return None
+        return parse_charge_appointment(response)
 
     async def _tsp_query_payload(self, path: str, vin: str) -> dict[str, Any] | None:
         """Return a tspconsole dict payload, or None when the vehicle is asleep."""

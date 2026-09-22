@@ -13,7 +13,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .command_exec import async_send_vehicle_command
 from .coordinator import CheryEuropeDataUpdateCoordinator
-from .entity import CheryEuropeEntity
+from .entity import CheryEuropeEntity, stable_unique_id
 
 PARALLEL_UPDATES = 0
 _LOGGER = logging.getLogger(__name__)
@@ -100,8 +100,7 @@ class CheryEuropeCommandButton(CheryEuropeEntity, ButtonEntity):
         super().__init__(coordinator, description, entry)
         self._attr_translation_key = description.translation_key
         self._command_id = command_id
-        vin = self.chery_data.vin or entry.entry_id
-        self._attr_unique_id = f"{vin}_{description.key}"
+        self._attr_unique_id = stable_unique_id(entry, description.key)
 
     async def async_press(self, **kwargs: Any) -> None:
         """Send the button command."""
@@ -127,8 +126,7 @@ class CheryEuropeActionButton(CheryEuropeEntity, ButtonEntity):
         super().__init__(coordinator, description, entry)
         self._attr_translation_key = description.translation_key
         self._action = action
-        vin = self.chery_data.vin or entry.entry_id
-        self._attr_unique_id = f"{vin}_{description.key}"
+        self._attr_unique_id = stable_unique_id(entry, description.key)
 
     async def async_press(self) -> None:
         """Run the configured coordinator action."""

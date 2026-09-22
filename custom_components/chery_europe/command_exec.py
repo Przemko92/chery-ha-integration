@@ -25,7 +25,7 @@ async def async_send_vehicle_command(
     """Send a remote command and apply optimistic coordinator feedback."""
     pin = resolve_pin(entry, kwargs)
     if not vin:
-        raise HomeAssistantError("Vehicle VIN is unavailable")
+        raise HomeAssistantError("Vehicle is unavailable")
     try:
         response = await coordinator.api.send_command(
             vin,

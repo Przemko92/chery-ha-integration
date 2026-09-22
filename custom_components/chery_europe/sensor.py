@@ -22,7 +22,7 @@ from homeassistant.util import dt as dt_util
 
 from .coordinator import CheryEuropeDataUpdateCoordinator
 from .data import CheryData
-from .entity import CheryEuropeEntity
+from .entity import CheryEuropeEntity, stable_unique_id
 
 PARALLEL_UPDATES = 0
 
@@ -401,8 +401,7 @@ class CheryEuropeSensor(_CheryEuropeRestoreSensor):
         """Initialize the sensor."""
         super().__init__(coordinator, description, entry)
         self._attr_translation_key = description.translation_key
-        vin = self.chery_data.vin or entry.entry_id
-        self._attr_unique_id = f"{vin}_{description.key}"
+        self._attr_unique_id = stable_unique_id(entry, description.key)
 
     @property
     def native_value(self) -> StateType:
@@ -448,8 +447,7 @@ class CheryEuropeStatusSensor(_CheryEuropeRestoreSensor):
     ) -> None:
         super().__init__(coordinator, description, entry)
         self._attr_translation_key = description.translation_key
-        vin = self.chery_data.vin or entry.entry_id
-        self._attr_unique_id = f"{vin}_{description.key}"
+        self._attr_unique_id = stable_unique_id(entry, description.key)
 
 
 class CheryEuropeTimestampSensor(_CheryEuropeRestoreSensor):
@@ -467,8 +465,7 @@ class CheryEuropeTimestampSensor(_CheryEuropeRestoreSensor):
     ) -> None:
         super().__init__(coordinator, description, entry)
         self._attr_translation_key = description.translation_key
-        vin = self.chery_data.vin or entry.entry_id
-        self._attr_unique_id = f"{vin}_{description.key}"
+        self._attr_unique_id = stable_unique_id(entry, description.key)
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()

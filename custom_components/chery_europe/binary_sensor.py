@@ -15,7 +15,7 @@ from homeassistant.helpers.restore_state import RestoreEntity
 
 from .coordinator import CheryEuropeDataUpdateCoordinator
 from .data import CheryData
-from .entity import CheryEuropeEntity
+from .entity import CheryEuropeEntity, stable_unique_id
 
 PARALLEL_UPDATES = 0
 
@@ -170,8 +170,7 @@ class CheryEuropeBinarySensor(CheryEuropeEntity, BinarySensorEntity, RestoreEnti
         """Initialize the binary sensor."""
         super().__init__(coordinator, description, entry)
         self._attr_translation_key = description.translation_key
-        vin = self.chery_data.vin or entry.entry_id
-        self._attr_unique_id = f"{vin}_{description.key}"
+        self._attr_unique_id = stable_unique_id(entry, description.key)
         self._restored: bool | None = None
         self._last_known: bool | None = None
 
