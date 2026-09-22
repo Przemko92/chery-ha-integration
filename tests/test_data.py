@@ -294,6 +294,14 @@ def test_from_realtime_maps_battery_range_and_tires():
     assert data.last_updated == "2024-07-19T11:53:20+00:00"
 
 
+def test_from_realtime_maps_front_windshield_defrost():
+    data = CheryData.from_realtime(
+        {"frontWindshieldHeat": "0", "fWinHeatingState": "1"}, vin="VIN123"
+    )
+    assert data.front_windshield_heating is False
+    assert data.front_windshield_defrost is True
+
+
 def test_from_realtime_maps_vehicle_speed():
     data = CheryData.from_realtime({"vehicleSpeed": "38"}, vin="VIN123")
 
@@ -477,6 +485,18 @@ def test_from_realtime_maps_charge_appoint_plan():
     assert data.scheduled_charge_enabled is True
     assert data.charge_appoint_plan is not None
     assert data.charge_appoint_plan["startTime"] == 465
+
+
+def test_apply_command_feedback_front_defrost_rides_on_climate():
+    base = CheryData(vin="VIN123", hvac_enabled=False)
+
+    on = apply_command_feedback(base, "ve_1108", enabled=True)
+    off = apply_command_feedback(on, "ve_1108", enabled=False)
+
+    assert on.front_windshield_defrost is True
+    assert on.hvac_enabled is True
+    assert off.front_windshield_defrost is False
+    assert off.hvac_enabled is False
 
 
 def test_apply_command_feedback_updates_scheduled_charging():

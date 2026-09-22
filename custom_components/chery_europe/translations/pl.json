@@ -244,6 +244,9 @@
       "front_windshield_heating": {
         "name": "Ogrzewanie przedniej szyby"
       },
+      "front_windshield_defrost": {
+        "name": "Odmrażanie przedniej szyby (nawiew)"
+      },
       "rear_window_defrost": {
         "name": "Ogrzewanie tylnej szyby"
       },

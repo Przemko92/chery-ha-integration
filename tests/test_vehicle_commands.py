@@ -8,6 +8,7 @@ from custom_components.chery_europe.vehicle_commands import (
     build_charge_plan,
     build_charge_start_stop_body,
     build_control_type_body,
+    build_front_defrost_body,
     build_lock_control_body,
     build_seat_control_body,
     build_skylight_body,
@@ -28,6 +29,27 @@ def test_build_air_control_body_on():
 def test_build_air_control_body_off():
     body = build_air_control_body({"enabled": False, "temperature": 21.5})
     assert body["airControlType"] == "0"
+
+
+def test_build_front_defrost_body_on():
+    body = build_front_defrost_body({"enabled": True, "temperature": 23})
+    assert body == {
+        "airControlType": "1",
+        "airType": "1",
+        "temperature": "23.0",
+        "times": "15",
+        "frontDefrosting": "1",
+    }
+
+
+def test_build_front_defrost_body_off_is_climate_off():
+    body = build_front_defrost_body({"enabled": False, "temperature": None})
+    assert body == {
+        "airControlType": "0",
+        "airType": "1",
+        "temperature": "22.0",
+        "times": "15",
+    }
 
 
 def test_build_lock_control_body_unlock():
