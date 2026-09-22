@@ -12,6 +12,7 @@ from homeassistant.helpers.update_coordinator import UpdateFailed
 
 from custom_components.chery_europe.const import POST_COMMAND_REFRESH_DELAYS
 from custom_components.chery_europe.coordinator import CheryEuropeDataUpdateCoordinator
+from custom_components.chery_europe.data import CheryData
 from custom_components.chery_europe.exceptions import CheryEuropeAuthError, CheryEuropeTimeoutError
 
 
@@ -70,6 +71,66 @@ async def test_coordinator_update_fetches_vehicle_status_for_first_vehicle():
     assert data.longitude == pytest.approx(19.93)
     api.get_vehicle_status.assert_awaited_once_with("DEMO1234567890")
     api.get_vehicle_location.assert_awaited_once_with("DEMO1234567890")
+
+
+@pytest.mark.asyncio
+async def test_coordinator_overlays_charge_appointment_query():
+    api = SimpleNamespace(
+        get_vehicle_list=AsyncMock(return_value=[DEMO_VEHICLE]),
+        get_vehicle_status=AsyncMock(return_value=DEMO_STATUS),
+        get_vehicle_location=AsyncMock(return_value=None),
+        get_vehicle_authority=AsyncMock(return_value={}),
+        query_charge_appointment=AsyncMock(
+            return_value=(
+                True,
+                {
+                    "startTime": 1320,
+                    "timeConsuming": 240,
+                    "switchStatus": 1,
+                    "cycleData": [1, 2, 3, 4, 5, 6, 7],
+                },
+            )
+        ),
+    )
+    coordinator = _coordinator(api)
+    device_registry = Mock(async_get_device=Mock(return_value=None))
+
+    with patch(
+        "custom_components.chery_europe.coordinator.dr.async_get",
+        return_value=device_registry,
+    ):
+        data = await coordinator._async_update_data()
+
+    assert data.scheduled_charge_enabled is True
+    assert data.charge_appoint_plan["startTime"] == 1320
+    api.query_charge_appointment.assert_awaited_once_with("DEMO1234567890")
+
+
+@pytest.mark.asyncio
+async def test_coordinator_keeps_plan_when_charge_query_fails():
+    api = SimpleNamespace(
+        get_vehicle_list=AsyncMock(return_value=[DEMO_VEHICLE]),
+        get_vehicle_status=AsyncMock(return_value=DEMO_STATUS),
+        get_vehicle_location=AsyncMock(return_value=None),
+        get_vehicle_authority=AsyncMock(return_value={}),
+        query_charge_appointment=AsyncMock(return_value=None),
+    )
+    coordinator = _coordinator(api)
+    coordinator.data = CheryData(
+        vin="DEMO1234567890",
+        scheduled_charge_enabled=True,
+        charge_appoint_plan={"startTime": 600, "timeConsuming": 120, "switchStatus": 1},
+    )
+    device_registry = Mock(async_get_device=Mock(return_value=None))
+
+    with patch(
+        "custom_components.chery_europe.coordinator.dr.async_get",
+        return_value=device_registry,
+    ):
+        data = await coordinator._async_update_data()
+
+    assert data.scheduled_charge_enabled is True
+    assert data.charge_appoint_plan["startTime"] == 600
 
 
 @pytest.mark.asyncio

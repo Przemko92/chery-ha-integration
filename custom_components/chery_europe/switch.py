@@ -13,9 +13,17 @@ from homeassistant.helpers.restore_state import RestoreEntity
 
 from .charge_schedule import format_minutes_as_hhmm
 from .command_exec import async_send_vehicle_command
+from .const import SWITCH
 from .coordinator import CheryEuropeDataUpdateCoordinator
 from .data import CheryData
-from .entity import CheryEuropeEntity
+from .entity import (
+    CheryEuropeEntity,
+    async_remove_unsupported,
+    control_permissions,
+    keep_feature,
+    stable_unique_id,
+    vehicle_uid,
+)
 
 PARALLEL_UPDATES = 0
 
@@ -135,17 +143,20 @@ async def async_setup_entry(
 ) -> None:
     """Set up Chery Europe switches from a config entry."""
     coordinator: CheryEuropeDataUpdateCoordinator = entry.runtime_data
+    perms = control_permissions(coordinator)
+    vin = vehicle_uid(coordinator, entry)
+    removed: list[str] = []
     entities: list[SwitchEntity] = [
         CheryEuropeCommandSwitch(coordinator, description, entry)
         for description in SWITCH_DESCRIPTIONS
+        if keep_feature(perms, description.key, f"{vin}_{description.key}", removed)
     ]
-    entities.extend(
-        [
-            CheryEuropeChargeSwitch(coordinator, entry),
-            CheryEuropeScheduledChargeSwitch(coordinator, entry),
-            CheryEuropePollingSwitch(coordinator, entry),
-        ]
-    )
+    if keep_feature(perms, "charging_switch", f"{vin}_charging_switch", removed):
+        entities.append(CheryEuropeChargeSwitch(coordinator, entry))
+    if keep_feature(perms, "scheduled_charging", f"{vin}_scheduled_charging", removed):
+        entities.append(CheryEuropeScheduledChargeSwitch(coordinator, entry))
+    entities.append(CheryEuropePollingSwitch(coordinator, entry))
+    async_remove_unsupported(hass, SWITCH, removed)
     async_add_entities(entities)
 
 
@@ -161,8 +172,7 @@ class CheryEuropeCommandSwitch(CheryEuropeEntity, SwitchEntity):
         """Initialize the switch."""
         super().__init__(coordinator, description, entry)
         self._attr_translation_key = description.translation_key
-        vin = self.chery_data.vin or entry.entry_id
-        self._attr_unique_id = f"{vin}_{description.key}"
+        self._attr_unique_id = stable_unique_id(entry, description.key)
 
     @property
     def is_on(self) -> bool | None:  # type: ignore[reportIncompatibleVariableOverride]
@@ -242,8 +252,7 @@ class CheryEuropePollingSwitch(CheryEuropeEntity, SwitchEntity, RestoreEntity):
         entry: ConfigEntry,
     ) -> None:
         super().__init__(coordinator, POLLING_SWITCH_DESCRIPTION, entry)
-        vin = self.chery_data.vin or entry.entry_id
-        self._attr_unique_id = f"{vin}_{POLLING_SWITCH_DESCRIPTION.key}"
+        self._attr_unique_id = stable_unique_id(entry, POLLING_SWITCH_DESCRIPTION.key)
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
@@ -307,8 +316,7 @@ class CheryEuropeChargeSwitch(CheryEuropeEntity, SwitchEntity, RestoreEntity):
         super().__init__(coordinator, CHARGING_SWITCH_DESCRIPTION, entry)
         self._optimistic: bool | None = None
         self._restored: bool | None = None
-        vin = self.chery_data.vin or entry.entry_id
-        self._attr_unique_id = f"{vin}_{CHARGING_SWITCH_DESCRIPTION.key}"
+        self._attr_unique_id = stable_unique_id(entry, CHARGING_SWITCH_DESCRIPTION.key)
 
     async def async_added_to_hass(self) -> None:
         """Restore the last known charging switch state."""
@@ -374,8 +382,7 @@ class CheryEuropeScheduledChargeSwitch(CheryEuropeEntity, SwitchEntity, RestoreE
         super().__init__(coordinator, SCHEDULED_CHARGING_SWITCH_DESCRIPTION, entry)
         self._optimistic: bool | None = None
         self._restored: bool | None = None
-        vin = self.chery_data.vin or entry.entry_id
-        self._attr_unique_id = f"{vin}_{SCHEDULED_CHARGING_SWITCH_DESCRIPTION.key}"
+        self._attr_unique_id = stable_unique_id(entry, SCHEDULED_CHARGING_SWITCH_DESCRIPTION.key)
 
     async def async_added_to_hass(self) -> None:
         """Restore the last known scheduled charging switch state."""

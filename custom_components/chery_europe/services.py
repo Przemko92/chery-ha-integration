@@ -20,7 +20,6 @@ from .const import (
     ATTR_ENABLED,
     ATTR_PIN,
     ATTR_START_TIME,
-    ATTR_VIN,
     DOMAIN,
     SERVICE_SEND_COMMAND,
     SERVICE_SET_SCHEDULED_CHARGING,
@@ -32,7 +31,6 @@ from .pin import resolve_pin
 
 SEND_COMMAND_SCHEMA = vol.Schema(
     {
-        vol.Required(ATTR_VIN): vol.All(cv.string, vol.Length(min=1)),
         vol.Required(ATTR_COMMAND_ID): vol.All(cv.string, vol.Length(min=1)),
         vol.Optional(ATTR_PIN): vol.All(cv.string, vol.Length(min=1)),
         vol.Optional("temperature"): vol.Coerce(float),
@@ -52,7 +50,6 @@ SET_SCHEDULED_CHARGING_SCHEMA = vol.Schema(
             vol.Coerce(int), vol.Range(min=1, max=12)
         ),
         vol.Optional(ATTR_ENABLED, default=True): cv.boolean,
-        vol.Optional(ATTR_VIN): vol.All(cv.string, vol.Length(min=1)),
         vol.Optional(ATTR_PIN): vol.All(cv.string, vol.Length(min=1)),
     }
 )
@@ -67,9 +64,12 @@ def async_setup_services(hass: HomeAssistant) -> None:
         entry = _get_loaded_entry(hass)
         coordinator: CheryEuropeDataUpdateCoordinator = entry.runtime_data
         pin = resolve_pin(entry, call.data)
+        vin = coordinator.data.vin if coordinator.data is not None else None
+        if not vin:
+            raise HomeAssistantError("Vehicle is unavailable")
         try:
             response = await coordinator.api.send_command(
-                call.data[ATTR_VIN],
+                vin,
                 call.data[ATTR_COMMAND_ID],
                 pin,
                 action=call.data.get("action"),
@@ -127,9 +127,7 @@ def async_setup_services(hass: HomeAssistant) -> None:
         # Service start_time and the vehicle API both use local minutes from midnight.
         start_minutes = local_time_to_minutes(start)
 
-        vin = call.data.get(ATTR_VIN) or (
-            coordinator.data.vin if coordinator.data is not None else None
-        )
+        vin = coordinator.data.vin if coordinator.data is not None else None
         coordinator.charge_start_minutes = start_minutes
         coordinator.charge_duration_hours = duration_hours
 

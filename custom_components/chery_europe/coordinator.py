@@ -29,7 +29,14 @@ from .const import (
     REFRESH_HV_WAIT_SECONDS,
     STATUS_MAX_LEN,
 )
-from .data import CheryData, apply_location, is_command_ack, merge_chery_data, vehicle_display_name
+from .data import (
+    CheryData,
+    apply_charge_appointment,
+    apply_location,
+    is_command_ack,
+    merge_chery_data,
+    vehicle_display_name,
+)
 from .exceptions import CheryEuropeAuthError, CheryEuropeCommandError, CheryEuropeException
 from .mqtt import CheryEuropeMqttClient
 from .pin import resolve_pin
@@ -149,17 +156,20 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
                 )
                 self._sync_vehicle_identity(base)
                 self._apply_scan_interval(base)
+                base = await self._merge_charge_appointment(base)
                 return self._preserve_control_state(self._preserve_status(base))
             if not realtime:
                 self._sync_vehicle_identity(base)
                 self._apply_scan_interval(base)
                 merged = await self._merge_location(base)
+                merged = await self._merge_charge_appointment(merged)
                 return self._preserve_control_state(self._preserve_status(merged))
             merged = merge_chery_data(
                 base,
                 CheryData.from_realtime(realtime, vin=vin),
             )
             merged = await self._merge_location(merged)
+            merged = await self._merge_charge_appointment(merged)
             self._sync_vehicle_identity(merged)
             self._apply_scan_interval(merged)
             return self._preserve_control_state(self._preserve_status(merged))
@@ -199,15 +209,15 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
 
     def _sync_vehicle_identity(self, data: CheryData) -> None:
         """Keep the config entry and device names aligned with the vehicle nickname."""
-        if not data.vin:
-            return
-
         name = vehicle_display_name(data)
         if getattr(self.entry, "title", None) != name:
             self.hass.config_entries.async_update_entry(self.entry, title=name)
 
         device_registry = dr.async_get(self.hass)
-        device = device_registry.async_get_device(identifiers={(DOMAIN, data.vin)})
+        entry_id = getattr(self.entry, "entry_id", None)
+        if not entry_id:
+            return
+        device = device_registry.async_get_device(identifiers={(DOMAIN, entry_id)})
         if device is not None and device.name != name:
             device_registry.async_update_device(device.id, name=name)
 
@@ -259,6 +269,20 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
             return data
         return apply_location(data, location)
 
+    async def _merge_charge_appointment(self, data: CheryData) -> CheryData:
+        """Read the scheduled-charge plan. A failed query keeps the last plan."""
+        if not data.vin:
+            return data
+        query = getattr(self.api, "query_charge_appointment", None)
+        if query is None:
+            return data
+        try:
+            result = await query(data.vin)
+        except Exception as exc:  # noqa: BLE001
+            _LOGGER.debug("Charge appointment unavailable for %s: %s", data.vin, exc)
+            return data
+        return apply_charge_appointment(data, result)
+
     async def _async_refresh_location(self) -> None:
         """Retry location reads after vehicleLocation has woken the car."""
         for delay in (2, 5, 10, 20):
@@ -299,7 +323,7 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
     async def _async_wake_once(self) -> None:
         vin = self.data.vin if self.data else None
         if not vin:
-            raise HomeAssistantError("Vehicle VIN is unavailable")
+            raise HomeAssistantError("Vehicle is unavailable")
         self._update_status(wake_status="Sending wake request…")
         try:
             pin = resolve_pin(self.entry)
@@ -323,7 +347,7 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
         """Read GPS through queryVehicleLocation and refresh telemetry."""
         vin = self.data.vin if self.data else None
         if not vin:
-            raise HomeAssistantError("Vehicle VIN is unavailable")
+            raise HomeAssistantError("Vehicle is unavailable")
         self._update_status(probe_status="Reading vehicle position…")
         try:
             updated = await self._merge_location(self.data)
@@ -353,7 +377,7 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
         """Refresh odometer/battery with a brief climate wake when HV is off."""
         vin = self.data.vin if self.data else None
         if not vin:
-            raise HomeAssistantError("Vehicle VIN is unavailable")
+            raise HomeAssistantError("Vehicle is unavailable")
         self._update_status(probe_status="Refreshing full vehicle status…")
         try:
             await self.async_request_refresh()

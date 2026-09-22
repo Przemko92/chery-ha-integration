@@ -98,7 +98,7 @@ def test_charge_entities_have_entity_descriptions():
     assert charge.entity_description is not None
     assert charge.entity_description.device_class is None
     assert charge.entity_description.translation_placeholders is None
-    assert charge.unique_id == f"{VIN}_charging_switch"
+    assert charge.unique_id == "entry-1_charging_switch"
 
     assert scheduled.entity_description is not None
-    assert scheduled.unique_id == f"{VIN}_scheduled_charging"
+    assert scheduled.unique_id == "entry-1_scheduled_charging"

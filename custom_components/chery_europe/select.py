@@ -11,9 +11,17 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .command_exec import async_send_vehicle_command
+from .const import SELECT
 from .coordinator import CheryEuropeDataUpdateCoordinator
 from .data import CheryData
-from .entity import CheryEuropeEntity
+from .entity import (
+    CheryEuropeEntity,
+    async_remove_unsupported,
+    control_permissions,
+    keep_feature,
+    stable_unique_id,
+    vehicle_uid,
+)
 
 PARALLEL_UPDATES = 0
 
@@ -75,10 +83,20 @@ async def async_setup_entry(
 ) -> None:
     """Set up Chery Europe vent selects from a config entry."""
     coordinator: CheryEuropeDataUpdateCoordinator = entry.runtime_data
+    perms = control_permissions(coordinator)
+    vin = vehicle_uid(coordinator, entry)
+    removed: list[str] = []
     async_add_entities(
         CheryEuropeVentSelect(coordinator, description, entry)
         for description in VENT_SELECT_DESCRIPTIONS
+        if keep_feature(
+            perms,
+            description.key,
+            f"{vin}_{description.key}_{description.middle_option}_select",
+            removed,
+        )
     )
+    async_remove_unsupported(hass, SELECT, removed)
 
 
 class CheryEuropeVentSelect(CheryEuropeEntity, SelectEntity):
@@ -94,8 +112,9 @@ class CheryEuropeVentSelect(CheryEuropeEntity, SelectEntity):
     ) -> None:
         super().__init__(coordinator, description, entry)
         self._attr_translation_key = description.translation_key
-        vin = self.chery_data.vin or entry.entry_id
-        self._attr_unique_id = f"{vin}_{description.key}_{description.middle_option}_select"
+        self._attr_unique_id = stable_unique_id(
+            entry, f"{description.key}_{description.middle_option}_select"
+        )
 
     @property
     def current_option(self) -> str | None:

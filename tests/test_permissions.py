@@ -50,3 +50,14 @@ def test_adapt_command_blocks_weekly_charge_cycle():
             },
             {213: 1, 2132: 0, 2131: 1},
         )
+
+
+def test_feature_enabled_hides_rear_ventilation_only_when_every_voice_is_denied():
+    from custom_components.chery_europe.permissions import feature_enabled
+
+    denied = {2147: 0, 20414: 0, 2148: 0, 20415: 0}
+    assert feature_enabled(denied, "rear_left_seat_ventilation") is False
+    assert feature_enabled(denied, "rear_right_seat_ventilation") is False
+    assert feature_enabled({2147: 1, 20414: 0}, "rear_left_seat_ventilation") is True
+    assert feature_enabled({}, "rear_left_seat_ventilation") is True
+    assert feature_enabled(denied, "automatic_updates") is True

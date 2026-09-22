@@ -8,7 +8,7 @@ when no PIN is supplied.
 """
 
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
@@ -71,3 +71,54 @@ async def test_turn_on_requires_pin():
         await switch.async_turn_on()
 
     switch.coordinator.api.send_command.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_setup_omits_rear_ventilation_when_denied():
+    from custom_components.chery_europe.switch import async_setup_entry
+
+    coordinator = SimpleNamespace(
+        data=CheryData(vin=VIN),
+        api=SimpleNamespace(
+            permissions={2147: 0, 20414: 0, 2148: 0, 20415: 0, 2141: 1}
+        ),
+        last_update_success=True,
+    )
+    entry = SimpleNamespace(entry_id="entry-1", runtime_data=coordinator)
+    added: list = []
+    removed: list = []
+    registry = SimpleNamespace(
+        async_get_entity_id=lambda _domain, _platform, unique_id: f"switch.{unique_id}",
+        async_remove=lambda entity_id: removed.append(entity_id),
+    )
+
+    with patch(
+        "custom_components.chery_europe.entity.er.async_get",
+        return_value=registry,
+    ):
+        await async_setup_entry(Mock(), entry, lambda entities: added.extend(entities))
+
+    keys = [entity.entity_description.key for entity in added]
+    assert "rear_left_seat_ventilation" not in keys
+    assert "rear_right_seat_ventilation" not in keys
+    assert "driver_seat_heating" in keys
+    assert "switch.entry-1_rear_left_seat_ventilation" in removed
+
+
+@pytest.mark.asyncio
+async def test_setup_keeps_every_switch_when_permissions_are_unknown():
+    from custom_components.chery_europe.switch import SWITCH_DESCRIPTIONS, async_setup_entry
+
+    coordinator = SimpleNamespace(
+        data=CheryData(vin=VIN),
+        api=SimpleNamespace(permissions={}),
+        last_update_success=True,
+    )
+    entry = SimpleNamespace(entry_id="entry-1", runtime_data=coordinator)
+    added: list = []
+
+    await async_setup_entry(Mock(), entry, lambda entities: added.extend(entities))
+
+    keys = {entity.entity_description.key for entity in added}
+    assert "rear_left_seat_ventilation" in keys
+    assert len(added) == len(SWITCH_DESCRIPTIONS) + 3

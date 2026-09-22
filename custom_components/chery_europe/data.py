@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import json
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from typing import Any
@@ -352,8 +353,13 @@ class CheryData:
 
 
 def vehicle_display_name(data: CheryData) -> str:
-    """Return the user-facing vehicle label."""
-    return data.vehicle_nickname or data.vehicle_full_name or "Chery Vehicle"
+    """Return the user-facing vehicle label, never the VIN."""
+    for candidate in (data.vehicle_nickname, data.vehicle_full_name):
+        if candidate and not (
+            data.vin and candidate.strip().upper() == data.vin.strip().upper()
+        ):
+            return candidate
+    return "Chery Vehicle"
 
 
 def extract_coordinates(payload: dict[str, Any] | None) -> tuple[float | None, float | None]:
@@ -591,6 +597,60 @@ def _sunroof_position(value: Any) -> int | None:
     return SUNROOF_STATE_TO_POSITION.get(str(value))
 
 
+def apply_charge_appointment(
+    data: CheryData,
+    result: tuple[bool | None, dict[str, Any] | None] | None,
+) -> CheryData:
+    """Overlay a chargeAppointQuery result without clearing a missing plan."""
+    if result is None:
+        return data
+    enabled, plan = result
+    updates: dict[str, Any] = {}
+    if enabled is not None:
+        updates["scheduled_charge_enabled"] = enabled
+    if plan is not None:
+        updates["charge_appoint_plan"] = plan
+    if not updates:
+        return data
+    return replace(data, **updates)
+
+
+def parse_charge_appointment(
+    payload: Any,
+) -> tuple[bool | None, dict[str, Any] | None] | None:
+    """Read mainSwitch and the first chargeAppointPlans entry.
+
+    Returns None when the payload has neither, so a failed parse does not
+    wipe the last known plan.
+    """
+    if not isinstance(payload, dict):
+        return None
+    data = payload.get("data", payload)
+    if isinstance(data, list):
+        plan = _parse_charge_appoint_plan(data)
+        enabled = _plan_switch_on(plan)
+        if enabled is None and plan is None:
+            return None
+        return enabled, plan
+    if not isinstance(data, dict):
+        return None
+    plan = _parse_charge_appoint_plan(
+        _first(data, "chargeAppointPlans", "charge_appoint_plans")
+    )
+    if plan is None and any(
+        key in data for key in ("startTime", "timeConsuming", "switchStatus")
+    ):
+        plan = data
+    main = _first(data, "mainSwitch", "mainSwitcher")
+    if main not in (None, ""):
+        enabled: bool | None = str(main) not in {"0", "false", "False"}
+    else:
+        enabled = _plan_switch_on(plan)
+    if enabled is None and plan is None:
+        return None
+    return enabled, plan
+
+
 def _parse_charge_appoint_plan(raw: Any) -> dict[str, Any] | None:
     """Return the first chargeAppointPlans entry when present."""
     if raw in (None, ""):
@@ -599,7 +659,10 @@ def _parse_charge_appoint_plan(raw: Any) -> dict[str, Any] | None:
         try:
             raw = ast.literal_eval(raw)
         except (SyntaxError, ValueError):
-            return None
+            try:
+                raw = json.loads(raw)
+            except (json.JSONDecodeError, ValueError):
+                return None
     if not isinstance(raw, list) or not raw:
         return None
     first = raw[0]

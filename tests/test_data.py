@@ -6,7 +6,14 @@ import pytest
 
 pytest.importorskip("homeassistant")
 
-from custom_components.chery_europe.data import CheryData, apply_command_feedback, merge_chery_data, vehicle_display_name
+from custom_components.chery_europe.data import (
+    CheryData,
+    apply_charge_appointment,
+    apply_command_feedback,
+    merge_chery_data,
+    parse_charge_appointment,
+    vehicle_display_name,
+)
 from custom_components.chery_europe.types.vehicle_models import VehicleStatus
 
 
@@ -431,6 +438,74 @@ def test_vehicle_display_name_prefers_nickname():
     assert vehicle_display_name(data) == "Tiggo 9"
 
 
+def test_vehicle_display_name_never_returns_the_vin():
+    data = CheryData(vin="LNNBDDEH5SG089258", vehicle_nickname="LNNBDDEH5SG089258")
+
+    assert vehicle_display_name(data) == "Chery Vehicle"
+    assert "LNNBDDEH5SG089258" not in vehicle_display_name(data)
+
+
+def test_registry_names_lose_the_vin():
+    from types import SimpleNamespace
+    from unittest.mock import Mock, patch
+
+    from custom_components.chery_europe.const import DOMAIN
+    from custom_components.chery_europe.entity import async_drop_vin_from_names
+
+    vin = "LNNBDDEH5SG089258"
+    entity = SimpleNamespace(
+        entity_id=f"sensor.{vin.lower()}_battery_level",
+        unique_id=f"{vin}_battery_level",
+        name=vin,
+        original_name="Battery",
+    )
+    device = SimpleNamespace(
+        id="dev1",
+        identifiers={(DOMAIN, vin)},
+        name=vin,
+        serial_number=vin,
+    )
+    entity_reg = Mock()
+    entity_reg.async_generate_entity_id.return_value = "sensor.battery_level"
+    device_reg = Mock()
+    device_reg.async_get_device.return_value = device
+    hass = Mock()
+    entry = SimpleNamespace(
+        entry_id="entry-1",
+        title=vin,
+        runtime_data=SimpleNamespace(
+            data=CheryData(vin=vin, vehicle_nickname="Tiggo 8")
+        ),
+    )
+
+    with (
+        patch(
+            "custom_components.chery_europe.entity.er.async_get",
+            return_value=entity_reg,
+        ),
+        patch(
+            "custom_components.chery_europe.entity.er.async_entries_for_config_entry",
+            return_value=[entity],
+        ),
+        patch(
+            "custom_components.chery_europe.entity.dr.async_get",
+            return_value=device_reg,
+        ),
+    ):
+        async_drop_vin_from_names(hass, entry, vin)
+
+    device_update = device_reg.async_update_device.call_args.kwargs
+    assert (DOMAIN, "entry-1") in device_update["new_identifiers"]
+    assert (DOMAIN, vin) not in device_update["new_identifiers"]
+    assert device_update["name"] == "Tiggo 8"
+    assert device_update["serial_number"] is None
+    entity_update = entity_reg.async_update_entity.call_args.kwargs
+    assert entity_update["new_unique_id"] == "entry-1_battery_level"
+    assert entity_update["new_entity_id"] == "sensor.battery_level"
+    assert entity_update["name"] is None
+    assert vin not in str(entity_update)
+
+
 def test_from_api_response_maps_vehicle_list_metadata():
     data = CheryData.from_api_response(
         {
@@ -533,3 +608,57 @@ def test_apply_command_feedback_updates_covers_and_seats():
     assert tilted_sunroof.sunroof_position == 50
     assert closed_sunroof.sunroof_open is False
     assert closed_sunroof.sunroof_position == 0
+
+
+def test_parse_charge_appointment_reads_main_switch_and_plan():
+    enabled, plan = parse_charge_appointment(
+        {
+            "code": "000000",
+            "data": {
+                "mainSwitch": 1,
+                "chargeAppointPlans": [
+                    {
+                        "startTime": 1320,
+                        "timeConsuming": 480,
+                        "switchStatus": 1,
+                        "cycleData": [1, 2, 3, 4, 5, 6, 7],
+                    }
+                ],
+            },
+        }
+    )
+
+    assert enabled is True
+    assert plan["startTime"] == 1320
+    assert plan["timeConsuming"] == 480
+
+
+def test_parse_charge_appointment_accepts_string_plan_and_off_switch():
+    enabled, plan = parse_charge_appointment(
+        {
+            "data": {
+                "mainSwitch": 0,
+                "chargeAppointPlans": (
+                    "[{'startTime': 480, 'timeConsuming': 360, 'switchStatus': '0'}]"
+                ),
+            }
+        }
+    )
+
+    assert enabled is False
+    assert plan["startTime"] == 480
+
+
+def test_parse_charge_appointment_ignores_empty_payload():
+    assert parse_charge_appointment({"code": "000000", "data": {}}) is None
+    assert parse_charge_appointment(None) is None
+
+
+def test_apply_charge_appointment_keeps_plan_when_query_failed():
+    current = CheryData(
+        vin="VIN123",
+        scheduled_charge_enabled=True,
+        charge_appoint_plan={"startTime": 480, "timeConsuming": 360},
+    )
+
+    assert apply_charge_appointment(current, None) is current
