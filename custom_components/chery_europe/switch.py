@@ -39,6 +39,14 @@ SWITCH_DESCRIPTIONS: tuple[CheryEuropeSwitchEntityDescription, ...] = (
         state_fn=lambda data: data.front_windshield_heating,
     ),
     CheryEuropeSwitchEntityDescription(
+        key="front_windshield_defrost",
+        name="Front windshield defrost",
+        translation_key="front_windshield_defrost",
+        icon="mdi:car-defrost-front",
+        command_id="ve_1108",
+        state_fn=lambda data: data.front_windshield_defrost,
+    ),
+    CheryEuropeSwitchEntityDescription(
         key="rear_window_defrost",
         name="Rear window heating",
         translation_key="rear_window_defrost",
@@ -188,6 +196,9 @@ class CheryEuropeCommandSwitch(CheryEuropeEntity, SwitchEntity):
         """Send this switch command without storing or logging the PIN."""
         extra = dict(self.command_description.command_values or {})
         extra["enabled"] = enabled
+        if self.command_description.command_id == "ve_1108":
+            # the defrost rides on airControl: keep the current climate target
+            extra["temperature"] = self.chery_data.target_temperature
         await async_send_vehicle_command(
             self.coordinator,
             self._entry,
