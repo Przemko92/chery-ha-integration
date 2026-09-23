@@ -71,8 +71,10 @@ def test_build_charge_plan():
     assert plan == {
         "cycleData": [1, 2, 3, 4, 5, 6, 7],
         "startTime": 465,
+        "endTime": (465 + 360) % 1440,
         "switchStatus": 1,
         "timeConsuming": 360,
+        "hasSetTimeConsuming": 1,
     }
 
 
