@@ -40,7 +40,28 @@ def test_adapt_command_reroutes_seat_to_air_control():
     assert body["mSeatHeating"] == "3"
 
 
-def test_adapt_command_blocks_weekly_charge_cycle():
+def test_adapt_command_drops_end_time_when_that_voice_is_denied():
+    endpoint, body = adapt_command(
+        "chargeAppointControl",
+        {
+            "mainSwitch": 1,
+            "chargeAppointPlans": [
+                {
+                    "cycleData": [1, 2, 3, 4, 5, 6, 7],
+                    "startTime": 540,
+                    "endTime": 900,
+                    "timeConsuming": 360,
+                    "hasSetTimeConsuming": 1,
+                }
+            ],
+        },
+        {213: 1, 2132: 1, 2134: 0},
+    )
+    assert endpoint == "chargeAppointControl"
+    plan = body["chargeAppointPlans"][0]
+    assert "endTime" not in plan
+    assert plan["timeConsuming"] == 360
+    assert plan["hasSetTimeConsuming"] == 1
     with pytest.raises(CheryEuropePermissionError):
         adapt_command(
             "chargeAppointControl",

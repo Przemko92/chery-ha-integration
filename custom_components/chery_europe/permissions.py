@@ -153,7 +153,8 @@ def adapt_command(
         raise CheryEuropePermissionError(
             f"This vehicle does not allow the {endpoint} command"
         )
-    return endpoint, _prune(endpoint, body, perms)
+    pruned = _prune(endpoint, body, perms)
+    return endpoint, _strip_denied_end_time(endpoint, pruned, perms)
 
 
 def _reroute(
@@ -176,6 +177,25 @@ def _reroute(
         routed[field] = body[field]
         return "airControl", routed
     return endpoint, body
+
+
+def _strip_denied_end_time(endpoint: str, body: dict[str, Any], perms: dict[int, int]) -> dict[str, Any]:
+    """Drop endTime when this vehicle is not allowed to set a charge end clock.
+
+    Voice 2134 is the end-time permission. Duration mode
+    (``hasSetTimeConsuming`` + ``timeConsuming``) stays in the body.
+    """
+    if endpoint != "chargeAppointControl" or allowed(perms, 2134):
+        return body
+    plans = body.get("chargeAppointPlans")
+    if not isinstance(plans, list):
+        return body
+    stripped = []
+    for plan in plans:
+        if isinstance(plan, dict) and "endTime" in plan:
+            plan = {key: value for key, value in plan.items() if key != "endTime"}
+        stripped.append(plan)
+    return {**body, "chargeAppointPlans": stripped}
 
 
 def _prune(
