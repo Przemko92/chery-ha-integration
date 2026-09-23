@@ -11,7 +11,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
-from .charge_schedule import format_minutes_as_hhmm
+from .charge_schedule import plan_duration_hours, plan_start_time
 from .command_exec import async_send_vehicle_command
 from .const import SWITCH
 from .coordinator import CheryEuropeDataUpdateCoordinator
@@ -412,16 +412,12 @@ class CheryEuropeScheduledChargeSwitch(CheryEuropeEntity, SwitchEntity, RestoreE
         if plan is None:
             return None
         attrs: dict[str, Any] = {}
-        try:
-            minutes = int(plan["startTime"])
-            if 0 <= minutes < 1440:
-                attrs["vehicle_start_time"] = format_minutes_as_hhmm(minutes)
-        except (KeyError, TypeError, ValueError):
-            pass
-        try:
-            attrs["vehicle_duration_hours"] = round(int(plan["timeConsuming"]) / 60, 1)
-        except (KeyError, TypeError, ValueError):
-            pass
+        start = plan_start_time(plan)
+        if start is not None:
+            attrs["vehicle_start_time"] = f"{start.hour:02d}:{start.minute:02d}"
+        hours = plan_duration_hours(plan)
+        if hours is not None:
+            attrs["vehicle_duration_hours"] = hours
         days = plan.get("cycleData")
         if isinstance(days, list) and days:
             attrs["vehicle_days"] = days
