@@ -76,6 +76,29 @@ def build_front_defrost_body(values: dict[str, Any]) -> dict[str, str]:
     return body
 
 
+def build_air_purifier_body(values: dict[str, Any]) -> dict[str, str]:
+    """Cabin air purification by climate control (airControl airPurControlType).
+
+    ``airPurControlType`` is an accessory field of airControl (permission
+    2046), like ``frontDefrosting``. ON also starts the climate
+    (airControlType "1"), as the official app does; OFF only clears the
+    purification flag and keeps the climate in its current state
+    (``hvac_enabled``).
+    """
+    enabled = values.get("enabled", True)
+    temperature = values.get("temperature") or DEFAULT_AIR_TEMPERATURE
+    if isinstance(temperature, (int, float)):
+        temperature = f"{float(temperature):.1f}"
+    climate_on = True if enabled else bool(values.get("hvac_enabled"))
+    return {
+        "airControlType": "1" if climate_on else "0",
+        "airType": "1",
+        "temperature": str(temperature),
+        "times": str(values.get("duration", DEFAULT_AIR_DURATION)),
+        "airPurControlType": "1" if enabled else "0",
+    }
+
+
 def build_rear_defrost_body(values: dict[str, Any]) -> dict[str, str]:
     enabled = values.get("enabled", True)
     body = {"backDefrosting": "1" if enabled else "0"}
@@ -170,6 +193,7 @@ COMMAND_SPECS: dict[str, VehicleCommandSpec] = {
     "ve_1103": VehicleCommandSpec("frontWindshieldControl", build_front_windshield_body),
     "ve_1135": VehicleCommandSpec("backDefrostingControl", build_rear_defrost_body),
     "ve_1108": VehicleCommandSpec("airControl", build_front_defrost_body),
+    "ve_1109": VehicleCommandSpec("airControl", build_air_purifier_body),
     "ve_1201": VehicleCommandSpec("chargeStartStopControl", build_charge_start_stop_body),
     "ve_1202": VehicleCommandSpec("chargeAppointControl", build_charge_appoint_body),
     "ve_1203": VehicleCommandSpec("steeringWheelControl", build_steering_wheel_body),

@@ -460,6 +460,12 @@ def apply_command_feedback(data: CheryData, command_id: str, **kwargs: Any) -> C
         enabled = kwargs.get("enabled")
         if enabled is not None:
             return replace(data, front_windshield_defrost=enabled, hvac_enabled=enabled)
+    if command_id == "ve_1109":
+        enabled = kwargs.get("enabled")
+        if enabled is True:
+            return replace(data, air_purification=True, hvac_enabled=True)
+        if enabled is False:
+            return replace(data, air_purification=False)
     if command_id == "ve_1201":
         enabled = kwargs.get("enabled")
         if enabled is True:
