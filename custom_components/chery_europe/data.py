@@ -30,6 +30,17 @@ SEAT_FIELD_TO_ATTR = {
     "blSeatAiry": "rear_left_seat_ventilation",
     "brSeatAiry": "rear_right_seat_ventilation",
 }
+# realtime seat level fields (0 = off, 1-3) per seat attribute
+SEAT_LEVEL_FIELDS = {
+    "driver_seat_heating": "dSeatHeatingState",
+    "passenger_seat_heating": "pSeatHeatingState",
+    "driver_seat_ventilation": "dSeatVentilateState",
+    "passenger_seat_ventilation": "pSeatVentilateState",
+    "rear_left_seat_heating": "lSeatHeatingState2",
+    "rear_right_seat_heating": "rSeatHeatingState2",
+    "rear_left_seat_ventilation": "lSeatVentilateState2",
+    "rear_right_seat_ventilation": "rSeatVentilateState2",
+}
 SEAT_EXCLUSIVE_ATTR = {
     "driver_seat_heating": "driver_seat_ventilation",
     "driver_seat_ventilation": "driver_seat_heating",
@@ -113,6 +124,7 @@ class CheryData:
     rear_right_seat_heating: bool | None = None
     rear_left_seat_ventilation: bool | None = None
     rear_right_seat_ventilation: bool | None = None
+    seat_levels: dict[str, int] | None = None
     remain_charge_time_min: float | None = None
     charge_status: str | None = None
     appointment_charge_status: str | None = None
@@ -353,6 +365,7 @@ class CheryData:
             rear_right_seat_heating=_level_on(payload.get("rSeatHeatingState2")),
             rear_left_seat_ventilation=_level_on(payload.get("lSeatVentilateState2")),
             rear_right_seat_ventilation=_level_on(payload.get("rSeatVentilateState2")),
+            seat_levels=_seat_levels(payload),
         )
 
 
@@ -586,6 +599,17 @@ def _state_on(value: Any) -> bool | None:
     return str(value) == "1"
 
 
+def _seat_levels(payload: dict[str, Any]) -> dict[str, int] | None:
+    """Return the reported seat heating/ventilation levels (0 = off, 1-3)."""
+    levels: dict[str, int] = {}
+    for attr, field in SEAT_LEVEL_FIELDS.items():
+        try:
+            levels[attr] = int(float(payload[field]))
+        except (KeyError, TypeError, ValueError):
+            continue
+    return levels or None
+
+
 def _level_on(value: Any) -> bool | None:
     """Return True when a realtime level field (0 = off, 1..n = level) is active."""
     if value in (None, ""):
@@ -717,6 +741,14 @@ def _remain_charge_time(value: Any) -> float | None:
     return minutes
 
 
+def _command_level(value: Any) -> int:
+    """Seat command level: 1-3, default 3 (what the plain switch sends)."""
+    try:
+        return min(3, max(1, int(value)))
+    except (TypeError, ValueError):
+        return 3
+
+
 def _apply_seat_feedback(data: CheryData, kwargs: dict[str, Any]) -> CheryData:
     field = str(kwargs.get("seat_field", ""))
     enabled = kwargs.get("enabled")
@@ -724,6 +756,10 @@ def _apply_seat_feedback(data: CheryData, kwargs: dict[str, Any]) -> CheryData:
     if attr is None or enabled is None:
         return data
     updates: dict[str, Any] = {attr: enabled}
+    if data.seat_levels is not None:
+        levels = dict(data.seat_levels)
+        levels[attr] = _command_level(kwargs.get("level")) if enabled else 0
+        updates["seat_levels"] = levels
     exclusive = SEAT_EXCLUSIVE_ATTR.get(attr)
     if enabled and exclusive:
         updates[exclusive] = False

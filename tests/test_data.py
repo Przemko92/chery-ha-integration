@@ -723,3 +723,34 @@ def test_from_realtime_seat_states_are_levels(raw, expected):
 
     for attr in fields.values():
         assert getattr(data, attr) is expected, attr
+
+
+def test_from_realtime_keeps_seat_levels():
+    data = CheryData.from_realtime(
+        {
+            "dSeatHeatingState": "2",
+            "pSeatVentilateState": "0",
+            "lSeatHeatingState2": "3",
+        },
+        vin="VIN123",
+    )
+
+    assert data.seat_levels == {
+        "driver_seat_heating": 2,
+        "passenger_seat_ventilation": 0,
+        "rear_left_seat_heating": 3,
+    }
+
+
+def test_apply_command_feedback_seat_level():
+    base = CheryData(vin="VIN123", seat_levels={"driver_seat_heating": 0})
+    on = apply_command_feedback(
+        base, "ve_1204", enabled=True, seat_field="mSeatHeating", level=1
+    )
+    off = apply_command_feedback(
+        on, "ve_1204", enabled=False, seat_field="mSeatHeating"
+    )
+
+    assert on.driver_seat_heating is True
+    assert on.seat_levels["driver_seat_heating"] == 1
+    assert off.seat_levels["driver_seat_heating"] == 0
