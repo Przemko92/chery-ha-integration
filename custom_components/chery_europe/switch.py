@@ -15,7 +15,7 @@ from .charge_schedule import plan_duration_hours, plan_start_time
 from .command_exec import async_send_vehicle_command
 from .const import SWITCH
 from .coordinator import CheryEuropeDataUpdateCoordinator
-from .data import CheryData
+from .data import SEAT_LEVEL_FIELDS, CheryData
 from .entity import (
     CheryEuropeEntity,
     async_remove_unsupported,
@@ -201,6 +201,14 @@ class CheryEuropeCommandSwitch(CheryEuropeEntity, SwitchEntity):
     def assumed_state(self) -> bool:  # type: ignore[reportIncompatibleVariableOverride]
         """Return true when the API does not provide reliable command feedback."""
         return self.is_on is None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Expose the reported level of seat heating/ventilation switches."""
+        levels = self.chery_data.seat_levels
+        if self.entity_description.key not in SEAT_LEVEL_FIELDS or levels is None:
+            return None
+        return {"level": levels.get(self.entity_description.key)}
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Send the safe remote command using the PIN from the service call."""

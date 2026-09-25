@@ -162,7 +162,11 @@ def build_steering_wheel_body(values: dict[str, Any]) -> dict[str, str]:
 def build_seat_control_body(values: dict[str, Any]) -> dict[str, str]:
     field = str(values.get("seat_field", "mSeatHeating"))
     enabled = values.get("enabled", True)
-    body = {field: "3" if enabled else "0"}
+    try:
+        level = min(3, max(1, int(values.get("level") or 3)))
+    except (TypeError, ValueError):
+        level = 3
+    body = {field: str(level) if enabled else "0"}
     if enabled:
         body["times"] = str(values.get("duration", DEFAULT_AIR_DURATION))
     return body
