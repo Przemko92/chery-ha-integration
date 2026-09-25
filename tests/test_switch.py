@@ -80,6 +80,32 @@ async def test_front_windshield_defrost_sends_climate_target():
     )
 
 
+def test_air_purification_reads_its_own_field():
+    """air_purification follows the realtime airPurification flag."""
+    switch = _make_switch(
+        CheryData(vin=VIN, air_purification=True), key="air_purification"
+    )
+    assert switch.is_on is True
+
+
+@pytest.mark.asyncio
+async def test_air_purification_off_sends_climate_state():
+    """ve_1109 carries the climate target and state so OFF keeps the climate."""
+    switch = _make_switch(
+        CheryData(vin=VIN, target_temperature=21.5, hvac_enabled=True, air_purification=True),
+        key="air_purification",
+    )
+    switch.coordinator.api.send_command.return_value = {"ok": True}
+    switch.coordinator.async_set_updated_data = lambda data: None
+    switch.coordinator.schedule_refresh_after_command = lambda: None
+
+    await switch.async_turn_off()
+
+    switch.coordinator.api.send_command.assert_awaited_once_with(
+        VIN, "ve_1109", "1234", enabled=False, temperature=21.5, hvac_enabled=True
+    )
+
+
 def test_no_feedback_assumed_state():
     """No feedback fields -> is_on is None and assumed_state is True."""
     switch = _make_switch(CheryData(vin=VIN))

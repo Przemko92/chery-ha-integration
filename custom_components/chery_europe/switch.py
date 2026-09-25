@@ -55,6 +55,14 @@ SWITCH_DESCRIPTIONS: tuple[CheryEuropeSwitchEntityDescription, ...] = (
         state_fn=lambda data: data.front_windshield_defrost,
     ),
     CheryEuropeSwitchEntityDescription(
+        key="air_purification",
+        name="Air purification",
+        translation_key="air_purification",
+        icon="mdi:air-purifier",
+        command_id="ve_1109",
+        state_fn=lambda data: data.air_purification,
+    ),
+    CheryEuropeSwitchEntityDescription(
         key="rear_window_defrost",
         name="Rear window heating",
         translation_key="rear_window_defrost",
@@ -209,6 +217,10 @@ class CheryEuropeCommandSwitch(CheryEuropeEntity, SwitchEntity):
         if self.command_description.command_id == "ve_1108":
             # the defrost rides on airControl: keep the current climate target
             extra["temperature"] = self.chery_data.target_temperature
+        elif self.command_description.command_id == "ve_1109":
+            # purification rides on airControl too; OFF keeps the climate state
+            extra["temperature"] = self.chery_data.target_temperature
+            extra["hvac_enabled"] = self.chery_data.hvac_enabled
         await async_send_vehicle_command(
             self.coordinator,
             self._entry,
