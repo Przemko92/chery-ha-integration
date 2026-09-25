@@ -1,0 +1,376 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Chery Europe beállítások",
+        "description": "Válassza ki a bejelentkezés módját. Az e-mail használata ajánlott. SMS-t csak akkor használjon, ha a Chery Europe-fiókja e-mail helyett telefonszámmal van regisztrálva.",
+        "menu_options": {
+          "login_email": "Bejelentkezés e-maillel (ajánlott)",
+          "login_phone": "Bejelentkezés telefonszámmal (SMS)"
+        }
+      },
+      "login_email": {
+        "title": "Bejelentkezés e-maillel",
+        "description": "Adja meg a Chery Europe alkalmazásban regisztrált e-mail-címet. Egy egyszer használatos bejelentkezési kódot küldünk erre a címre.",
+        "data": {
+          "login": "E-mail"
+        }
+      },
+      "login_phone": {
+        "title": "Bejelentkezés telefonszámmal (SMS)",
+        "description": "Adja meg a Chery Europe alkalmazásban regisztrált telefonszámot és annak országkódját számjegyekkel (pl. Magyarország = 36, + jel nélkül). Az ellenőrző kódot SMS-ben küldjük el. Ha a fiókhoz tartozik e-mail-cím, inkább az e-mailes bejelentkezést használja.",
+        "data": {
+          "phone": "Telefonszám (országkód nélkül)",
+          "area_code": "Országkód számjegyekkel (pl. 36)"
+        }
+      },
+      "code": {
+        "title": "Bejelentkezési kód megadása",
+        "description": "Adja meg a(z) {destination} címre küldött bejelentkezési kódot.",
+        "data": {
+          "code": "Bejelentkezési kód"
+        }
+      },
+      "pin": {
+        "title": "Járművezérlési PIN",
+        "description": "Adja meg a Chery Europe alkalmazásban a távoli parancsokhoz (ajtózár, klíma stb.) használt PIN-kódot. A megerősítéshez kétszer kell megadni. A PIN mindig az integráció beállításaiban kerül tárolásra. Engedélyezze a PIN kérése opciót, ha minden művelet előtt újra meg szeretné erősíteni.",
+        "data": {
+          "pin": "Jármű PIN",
+          "pin_confirm": "PIN megerősítése",
+          "ask_for_pin": "PIN kérése"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Chery Europe újbóli hitelesítése",
+        "description": "Új bejelentkezési kód küldése a(z) {destination} címre a Chery Europe-fiók újbóli hitelesítéséhez.",
+        "data": {
+          "login": "E-mail",
+          "phone": "Telefonszám (országkód nélkül)",
+          "area_code": "Országkód számjegyekkel (pl. 36)"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Érvénytelen vagy lejárt bejelentkezési kód.",
+      "otp_send_failed": "Nem sikerült elküldeni a bejelentkezési kódot. Ellenőrizze az e-mail-címet vagy telefonszámot, majd próbálja újra.",
+      "phone_invalid": "Érvénytelen telefonszám vagy országkód. Az országkód nélküli belföldi számot és az országkódot csak számjegyekkel adja meg (pl. 36).",
+      "captcha_failed": "A CAPTCHA ellenőrzése sikertelen. Kérjük, próbálja újra.",
+      "cannot_connect": "Nem sikerült csatlakozni a Chery Europe szolgáltatáshoz. Ellenőrizze az internetkapcsolatot.",
+      "rate_limit": "Túl sok próbálkozás történt. Kérjük, várjon egy kicsit, mielőtt újra próbálkozik.",
+      "pin_mismatch": "A PIN megerősítése nem egyezik.",
+      "pin_required": "A PIN megadása kötelező.",
+      "unknown": "Váratlan hiba történt. Kérjük, próbálja újra később."
+    },
+    "abort": {
+      "already_configured": "Ez a Chery Europe-fiók már be van állítva.",
+      "reauth_successful": "Az újbóli hitelesítés sikeres."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Chery Europe beállítások",
+        "data": {
+          "pin": "Járművezérlési PIN (hagyja üresen a törléshez)",
+          "pin_confirm": "PIN megerősítése (új PIN beállításakor kötelező)",
+          "ask_for_pin": "PIN kérése minden műveletnél",
+          "poll_normal_min": "Frissítési intervallum parkoláskor (perc, 0 = kikapcsolva)",
+          "poll_charging_min": "Frissítési intervallum töltés közben (perc, 0 = parkolási intervallum használata)",
+          "poll_hv_min": "Frissítési intervallum bekapcsolt nagyfeszültségű rendszer esetén (perc, 0 = parkolási intervallum használata)"
+        }
+      }
+    },
+    "error": {
+      "pin_mismatch": "A PIN megerősítése nem egyezik."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "battery_level": {
+        "name": "Akkumulátor töltöttsége"
+      },
+      "fuel_level": {
+        "name": "Üzemanyag szintje"
+      },
+      "range": {
+        "name": "Hatótávolság"
+      },
+      "tire_pressure_front_left": {
+        "name": "Bal első gumiabroncs nyomása"
+      },
+      "tire_pressure_front_right": {
+        "name": "Jobb első gumiabroncs nyomása"
+      },
+      "tire_pressure_rear_left": {
+        "name": "Bal hátsó gumiabroncs nyomása"
+      },
+      "tire_pressure_rear_right": {
+        "name": "Jobb hátsó gumiabroncs nyomása"
+      },
+      "odometer": {
+        "name": "Kilométeróra állása"
+      },
+      "electric_range": {
+        "name": "Elektromos hatótávolság"
+      },
+      "electric_odometer": {
+        "name": "Elektromos kilométeróra állása"
+      },
+      "vehicle_speed": {
+        "name": "Sebesség"
+      },
+      "fuel_range": {
+        "name": "Üzemanyag-hatótávolság"
+      },
+      "power_consumption": {
+        "name": "Energiafogyasztás"
+      },
+      "fuel_consumption": {
+        "name": "Üzemanyag-fogyasztás"
+      },
+      "remain_charge_time": {
+        "name": "Hátralévő töltési idő"
+      },
+      "charge_status": {
+        "name": "Töltési állapot",
+        "state": {
+          "not_charging": "Nem tölt",
+          "charging": "Töltés folyamatban",
+          "charge_complete": "Töltés kész"
+        }
+      },
+      "appointment_charge_status": {
+        "name": "Ütemezett töltés állapota",
+        "state": {
+          "off": "Kikapcsolva",
+          "enabled": "Engedélyezve",
+          "running": "Folyamatban"
+        }
+      },
+      "vehicle_nickname": {
+        "name": "Jármű beceneve"
+      },
+      "vehicle_full_name": {
+        "name": "Járműmodell"
+      },
+      "vehicle_color": {
+        "name": "Jármű színe"
+      },
+      "vehicle_picture": {
+        "name": "Jármű képe"
+      },
+      "climate_min_temperature": {
+        "name": "Klíma minimális hőmérséklete"
+      },
+      "climate_max_temperature": {
+        "name": "Klíma maximális hőmérséklete"
+      },
+      "last_data_update": {
+        "name": "Utolsó adatfrissítés"
+      },
+      "command_status": {
+        "name": "Parancs eredménye"
+      },
+      "wake_status": {
+        "name": "Felébresztés eredménye"
+      },
+      "probe_status": {
+        "name": "Pozíciólekérdezés eredménye"
+      },
+      "tire_temperature_front_left": {
+        "name": "Bal első gumiabroncs hőmérséklete"
+      },
+      "tire_temperature_front_right": {
+        "name": "Jobb első gumiabroncs hőmérséklete"
+      },
+      "tire_temperature_rear_left": {
+        "name": "Bal hátsó gumiabroncs hőmérséklete"
+      },
+      "tire_temperature_rear_right": {
+        "name": "Jobb hátsó gumiabroncs hőmérséklete"
+      }
+    },
+    "binary_sensor": {
+      "online": {
+        "name": "Elérhető"
+      },
+      "charging": {
+        "name": "Töltés alatt"
+      },
+      "appointment_charging": {
+        "name": "Ütemezett töltés"
+      },
+      "charge_gun_connected": {
+        "name": "Töltőkábel csatlakoztatva"
+      },
+      "fast_charge_gun_connected": {
+        "name": "Gyors töltő csatlakoztatva"
+      },
+      "engine": {
+        "name": "Motor"
+      },
+      "high_voltage": {
+        "name": "Nagyfeszültségű rendszer"
+      },
+      "air_purification": {
+        "name": "Levegőtisztítás"
+      },
+      "door_front_left": {
+        "name": "Bal első ajtó"
+      },
+      "door_front_right": {
+        "name": "Jobb első ajtó"
+      },
+      "door_rear_left": {
+        "name": "Bal hátsó ajtó"
+      },
+      "door_rear_right": {
+        "name": "Jobb hátsó ajtó"
+      },
+      "window_front_left": {
+        "name": "Bal első ablak"
+      },
+      "window_front_right": {
+        "name": "Jobb első ablak"
+      },
+      "window_rear_left": {
+        "name": "Bal hátsó ablak"
+      },
+      "window_rear_right": {
+        "name": "Jobb hátsó ablak"
+      }
+    },
+    "switch": {
+      "front_windshield_heating": {
+        "name": "Első szélvédő fűtése"
+      },
+      "front_windshield_defrost": {
+        "name": "Első szélvédő páramentesítése"
+      },
+      "rear_window_defrost": {
+        "name": "Hátsó ablak fűtése"
+      },
+      "steering_wheel_heating": {
+        "name": "Kormányfűtés"
+      },
+      "driver_seat_heating": {
+        "name": "Vezetőülés fűtése"
+      },
+      "passenger_seat_heating": {
+        "name": "Utasülés fűtése"
+      },
+      "driver_seat_ventilation": {
+        "name": "Vezetőülés szellőztetése"
+      },
+      "passenger_seat_ventilation": {
+        "name": "Utasülés szellőztetése"
+      },
+      "rear_left_seat_heating": {
+        "name": "Bal hátsó ülés fűtése"
+      },
+      "rear_right_seat_heating": {
+        "name": "Jobb hátsó ülés fűtése"
+      },
+      "rear_left_seat_ventilation": {
+        "name": "Bal hátsó ülés szellőztetése"
+      },
+      "rear_right_seat_ventilation": {
+        "name": "Jobb hátsó ülés szellőztetése"
+      },
+      "charging": {
+        "name": "Töltés"
+      },
+      "scheduled_charging": {
+        "name": "Ütemezett töltés"
+      },
+      "automatic_updates": {
+        "name": "Automatikus frissítések"
+      }
+    },
+    "time": {
+      "charge_start_time": {
+        "name": "Ütemezett töltés kezdési időpontja"
+      }
+    },
+    "number": {
+      "charge_duration_hours": {
+        "name": "Ütemezett töltés időtartama"
+      }
+    },
+    "lock": {
+      "doors": {
+        "name": "Ajtók"
+      }
+    },
+    "climate": {
+      "hvac": {
+        "name": "Klíma"
+      }
+    },
+    "cover": {
+      "trunk": {
+        "name": "Csomagtérajtó"
+      }
+    },
+    "select": {
+      "windows": {
+        "name": "Ablakok",
+        "state": {
+          "closed": "Zárva",
+          "vent": "Szellőző állás",
+          "open": "Nyitva"
+        }
+      },
+      "sunroof": {
+        "name": "Napfénytető",
+        "state": {
+          "closed": "Zárva",
+          "tilt": "Billentve",
+          "open": "Nyitva"
+        }
+      }
+    },
+    "button": {
+      "locate": {
+        "name": "Helymeghatározás"
+      },
+      "find_car": {
+        "name": "Autó keresése"
+      },
+      "wake": {
+        "name": "Jármű felébresztése"
+      },
+      "refresh_position": {
+        "name": "Pozíció frissítése"
+      },
+      "refresh_full_status": {
+        "name": "Teljes állapot frissítése"
+      }
+    },
+    "device_tracker": {
+      "position": {
+        "name": "Pozíció"
+      }
+    }
+  },
+  "services": {
+    "set_scheduled_charging": {
+      "name": "Ütemezett töltés beállítása",
+      "description": "A jármű töltési ütemezésének engedélyezése vagy frissítése. Az integráció beállításaiban megadott PIN használatával.",
+      "fields": {
+        "start_time": {
+          "name": "Kezdési idő",
+          "description": "A helyi idő, amikor a töltésnek el kell indulnia."
+        },
+        "duration_hours": {
+          "name": "Időtartam",
+          "description": "A töltés időtartama órában (1–12)."
+        },
+        "enabled": {
+          "name": "Engedélyezve",
+          "description": "Állítsa hamisra (false), ha le szeretné tiltani a töltési ütemezést."
+        }
+      }
+    }
+  }
+}
