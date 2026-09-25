@@ -682,3 +682,14 @@ def test_apply_charge_appointment_keeps_plan_when_query_failed():
     )
 
     assert apply_charge_appointment(current, None) is current
+
+
+def test_apply_command_feedback_air_purification():
+    base = CheryData(vin="VIN123", hvac_enabled=False)
+    on = apply_command_feedback(base, "ve_1109", enabled=True)
+    off = apply_command_feedback(on, "ve_1109", enabled=False)
+
+    assert on.air_purification is True
+    assert on.hvac_enabled is True
+    assert off.air_purification is False
+    assert off.hvac_enabled is True

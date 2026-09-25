@@ -247,6 +247,9 @@
       "front_windshield_defrost": {
         "name": "Odmrażanie przedniej szyby (nawiew)"
       },
+      "air_purification": {
+        "name": "Oczyszczanie powietrza"
+      },
       "rear_window_defrost": {
         "name": "Ogrzewanie tylnej szyby"
       },

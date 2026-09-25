@@ -247,6 +247,9 @@
       "front_windshield_defrost": {
         "name": "Front windshield defrost"
       },
+      "air_purification": {
+        "name": "Air purification"
+      },
       "rear_window_defrost": {
         "name": "Rear window heating"
       },
