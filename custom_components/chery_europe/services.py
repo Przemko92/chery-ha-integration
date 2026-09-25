@@ -38,6 +38,7 @@ SEND_COMMAND_SCHEMA = vol.Schema(
         vol.Optional("hvac_mode"): cv.string,
         vol.Optional("action"): cv.string,
         vol.Optional("seat_field"): cv.string,
+        vol.Optional("level"): vol.All(vol.Coerce(int), vol.Range(min=1, max=3)),
         vol.Optional("start_minutes"): vol.Coerce(int),
         vol.Optional(ATTR_DURATION_HOURS): vol.Coerce(int),
     }
@@ -77,6 +78,7 @@ def async_setup_services(hass: HomeAssistant) -> None:
                 enabled=call.data.get(ATTR_ENABLED),
                 hvac_mode=call.data.get("hvac_mode"),
                 seat_field=call.data.get("seat_field"),
+                level=call.data.get("level"),
                 start_minutes=call.data.get("start_minutes"),
                 duration_hours=call.data.get(ATTR_DURATION_HOURS),
             )
@@ -95,6 +97,7 @@ def async_setup_services(hass: HomeAssistant) -> None:
                         action=call.data.get("action"),
                         enabled=call.data.get(ATTR_ENABLED),
                         seat_field=call.data.get("seat_field"),
+                        level=call.data.get("level"),
                         start_minutes=call.data.get("start_minutes"),
                         duration_hours=call.data.get(ATTR_DURATION_HOURS),
                     )

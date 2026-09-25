@@ -80,6 +80,23 @@ def test_build_air_purifier_body_off_keeps_climate_state(hvac_enabled, air_contr
     }
 
 
+@pytest.mark.parametrize(
+    ("level", "sent"), [(None, "3"), (1, "1"), (2, "2"), (3, "3"), (9, "3"), (0, "3")]
+)
+def test_build_seat_control_body_level(level, sent):
+    body = build_seat_control_body(
+        {"seat_field": "mSeatHeating", "enabled": True, "level": level}
+    )
+    assert body == {"mSeatHeating": sent, "times": "15"}
+
+
+def test_build_seat_control_body_off_ignores_level():
+    body = build_seat_control_body(
+        {"seat_field": "pSeatAiry", "enabled": False, "level": 2}
+    )
+    assert body == {"pSeatAiry": "0"}
+
+
 def test_build_lock_control_body_unlock():
     body = build_lock_control_body({"action": "unlock"})
     assert body == {"lockType": "1"}

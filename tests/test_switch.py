@@ -106,6 +106,21 @@ async def test_air_purification_off_sends_climate_state():
     )
 
 
+def test_seat_switch_exposes_level():
+    switch = _make_switch(
+        CheryData(
+            vin=VIN, driver_seat_heating=True, seat_levels={"driver_seat_heating": 2}
+        ),
+        key="driver_seat_heating",
+    )
+    assert switch.extra_state_attributes == {"level": 2}
+
+
+def test_non_seat_switch_has_no_level():
+    switch = _make_switch(CheryData(vin=VIN, seat_levels={"driver_seat_heating": 2}))
+    assert switch.extra_state_attributes is None
+
+
 def test_no_feedback_assumed_state():
     """No feedback fields -> is_on is None and assumed_state is True."""
     switch = _make_switch(CheryData(vin=VIN))
