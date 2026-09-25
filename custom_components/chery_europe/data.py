@@ -343,14 +343,16 @@ class CheryData:
             window_front_right_position=_window_position(payload.get("frontRightWindowState")),
             window_rear_left_position=_window_position(payload.get("backLeftWindowState")),
             window_rear_right_position=_window_position(payload.get("backRightWindowState")),
-            driver_seat_heating=_state_on(payload.get("dSeatHeatingState")),
-            passenger_seat_heating=_state_on(payload.get("pSeatHeatingState")),
-            driver_seat_ventilation=_state_on(payload.get("dSeatVentilateState")),
-            passenger_seat_ventilation=_state_on(payload.get("pSeatVentilateState")),
-            rear_left_seat_heating=_state_on(payload.get("lSeatHeatingState2")),
-            rear_right_seat_heating=_state_on(payload.get("rSeatHeatingState2")),
-            rear_left_seat_ventilation=_state_on(payload.get("lSeatVentilateState2")),
-            rear_right_seat_ventilation=_state_on(payload.get("rSeatVentilateState2")),
+            # seat states are levels (0 = off, 1-3); the remote seat command
+            # switches them on at level 3
+            driver_seat_heating=_level_on(payload.get("dSeatHeatingState")),
+            passenger_seat_heating=_level_on(payload.get("pSeatHeatingState")),
+            driver_seat_ventilation=_level_on(payload.get("dSeatVentilateState")),
+            passenger_seat_ventilation=_level_on(payload.get("pSeatVentilateState")),
+            rear_left_seat_heating=_level_on(payload.get("lSeatHeatingState2")),
+            rear_right_seat_heating=_level_on(payload.get("rSeatHeatingState2")),
+            rear_left_seat_ventilation=_level_on(payload.get("lSeatVentilateState2")),
+            rear_right_seat_ventilation=_level_on(payload.get("rSeatVentilateState2")),
         )
 
 
@@ -582,6 +584,16 @@ def _state_on(value: Any) -> bool | None:
     if value in (None, ""):
         return None
     return str(value) == "1"
+
+
+def _level_on(value: Any) -> bool | None:
+    """Return True when a realtime level field (0 = off, 1..n = level) is active."""
+    if value in (None, ""):
+        return None
+    try:
+        return float(value) > 0
+    except (TypeError, ValueError):
+        return str(value).lower() not in ("0", "false", "off", "none")
 
 
 def _is_open(value: Any) -> bool | None:

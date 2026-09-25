@@ -693,3 +693,33 @@ def test_apply_command_feedback_air_purification():
     assert on.hvac_enabled is True
     assert off.air_purification is False
     assert off.hvac_enabled is True
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("0", False),
+        ("1", True),
+        ("2", True),
+        ("3", True),
+        (3, True),
+        ("", None),
+        (None, None),
+    ],
+)
+def test_from_realtime_seat_states_are_levels(raw, expected):
+    """Seat heating/ventilation report a level; any level above 0 is on."""
+    fields = {
+        "dSeatHeatingState": "driver_seat_heating",
+        "pSeatHeatingState": "passenger_seat_heating",
+        "dSeatVentilateState": "driver_seat_ventilation",
+        "pSeatVentilateState": "passenger_seat_ventilation",
+        "lSeatHeatingState2": "rear_left_seat_heating",
+        "rSeatHeatingState2": "rear_right_seat_heating",
+        "lSeatVentilateState2": "rear_left_seat_ventilation",
+        "rSeatVentilateState2": "rear_right_seat_ventilation",
+    }
+    data = CheryData.from_realtime({key: raw for key in fields}, vin="VIN123")
+
+    for attr in fields.values():
+        assert getattr(data, attr) is expected, attr
