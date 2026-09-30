@@ -75,6 +75,7 @@ class CheryEuropeApi:
         # Chery rotates refresh_token on every use; parallel refreshes burn the
         # session. Serialize and double-check like the Omoda integration.
         self._token_lock = asyncio.Lock()
+        self._tsp_login_lock = asyncio.Lock()
 
     async def _request(self, method: str, endpoint: str, **kwargs: Any) -> Any:
         """Perform an authenticated request with retry and token refresh."""
@@ -329,6 +330,34 @@ class CheryEuropeApi:
         self._task_ids.pop(vin, None)
 
     async def _tsp_signed_post(self, path: str, params: dict[str, Any]) -> Any:
+        """Signed POST against tspconsole; re-login TSP once when it is rejected.
+
+        The official app on the same account takes over the TSP session
+        (userToken) while the OAuth token stays valid, so every later TSP call
+        from Home Assistant gets 401/424 until the integration is reloaded.
+        Minting a fresh TSP session and retrying once recovers without OTP.
+        """
+        used_token = self._user_token
+        try:
+            return await self._tsp_signed_post_once(path, params)
+        except CheryEuropeAuthError as exc:
+            if not getattr(exc, "tsp_rejected", False):
+                raise
+            _LOGGER.debug("Chery Europe TSP session rejected on %s; re-login", path)
+            await self._tsp_relogin(used_token)
+            return await self._tsp_signed_post_once(path, params)
+
+    async def _tsp_relogin(self, used_token: str | None) -> None:
+        """Mint a new TSP session unless a parallel request already did."""
+        async with self._tsp_login_lock:
+            if self._user_token and self._user_token != used_token:
+                return
+            self._t_user_id = None
+            self._user_token = None
+            self._task_ids.clear()
+            await self.tsp_login()
+
+    async def _tsp_signed_post_once(self, path: str, params: dict[str, Any]) -> Any:
         """Perform a signed POST against the tspconsole host."""
         if not self._user_token:
             raise CheryEuropeAuthError("Missing TSP userToken")
@@ -359,7 +388,9 @@ class CheryEuropeApi:
                     response.status,
                 )
                 if response.status in {401, 424}:
-                    raise CheryEuropeAuthError("TSP authentication failed")
+                    exc = CheryEuropeAuthError("TSP authentication failed")
+                    exc.tsp_rejected = True
+                    raise exc
                 if response.status == 429:
                     raise CheryEuropeRateLimitError("Rate limit exceeded")
                 if response.status >= 400:
