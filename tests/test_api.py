@@ -471,3 +471,43 @@ async def test_ensure_fresh_token_skips_when_not_needed():
 
     assert await api.ensure_fresh_token() is False
 
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status", [401, 424])
+async def test_tsp_rejected_session_relogins_and_retries_once(status):
+    """The official app takes over the TSP session; HA re-logins TSP without OTP."""
+    realtime_body = {"dumpEnergy": "72"}
+    session = _Session(
+        responses=[
+            (status, {}),
+            (200, {"data": {"tUserId": "429651957297274880", "userToken": "ut-new"}}),
+            (200, {"code": "000000", "body": realtime_body}),
+        ]
+    )
+    api = _api(_auth(), session)
+
+    result = await api.get_vehicle_status(vin="TESTVIN")
+
+    assert result == realtime_body
+    assert session.request_count == 3
+    assert "/api/tsp/v1/app/auth/login" in session.calls[1][1]
+    assert session.calls[2][2]["headers"]["Authorization"] == "ut-new"
+    assert api._user_token == "ut-new"
+
+
+@pytest.mark.asyncio
+async def test_tsp_still_rejected_after_relogin_raises():
+    """Only one re-login per request; a second rejection surfaces the auth error."""
+    session = _Session(
+        responses=[
+            (424, {}),
+            (200, {"data": {"tUserId": "429651957297274880", "userToken": "ut-new"}}),
+            (424, {}),
+        ]
+    )
+    api = _api(_auth(), session)
+
+    with pytest.raises(CheryEuropeAuthError):
+        await api.get_vehicle_status(vin="TESTVIN")
+    assert session.request_count == 3
