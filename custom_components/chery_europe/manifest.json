@@ -11,8 +11,7 @@
   "requirements": [
     "paho-mqtt>=2.0",
     "gmssl>=3.2.2",
-    "numpy>=2.2.0",
-    "Pillow>=11.0.0"
+    "numpy>=2.2.0"
   ],
   "version": "0.4.0b2"
 }

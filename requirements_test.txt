@@ -9,4 +9,6 @@ pytest-homeassistant-custom-component
 paho-mqtt>=2.0
 gmssl>=3.2.2
 numpy>=2.2.0
+# Pillow ships with Home Assistant and must not be listed in manifest.json.
+# captcha.py imports PIL, so tests install it explicitly.
 Pillow>=11.0.0
