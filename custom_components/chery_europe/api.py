@@ -31,6 +31,7 @@ from .tsp_sign import auth_headers, sign_body
 from .vehicle_commands import COMMAND_SPECS, command_result
 from .permissions import UNKNOWN, adapt_command, normalize_permissions
 from .data import parse_charge_appointment
+from .request_queue import ApiRequestQueue, command_interval_key
 from .exceptions import (
     CheryEuropeAuthError,
     CheryEuropeConnectionError,
@@ -76,6 +77,8 @@ class CheryEuropeApi:
         # session. Serialize and double-check like the Omoda integration.
         self._token_lock = asyncio.Lock()
         self._tsp_login_lock = asyncio.Lock()
+        # One in-flight HTTP call, and the same vehicle command at most every 5s.
+        self._request_queue = ApiRequestQueue()
 
     async def _request(self, method: str, endpoint: str, **kwargs: Any) -> Any:
         """Perform an authenticated request with retry and token refresh."""
@@ -169,9 +172,7 @@ class CheryEuropeApi:
         if code == TSP_CODE_ASLEEP:
             return None
         if code not in (TSP_CODE_OK, 0, "0", None):
-            _LOGGER.debug(
-                "Charge appointment query for %s returned code %s", vin, code
-            )
+            _LOGGER.debug("Charge appointment query for %s returned code %s", vin, code)
             return None
         return parse_charge_appointment(response)
 
@@ -197,7 +198,10 @@ class CheryEuropeApi:
         payload = _extract_realtime_payload(response)
         if isinstance(payload, dict):
             return payload
-        if any(response.get(key) not in (None, "") for key in ("lat", "latitude", "lon", "longitude")):
+        if any(
+            response.get(key) not in (None, "")
+            for key in ("lat", "latitude", "lon", "longitude")
+        ):
             return response
         return None
 
@@ -374,7 +378,7 @@ class CheryEuropeApi:
         }
         url = f"{self._tsp_host}{path if path.startswith('/') else f'/{path}'}"
 
-        try:
+        async def _post() -> Any:
             _LOGGER.debug("Chery Europe TSP request: POST %s", url)
             async with self._session.post(
                 url,
@@ -405,6 +409,12 @@ class CheryEuropeApi:
                         f"Chery Europe TSP returned status {response.status}"
                     )
                 return await response.json(content_type=None)
+
+        try:
+            return await self._request_queue.execute(
+                _post,
+                command_key=command_interval_key(path, params),
+            )
         except asyncio.TimeoutError as exc:
             raise CheryEuropeTimeoutError("Chery Europe TSP request timed out") from exc
         except aiohttp.ClientConnectionError as exc:
@@ -481,7 +491,7 @@ class CheryEuropeApi:
         if self._auth.access_token:
             headers["Authorization"] = f"Bearer {self._auth.access_token}"
 
-        try:
+        async def _send() -> Any:
             _LOGGER.debug("Chery Europe API request: %s %s", method_upper, url)
             async with self._session.request(
                 method_upper,
@@ -528,6 +538,9 @@ class CheryEuropeApi:
                 if response.status == 204:
                     return None
                 return await response.json(content_type=None)
+
+        try:
+            return await self._request_queue.execute(_send)
         except asyncio.TimeoutError as exc:
             raise CheryEuropeTimeoutError("Chery Europe API request timed out") from exc
         except aiohttp.ClientConnectionError as exc:
@@ -537,9 +550,7 @@ class CheryEuropeApi:
         except aiohttp.ClientError as exc:
             raise CheryEuropeConnectionError("Chery Europe HTTP error") from exc
 
-    async def ensure_fresh_token(
-        self, quota: float = TOKEN_REFRESH_QUOTA
-    ) -> bool:
+    async def ensure_fresh_token(self, quota: float = TOKEN_REFRESH_QUOTA) -> bool:
         """Proactively refresh when the access token is near expiry.
 
         Returns ``True`` when a refresh was performed. Network/auth failures
@@ -551,9 +562,7 @@ class CheryEuropeApi:
         await self._refresh_token(seen_access_token=seen_access)
         return True
 
-    async def _refresh_token(
-        self, seen_access_token: str | None = None
-    ) -> None:
+    async def _refresh_token(self, seen_access_token: str | None = None) -> None:
         """Refresh OAuth tokens, persist them, and clear the TSP session.
 
         ``seen_access_token`` is the access token observed by the caller before
@@ -562,14 +571,8 @@ class CheryEuropeApi:
         """
         async with self._token_lock:
             current = self._auth.access_token
-            if (
-                seen_access_token
-                and current
-                and current != seen_access_token
-            ):
-                _LOGGER.debug(
-                    "Chery Europe token already refreshed by another request"
-                )
+            if seen_access_token and current and current != seen_access_token:
+                _LOGGER.debug("Chery Europe token already refreshed by another request")
                 return
 
             refresh_token = self._auth.refresh_token_value
