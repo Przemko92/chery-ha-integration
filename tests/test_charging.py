@@ -8,11 +8,15 @@ import pytest
 
 pytest.importorskip("homeassistant")
 
+from homeassistant.const import EntityCategory
+
 from custom_components.chery_europe.data import CheryData
+from custom_components.chery_europe.number import CHARGE_DURATION_DESCRIPTION
 from custom_components.chery_europe.switch import (
     CheryEuropeChargeSwitch,
     CheryEuropeScheduledChargeSwitch,
 )
+from custom_components.chery_europe.time import CHARGE_START_TIME_DESCRIPTION
 
 VIN = "VIN123456"
 
@@ -102,3 +106,8 @@ def test_charge_entities_have_entity_descriptions():
 
     assert scheduled.entity_description is not None
     assert scheduled.unique_id == "entry-1_scheduled_charging"
+    # Immediate charging stays a control; the schedule toggle sits with the hours.
+    assert charge.entity_category is None
+    assert scheduled.entity_category is EntityCategory.CONFIG
+    assert CHARGE_START_TIME_DESCRIPTION.entity_category is EntityCategory.CONFIG
+    assert CHARGE_DURATION_DESCRIPTION.entity_category is EntityCategory.CONFIG
