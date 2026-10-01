@@ -78,6 +78,8 @@ REFRESH_HV_WAIT_SECONDS = 25
 # Seconds to wait between post-command polls. First delay is 5s so optimistic
 # entity state (locks, covers, climate) is not overwritten by stale telemetry.
 POST_COMMAND_REFRESH_DELAYS = (5, 10, 20)
+# Same vehicle command (lock, climate, ...) is not sent more often than this.
+COMMAND_MIN_INTERVAL_SECONDS = 5
 STATUS_MAX_LEN = 255
 
 # Login identity prefix used by the legend BFF email/SMS OTP grant.
