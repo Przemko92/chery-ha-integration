@@ -271,6 +271,7 @@ SCHEDULED_CHARGING_SWITCH_DESCRIPTION = SwitchEntityDescription(
     name="Scheduled charging",
     translation_key="scheduled_charging",
     icon="mdi:calendar-clock",
+    entity_category=EntityCategory.CONFIG,
 )
 
 
