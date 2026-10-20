@@ -2,9 +2,10 @@
 """Diagnostics redaction tests for the Chery Europe integration.
 
 Asserts that ``async_get_config_entry_diagnostics`` redacts every sensitive
-field (tokens, PIN, VIN, login, location, account_id, password, code, client_secret
-in both snake_case and camelCase forms) from both ``entry.data`` and the
-coordinator's ``runtime_data.data`` payload.
+field (tokens, PIN, VIN, login, phone, area code, vehicle nickname, location,
+account_id, password, code, client_secret in both snake_case and camelCase
+forms) from both ``entry.data`` and the coordinator's ``runtime_data.data``
+payload.
 """
 
 from types import SimpleNamespace
@@ -29,6 +30,9 @@ SECRET_DATA = {
     "pin": "1234",
     "vin": "VINSECRET",
     "login": "driver@example.com",
+    "phone": "500600700",
+    "area_code": "48",
+    "areaCode": "48",
     "password": "pw-secret",
     "code": "otp-secret",
     "latitude": 50.123,
@@ -58,6 +62,10 @@ def _entry():
                     "longitude": 20.456,
                     "access_token": "tok-secret",
                     "login": "driver@example.com",
+                    "phone": "500600700",
+                    "area_code": "48",
+                    "vehicle_nickname": "Daily driver",
+                    "vehicleNickname": "Daily driver",
                     "clientSecret": "cs-camel",
                     "model": "eQ7",  # non-sensitive, must stay visible
                 },
@@ -97,6 +105,10 @@ async def test_diagnostics_redacts_all_sensitive_fields():
     assert vehicle["longitude"] == REDACTED
     assert vehicle["access_token"] == REDACTED
     assert vehicle["login"] == REDACTED
+    assert vehicle["phone"] == REDACTED
+    assert vehicle["area_code"] == REDACTED
+    assert vehicle["vehicle_nickname"] == REDACTED
+    assert vehicle["vehicleNickname"] == REDACTED
     assert vehicle["clientSecret"] == REDACTED
 
     # runtime_data.data non-sensitive field remains visible
