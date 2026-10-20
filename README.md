@@ -182,12 +182,12 @@ Chery Europe template and select the **Command result** sensor.
 ### Security & privacy
 
 - PIN is stored in integration options (encrypted by Home Assistant config storage).
-- Tokens, VIN, PIN, login, and GPS are redacted from diagnostics.
-- All traffic uses HTTPS to the Chery Europe cloud; MQTT uses mutual TLS.
+- Tokens, VIN, PIN, login, phone number, area code, vehicle nickname, and GPS are redacted from diagnostics.
+- All traffic uses HTTPS to the Chery Europe cloud. MQTT uses mutual TLS and checks the broker hostname.
 
 ### License
 
-MIT — see [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE). Portions ported from the Omoda/Jaecoo integration keep that project's copyright; see [NOTICE](NOTICE).
 
 ---
 
@@ -358,12 +358,12 @@ szablon Chery Europe i wskaż sensor **Wynik komendy**.
 ### Bezpieczeństwo i prywatność
 
 - PIN jest w opcjach integracji (szyfrowane przez HA).
-- Tokeny, VIN, PIN, login i GPS są redagowane w diagnostyce.
-- Ruch idzie po HTTPS; MQTT używa mutual TLS.
+- Tokeny, VIN, PIN, login, numer telefonu, numer kierunkowy, nazwa pojazdu i GPS są redagowane w diagnostyce.
+- Ruch idzie po HTTPS. MQTT używa mutual TLS i sprawdza nazwę hosta brokera.
 
 ### Licencja
 
-MIT — zobacz [LICENSE](LICENSE).
+MIT — zobacz [LICENSE](LICENSE). Fragmenty przeniesione z integracji Omoda/Jaecoo zachowują copyright tamtego projektu; zobacz [NOTICE](NOTICE).
 
 [buymecoffee]: https://www.buymeacoffee.com/przemko92
 [buymecoffeebadge]: https://img.shields.io/badge/buy%20me%20a%20coffee-donate-yellow.svg?style=for-the-badge

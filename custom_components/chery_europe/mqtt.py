@@ -86,7 +86,9 @@ class CheryEuropeMqttClient:
             cert_reqs=ssl.CERT_REQUIRED,
             tls_version=ssl.PROTOCOL_TLS_CLIENT,
         )
-        client.tls_insecure_set(True)
+        # Keep hostname verification on. The leaf CN is "CA", but its SAN is
+        # the broker hostname, so the default check accepts only a certificate
+        # for this host that the bundled CA signed.
         client.reconnect_delay_set(min_delay=1, max_delay=120)
 
         def on_connect(cl, _u, _flags, rc, _props=None) -> None:
