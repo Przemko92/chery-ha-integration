@@ -22,6 +22,11 @@ TO_REDACT = {
     "client_secret",
     "clientsecret",
     "login",
+    "phone",
+    "area_code",
+    "areacode",
+    "vehicle_nickname",
+    "vehiclenickname",
 }
 REDACTED = "***REDACTED***"
 
