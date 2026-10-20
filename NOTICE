@@ -1,0 +1,18 @@
+Portions of this project were ported from the Omoda/Jaecoo Home Assistant
+integration, originally published at
+https://github.com/JackRonan/omoda-jaecoo-ha and now maintained at
+https://github.com/chery-connect-ha/omoda9-ha.
+
+Copyright (c) 2026 Caslinovich
+
+That project is distributed under the MIT License. Its copyright notice is
+also retained in LICENSE, as required by those terms.
+
+The ported portions are:
+
+- custom_components/chery_europe/captcha.py
+- custom_components/chery_europe/signing.py
+- custom_components/chery_europe/cert_bundle.py
+- custom_components/chery_europe/certs/store.json
+- custom_components/chery_europe/blueprints/automation/failed_command.yaml
+- custom_components/chery_europe/blueprints/automation/success_command.yaml
