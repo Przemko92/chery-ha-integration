@@ -1,6 +1,6 @@
 # Chery Europe — Home Assistant integration
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
+[![hacs_badge](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://github.com/hacs/integration)
 [![License][license-shield]](LICENSE)
 
 [![GitHub Release][releases-shield]][releases]
@@ -8,6 +8,9 @@
 
 [![hacs][hacsbadge]][hacs]
 [![BuyMeCoffee][buymecoffeebadge]][buymecoffee]
+
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Przemko92&repository=chery-ha-integration&category=integration)
+[![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=chery_europe)
 
 > 🇬🇧 English version below · 🇵🇱 Polska wersja poniżej
 
@@ -72,15 +75,20 @@ or diagnostics.
 
 ### Installation
 
+Chery Europe is in the [default HACS store](https://my.home-assistant.io/redirect/hacs_repository/?owner=Przemko92&repository=chery-ha-integration&category=integration).
+
 #### HACS (recommended)
 
 1. Install [HACS](https://hacs.xyz/) in Home Assistant.
-2. Add this repository as a **Custom repository**:
-   - HACS → ⋮ → Custom repositories
-   - Repository: `https://github.com/Przemko92/chery-ha-integration`
-   - Category: **Integration**
-3. Install **Chery Europe** and restart Home Assistant.
-4. **Settings → Devices & Services → Add Integration → Chery Europe**.
+2. Open **HACS → Integrations**, search for **Chery Europe**, and download it.
+   The button at the top of this page opens the same repository in HACS.
+3. Restart Home Assistant.
+4. **Settings → Devices & Services → Add Integration → Chery Europe**
+   (or use the **Open integration** button at the top).
+
+If you added `https://github.com/Przemko92/chery-ha-integration` earlier as a
+**custom repository**, remove that entry (**HACS → ⋮ → Custom repositories**).
+The installed copy stays; HACS then tracks the default listing.
 
 #### Manual installation
 
@@ -249,15 +257,20 @@ PIN **nie** trafia do logów ani diagnostyki.
 
 ### Instalacja
 
+Chery Europe jest w [domyślnym sklepie HACS](https://my.home-assistant.io/redirect/hacs_repository/?owner=Przemko92&repository=chery-ha-integration&category=integration).
+
 #### HACS (zalecane)
 
 1. Zainstaluj [HACS](https://hacs.xyz/).
-2. Dodaj repozytorium jako **Custom repository**:
-   - HACS → ⋮ → Custom repositories
-   - Repozytorium: `https://github.com/Przemko92/chery-ha-integration`
-   - Kategoria: **Integration**
-3. Zainstaluj **Chery Europe** i uruchom ponownie Home Assistant.
-4. **Ustawienia → Urządzenia i usługi → Dodaj integrację → Chery Europe**.
+2. Otwórz **HACS → Integracje**, wyszukaj **Chery Europe** i pobierz integrację.
+   Przycisk na górze tej strony otwiera to samo repozytorium w HACS.
+3. Uruchom ponownie Home Assistant.
+4. **Ustawienia → Urządzenia i usługi → Dodaj integrację → Chery Europe**
+   (albo przycisk **Open integration** na górze strony).
+
+Jeśli wcześniej dodałeś `https://github.com/Przemko92/chery-ha-integration` jako
+**custom repository**, usuń ten wpis (**HACS → ⋮ → Custom repositories**).
+Zainstalowana kopia zostaje; HACS przechodzi wtedy na wpis z domyślnego sklepu.
 
 #### Instalacja ręczna
 
@@ -375,7 +388,7 @@ MIT — zobacz [LICENSE](LICENSE). Fragmenty przeniesione z integracji Omoda/Jae
 [commits-shield]: https://img.shields.io/github/commit-activity/y/Przemko92/chery-ha-integration.svg?style=for-the-badge
 
 [hacs]: https://github.com/custom-components/hacs
-[hacsbadge]: https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge
+[hacsbadge]: https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge
 
 
 [releases]: https://github.com/Przemko92/chery-ha-integration/releases
