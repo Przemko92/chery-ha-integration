@@ -59,6 +59,9 @@ class CheryData:
 
     vin: str | None = None
     battery_level: float | None = None
+    charging_power_kw: float | None = None
+    battery_voltage_v: float | None = None
+    battery_current_a: float | None = None
     fuel_level: float | None = None
     range_km: float | None = None
     electric_range_km: float | None = None
@@ -286,6 +289,9 @@ class CheryData:
         return cls(
             vin=vin,
             battery_level=battery_level,
+            charging_power_kw=_as_float(payload.get("chargingPower")),
+            battery_voltage_v=_as_float(payload.get("totalVoltage")),
+            battery_current_a=_as_float(payload.get("totalCurrent")),
             fuel_level=_as_float(payload.get("oilSurplus")),
             range_km=range_km,
             electric_range_km=electric_range_km,
