@@ -301,6 +301,33 @@ def test_from_realtime_maps_battery_range_and_tires():
     assert data.last_updated == "2024-07-19T11:53:20+00:00"
 
 
+def test_from_realtime_maps_charging_power_and_traction_battery():
+    data = CheryData.from_realtime(
+        {
+            "chargingPower": "6.6",
+            "totalVoltage": "323.1",
+            "totalCurrent": "-12.5",
+        },
+        vin="VIN123",
+    )
+
+    assert data.charging_power_kw == 6.6
+    assert data.battery_voltage_v == 323.1
+    assert data.battery_current_a == -12.5
+
+
+def test_from_realtime_ignores_hv_off_voltage_and_current_placeholders():
+    """0 V and -1000 A mean the high-voltage system is off, not a live reading."""
+    data = CheryData.from_realtime(
+        {"totalVoltage": "0", "totalCurrent": "-1000", "chargingPower": "0"},
+        vin="VIN123",
+    )
+
+    assert data.battery_voltage_v is None
+    assert data.battery_current_a is None
+    assert data.charging_power_kw == 0.0
+
+
 def test_from_realtime_maps_front_windshield_defrost():
     data = CheryData.from_realtime(
         {"frontWindshieldHeat": "0", "fWinHeatingState": "1"}, vin="VIN123"

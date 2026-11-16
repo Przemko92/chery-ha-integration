@@ -290,8 +290,8 @@ class CheryData:
             vin=vin,
             battery_level=battery_level,
             charging_power_kw=_as_float(payload.get("chargingPower")),
-            battery_voltage_v=_as_float(payload.get("totalVoltage")),
-            battery_current_a=_as_float(payload.get("totalCurrent")),
+            battery_voltage_v=_traction_voltage(payload.get("totalVoltage")),
+            battery_current_a=_traction_current(payload.get("totalCurrent")),
             fuel_level=_as_float(payload.get("oilSurplus")),
             range_km=range_km,
             electric_range_km=electric_range_km,
@@ -559,6 +559,27 @@ def _as_float(value: Any) -> float | None:
         return float(value)
     except (TypeError, ValueError):
         return None
+
+
+# Parked vehicles send these instead of a live high-voltage reading.
+_HV_VOLTAGE_OFF = 0.0
+_HV_CURRENT_OFF = -1000.0
+
+
+def _traction_voltage(value: Any) -> float | None:
+    """Return pack voltage, ignoring the 0 V placeholder sent with HV off."""
+    voltage = _as_float(value)
+    if voltage is None or voltage == _HV_VOLTAGE_OFF:
+        return None
+    return voltage
+
+
+def _traction_current(value: Any) -> float | None:
+    """Return pack current, ignoring the -1000 A placeholder sent with HV off."""
+    current = _as_float(value)
+    if current is None or current == _HV_CURRENT_OFF:
+        return None
+    return current
 
 
 def _as_bool(value: Any) -> bool | None:

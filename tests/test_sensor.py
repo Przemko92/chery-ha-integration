@@ -6,8 +6,13 @@ import pytest
 
 pytest.importorskip("homeassistant")
 
-from homeassistant.components.sensor import SensorStateClass
-from homeassistant.const import PERCENTAGE
+from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
+from homeassistant.const import (
+    PERCENTAGE,
+    UnitOfElectricCurrent,
+    UnitOfElectricPotential,
+    UnitOfPower,
+)
 
 from custom_components.chery_europe.const import DOMAIN
 from custom_components.chery_europe.data import CheryData
@@ -61,6 +66,29 @@ def test_vehicle_speed_sensor_reads_from_coordinator_data():
     assert sensor.native_value == 38.0
 
 
+def test_traction_battery_sensors_read_from_coordinator_data():
+    data = CheryData(
+        vin="VIN123",
+        charging_power_kw=6.6,
+        battery_voltage_v=323.1,
+        battery_current_a=-12.5,
+    )
+    power = next(desc for desc in SENSOR_DESCRIPTIONS if desc.key == "charging_power_kw")
+    voltage = next(desc for desc in SENSOR_DESCRIPTIONS if desc.key == "battery_voltage_v")
+    current = next(desc for desc in SENSOR_DESCRIPTIONS if desc.key == "battery_current_a")
+
+    assert _sensor("charging_power_kw", data).native_value == 6.6
+    assert power.device_class == SensorDeviceClass.POWER
+    assert power.native_unit_of_measurement == UnitOfPower.KILO_WATT
+    assert power.translation_key == "charging_power_kw"
+    assert _sensor("battery_voltage_v", data).native_value == 323.1
+    assert voltage.device_class == SensorDeviceClass.VOLTAGE
+    assert voltage.native_unit_of_measurement == UnitOfElectricPotential.VOLT
+    assert _sensor("battery_current_a", data).native_value == -12.5
+    assert current.device_class == SensorDeviceClass.CURRENT
+    assert current.native_unit_of_measurement == UnitOfElectricCurrent.AMPERE
+
+
 def test_fuel_level_sensor_uses_percentage_unit():
     """oilSurplus from the API is tank fill percentage, not liters."""
     description = next(desc for desc in SENSOR_DESCRIPTIONS if desc.key == "fuel_level")
@@ -75,6 +103,9 @@ def test_numeric_sensors_have_long_term_statistics_state_class():
     """Numeric vehicle sensors must declare state_class so HA records LTS."""
     expected = {
         "battery_level": SensorStateClass.MEASUREMENT,
+        "charging_power_kw": SensorStateClass.MEASUREMENT,
+        "battery_voltage_v": SensorStateClass.MEASUREMENT,
+        "battery_current_a": SensorStateClass.MEASUREMENT,
         "fuel_level": SensorStateClass.MEASUREMENT,
         "range": SensorStateClass.MEASUREMENT,
         "tire_pressure_front_left": SensorStateClass.MEASUREMENT,
