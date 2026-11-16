@@ -679,6 +679,32 @@ def test_from_realtime_maps_charge_status_and_remaining_time():
     assert data.rear_left_seat_heating is True
 
 
+def test_remaining_charge_time_clears_when_charging_stops():
+    finished = CheryData.from_realtime(
+        {"chargeState": "2", "remainChargeTime": "4"},
+        vin="VIN123",
+    )
+    idle = CheryData.from_realtime({"chargeState": "0"}, vin="VIN123")
+    still_charging = CheryData.from_realtime(
+        {"chargeState": "1", "remainChargeTime": "4"},
+        vin="VIN123",
+    )
+    explicit_zero = CheryData.from_realtime(
+        {"chargeState": "1", "remainChargeTime": "0"},
+        vin="VIN123",
+    )
+    merged = merge_chery_data(
+        CheryData(vin="VIN123", remain_charge_time_min=4.0),
+        finished,
+    )
+
+    assert finished.remain_charge_time_min == 0.0
+    assert idle.remain_charge_time_min == 0.0
+    assert still_charging.remain_charge_time_min == 4.0
+    assert explicit_zero.remain_charge_time_min == 0.0
+    assert merged.remain_charge_time_min == 0.0
+
+
 def test_apply_command_feedback_updates_covers_and_seats():
     base = CheryData(vin="VIN123")
     opened = apply_command_feedback(base, "ve_1205", action="open")
