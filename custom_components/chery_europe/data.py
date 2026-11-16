@@ -289,7 +289,7 @@ class CheryData:
         return cls(
             vin=vin,
             battery_level=battery_level,
-            charging_power_kw=_as_float(payload.get("chargingPower")),
+            charging_power_kw=_charging_power_kw(payload),
             battery_voltage_v=_traction_voltage(payload.get("totalVoltage")),
             battery_current_a=_traction_current(payload.get("totalCurrent")),
             fuel_level=_as_float(payload.get("oilSurplus")),
@@ -580,6 +580,37 @@ def _traction_current(value: Any) -> float | None:
     if current is None or current == _HV_CURRENT_OFF:
         return None
     return current
+
+
+def _is_numeric_code(value: Any, expected: float) -> bool:
+    """Return True when an API code equals ``expected``, including ``"1.0"``."""
+    if value in (None, ""):
+        return False
+    try:
+        return float(value) == expected
+    except (TypeError, ValueError):
+        return False
+
+
+def _charging_power_kw(payload: dict[str, Any]) -> float | None:
+    """Return charging power in kW.
+
+    BEVs send ``chargingPower``. PHEV head units on this same realtime API omit
+    it, so while ``chargeState`` is charging the pack power ``|V × I| / 1000``
+    is used. Any other known charge state is 0 kW.
+    """
+    reported = _as_float(payload.get("chargingPower"))
+    if reported is not None:
+        return reported
+    if not _is_numeric_code(payload.get("chargeState"), 1):
+        if payload.get("chargeState") in (None, ""):
+            return None
+        return 0.0
+    voltage = _traction_voltage(payload.get("totalVoltage"))
+    current = _traction_current(payload.get("totalCurrent"))
+    if voltage is None or current is None:
+        return None
+    return round(abs(voltage * current) / 1000.0, 2)
 
 
 def _as_bool(value: Any) -> bool | None:
