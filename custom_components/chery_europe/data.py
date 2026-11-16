@@ -317,7 +317,7 @@ class CheryData:
             charge_appoint_plan=charge_plan,
             charge_gun_connected=_state_on(payload.get("chargeGunState")),
             fast_charge_gun_connected=_state_on(payload.get("fastChargingGunStatus")),
-            remain_charge_time_min=_remain_charge_time(payload.get("remainChargeTime")),
+            remain_charge_time_min=_remain_charge_time(payload),
             charge_status=charge_status,
             appointment_charge_status=_map_code(
                 payload.get("appointmentChargeState"), APPOINTMENT_CHARGE_STATUS_MAP
@@ -792,10 +792,21 @@ def _map_code(value: Any, mapping: dict[str, str]) -> str | None:
     return mapping.get(code)
 
 
-def _remain_charge_time(value: Any) -> float | None:
-    minutes = _as_float(value)
-    if minutes is None or minutes <= 0:
+def _remain_charge_time(payload: dict[str, Any]) -> float | None:
+    """Return remaining charge minutes, or 0 once charging is no longer active.
+
+    The realtime payload often keeps the last few minutes, or drops
+    ``remainChargeTime`` entirely, after charging stops. ``None`` would leave
+    that stale value in place.
+    """
+    charge_state = payload.get("chargeState")
+    if charge_state not in (None, "") and not _is_numeric_code(charge_state, 1):
+        return 0.0
+    minutes = _as_float(payload.get("remainChargeTime"))
+    if minutes is None:
         return None
+    if minutes <= 0:
+        return 0.0
     return minutes
 
 

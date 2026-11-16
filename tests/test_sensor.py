@@ -89,6 +89,16 @@ def test_traction_battery_sensors_read_from_coordinator_data():
     assert current.native_unit_of_measurement == UnitOfElectricCurrent.AMPERE
 
 
+def test_remaining_charge_time_shows_zero_instead_of_the_previous_value():
+    sensor = _sensor(
+        "remain_charge_time",
+        CheryData(vin="VIN123", remain_charge_time_min=0.0),
+    )
+    sensor._last_known = 4.0
+
+    assert sensor.native_value == 0.0
+
+
 def test_fuel_level_sensor_uses_percentage_unit():
     """oilSurplus from the API is tank fill percentage, not liters."""
     description = next(desc for desc in SENSOR_DESCRIPTIONS if desc.key == "fuel_level")
