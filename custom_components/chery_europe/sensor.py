@@ -36,6 +36,30 @@ class CheryEuropeSensorEntityDescription(SensorEntityDescription):
 
 SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
     CheryEuropeSensorEntityDescription(
+        key="charging_power_kw",
+        name="Charging power",
+        icon="mdi:ev-station",
+        native_unit_of_measurement="kW",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda data: data.charging_power_kw,
+    ),
+    CheryEuropeSensorEntityDescription(
+        key="battery_voltage_v",
+        name="Traction battery voltage",
+        device_class=SensorDeviceClass.VOLTAGE,
+        native_unit_of_measurement="V",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda data: data.battery_voltage_v,
+    ),
+    CheryEuropeSensorEntityDescription(
+        key="battery_current_a",
+        name="Traction battery current",
+        device_class=SensorDeviceClass.CURRENT,
+        native_unit_of_measurement="A",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda data: data.battery_current_a,
+    ),
+    CheryEuropeSensorEntityDescription(
         key="battery_level",
         name="Battery level",
         translation_key="battery_level",
