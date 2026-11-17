@@ -40,6 +40,13 @@
           "ask_for_pin": "Ask for PIN"
         }
       },
+      "vehicle": {
+        "title": "Choose vehicles",
+        "description": "This account has more than one vehicle. Choose which ones to add to Home Assistant. They share this login.",
+        "data": {
+          "vins": "Vehicles"
+        }
+      },
       "reauth_confirm": {
         "title": "Reauthenticate Chery Europe",
         "description": "Send a new login code to {destination} to reauthenticate your Chery Europe account.",
@@ -59,6 +66,8 @@
       "rate_limit": "Rate limit exceeded. Please wait before trying again.",
       "pin_mismatch": "PIN confirmation does not match.",
       "pin_required": "PIN is required.",
+      "no_vehicles": "This account has no vehicles.",
+      "vehicle_required": "Select at least one vehicle.",
       "unknown": "An unexpected error occurred. Please try again later."
     },
     "abort": {
@@ -76,12 +85,14 @@
           "ask_for_pin": "Ask for PIN on each action",
           "poll_normal_min": "Update interval when parked (minutes, 0 = off)",
           "poll_charging_min": "Update interval when charging (minutes, 0 = use parked interval)",
-          "poll_hv_min": "Update interval when HV is on (minutes, 0 = use parked interval)"
+          "poll_hv_min": "Update interval when HV is on (minutes, 0 = use parked interval)",
+          "vins": "Vehicles"
         }
       }
     },
     "error": {
-      "pin_mismatch": "PIN confirmation does not match."
+      "pin_mismatch": "PIN confirmation does not match.",
+      "vehicle_required": "Select at least one vehicle."
     }
   },
   "entity": {
@@ -297,6 +308,15 @@
       },
       "automatic_updates": {
         "name": "Automatic updates"
+      },
+      "heat_everything": {
+        "name": "Heat everything"
+      },
+      "cool_everything": {
+        "name": "Cool everything"
+      },
+      "theft_alarm": {
+        "name": "Theft alarm"
       }
     },
     "time": {
@@ -381,6 +401,10 @@
         "enabled": {
           "name": "Enabled",
           "description": "Set to false to disable the charging schedule."
+        },
+        "vin": {
+          "name": "VIN",
+          "description": "Vehicle VIN. Required when more than one vehicle is configured on this account."
         }
       }
     }

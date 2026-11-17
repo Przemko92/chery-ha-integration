@@ -22,6 +22,7 @@ from .entity import (
     CheryEuropeEntity,
     async_remove_unsupported,
     control_permissions,
+    iter_entry_coordinators,
     keep_feature,
     stable_unique_id,
     vehicle_uid,
@@ -80,12 +81,14 @@ async def async_setup_entry(
         supports_response=SupportsResponse.NONE,
     )
 
-    coordinator: CheryEuropeDataUpdateCoordinator = entry.runtime_data
-    perms = control_permissions(coordinator)
-    vin = vehicle_uid(coordinator, entry)
     removed: list[str] = []
-    if keep_feature(perms, CLIMATE_DESCRIPTION.key, f"{vin}_hvac_climate", removed):
-        async_add_entities([CheryEuropeClimate(coordinator, CLIMATE_DESCRIPTION, entry)])
+    entities = []
+    for coordinator in iter_entry_coordinators(entry):
+        perms = control_permissions(coordinator)
+        vin = vehicle_uid(coordinator, entry)
+        if keep_feature(perms, CLIMATE_DESCRIPTION.key, f"{vin}_hvac_climate", removed):
+            entities.append(CheryEuropeClimate(coordinator, CLIMATE_DESCRIPTION, entry))
+    async_add_entities(entities)
     async_remove_unsupported(hass, CLIMATE, removed)
 
 
@@ -112,7 +115,7 @@ class CheryEuropeClimate(CheryEuropeEntity, ClimateEntity):
         """Initialize the climate entity."""
         super().__init__(coordinator, description, entry)
         self._attr_translation_key = description.translation_key
-        self._attr_unique_id = stable_unique_id(entry, f"{description.key}_climate")
+        self._attr_unique_id = stable_unique_id(entry, f"{description.key}_climate", coordinator)
         self._target_temperature = _api_value(self.chery_data, "target_temperature")
         self._hvac_mode = _initial_hvac_mode(self.chery_data)
 

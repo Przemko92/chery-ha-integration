@@ -29,6 +29,7 @@ ENDPOINT_CATEGORY = {
     "chargeAppointControl": 213,
     "findCar": 202,
     "vehicleLocation": 211,
+    "theftAlarm": 401,
 }
 
 PRUNABLE_FIELDS = {
@@ -45,6 +46,21 @@ PRUNABLE_FIELDS = {
         "blSeatAiry": 20414,
         "brSeatAiry": 20415,
         "frontWindshieldHeat": 20416,
+    },
+    "heatingControl": {
+        "frontWindshieldHeat": 20416,
+        "backDefrosting": 20411,
+        "steerWheelHeatSwitch": 2081,
+        "mSeatHeating": 2047,
+        "pSeatHeating": 2048,
+        "blSeatHeating": 20412,
+        "brSeatHeating": 20413,
+    },
+    "coolingControl": {
+        "mSeatAiry": 2049,
+        "pSeatAiry": 20410,
+        "blSeatAiry": 20414,
+        "brSeatAiry": 20415,
     },
 }
 
@@ -92,6 +108,9 @@ FEATURE_VOICES: dict[str, tuple[int, ...]] = {
     "trunk": (205,),
     "hvac": (204,),
     "doors": (203,),
+    "heat_everything": (209,),
+    "cool_everything": (210,),
+    "theft_alarm": (401,),
 }
 
 

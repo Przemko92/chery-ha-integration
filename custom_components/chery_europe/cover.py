@@ -24,6 +24,7 @@ from .entity import (
     CheryEuropeEntity,
     async_remove_unsupported,
     control_permissions,
+    iter_entry_coordinators,
     keep_feature,
     stable_unique_id,
     vehicle_uid,
@@ -59,15 +60,17 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Chery Europe covers from a config entry."""
-    coordinator: CheryEuropeDataUpdateCoordinator = entry.runtime_data
-    perms = control_permissions(coordinator)
-    vin = vehicle_uid(coordinator, entry)
     removed: list[str] = []
-    async_add_entities(
-        CheryEuropeCover(coordinator, description, entry)
-        for description in COVER_DESCRIPTIONS
-        if keep_feature(perms, description.key, f"{vin}_{description.key}_cover", removed)
-    )
+    entities = []
+    for coordinator in iter_entry_coordinators(entry):
+        perms = control_permissions(coordinator)
+        vin = vehicle_uid(coordinator, entry)
+        entities.extend(
+            CheryEuropeCover(coordinator, description, entry)
+            for description in COVER_DESCRIPTIONS
+            if keep_feature(perms, description.key, f"{vin}_{description.key}_cover", removed)
+        )
+    async_add_entities(entities)
     async_remove_unsupported(hass, COVER, removed)
 
 
@@ -85,7 +88,7 @@ class CheryEuropeCover(CheryEuropeEntity, CoverEntity):
     ) -> None:
         super().__init__(coordinator, description, entry)
         self._attr_translation_key = description.translation_key
-        self._attr_unique_id = stable_unique_id(entry, f"{description.key}_cover")
+        self._attr_unique_id = stable_unique_id(entry, f"{description.key}_cover", coordinator)
 
     @property
     def is_closed(self) -> bool | None:

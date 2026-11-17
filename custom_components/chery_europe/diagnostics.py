@@ -16,6 +16,7 @@ TO_REDACT = {
     "code",
     "pin",
     "vin",
+    "vins",
     "latitude",
     "longitude",
     "account_id",

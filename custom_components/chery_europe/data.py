@@ -134,6 +134,9 @@ class CheryData:
     command_status: str | None = None
     wake_status: str | None = None
     probe_status: str | None = None
+    heat_everything: bool | None = None
+    cool_everything: bool | None = None
+    theft_alarm: bool | None = None
 
     @classmethod
     def from_api_response(cls, response: dict[str, Any] | VehicleStatus | None) -> CheryData:
@@ -624,7 +627,137 @@ def apply_command_feedback(data: CheryData, command_id: str, **kwargs: Any) -> C
             sunroof_open=opened,
             sunroof_position=ACTION_TO_POSITION.get(action, 100 if opened else 0),
         )
+    if command_id == "ve_1301":
+        return _apply_comfort_macro(data, enabled=bool(kwargs.get("enabled", True)), heat=True)
+    if command_id == "ve_1302":
+        return _apply_comfort_macro(data, enabled=bool(kwargs.get("enabled", True)), heat=False)
+    if command_id == "ve_1303":
+        return replace(data, theft_alarm=bool(kwargs.get("enabled", True)))
     return data
+
+
+_HEAT_SEATS = (
+    "driver_seat_heating",
+    "passenger_seat_heating",
+    "rear_left_seat_heating",
+    "rear_right_seat_heating",
+)
+_COOL_SEATS = (
+    "driver_seat_ventilation",
+    "passenger_seat_ventilation",
+    "rear_left_seat_ventilation",
+    "rear_right_seat_ventilation",
+)
+
+
+def _apply_comfort_macro(data: CheryData, *, enabled: bool, heat: bool) -> CheryData:
+    """Reflect a heat-everything or cool-everything command on local state."""
+    levels = dict(data.seat_levels or {})
+    active = _HEAT_SEATS if heat else _COOL_SEATS
+    other = _COOL_SEATS if heat else _HEAT_SEATS
+    for key in active:
+        levels[key] = 3 if enabled else 0
+    if enabled:
+        for key in other:
+            levels[key] = 0
+    if heat:
+        return replace(
+            data,
+            heat_everything=enabled,
+            cool_everything=False if enabled else data.cool_everything,
+            hvac_enabled=enabled,
+            front_windshield_heating=enabled,
+            rear_window_defrost=enabled,
+            steering_wheel_heating=enabled,
+            driver_seat_heating=enabled,
+            passenger_seat_heating=enabled,
+            rear_left_seat_heating=enabled,
+            rear_right_seat_heating=enabled,
+            driver_seat_ventilation=False if enabled else data.driver_seat_ventilation,
+            passenger_seat_ventilation=False if enabled else data.passenger_seat_ventilation,
+            rear_left_seat_ventilation=False if enabled else data.rear_left_seat_ventilation,
+            rear_right_seat_ventilation=False if enabled else data.rear_right_seat_ventilation,
+            seat_levels=levels,
+        )
+    return replace(
+        data,
+        cool_everything=enabled,
+        heat_everything=False if enabled else data.heat_everything,
+        hvac_enabled=enabled,
+        driver_seat_ventilation=enabled,
+        passenger_seat_ventilation=enabled,
+        rear_left_seat_ventilation=enabled,
+        rear_right_seat_ventilation=enabled,
+        driver_seat_heating=False if enabled else data.driver_seat_heating,
+        passenger_seat_heating=False if enabled else data.passenger_seat_heating,
+        rear_left_seat_heating=False if enabled else data.rear_left_seat_heating,
+        rear_right_seat_heating=False if enabled else data.rear_right_seat_heating,
+        seat_levels=levels,
+    )
+
+
+def parse_theft_alarm(response: Any) -> bool | None:
+    """Return the theft-alarm switch from a querySwitch payload."""
+    value = _find_key(response, "theftAlarmSwitch")
+    if value is None:
+        return None
+    return str(value).strip() not in {"0", "false", "False"}
+
+
+def vehicle_choices(vehicles: list[Any]) -> list[tuple[str, str]]:
+    """Return ``(vin, label)`` rows for the setup picker.
+
+    Labels prefer nickname, model and colour. The full VIN is not shown.
+    Identical labels gain the last four VIN characters so two cars stay distinct.
+    """
+    rows: list[tuple[str, str]] = []
+    for item in vehicles:
+        data = CheryData.from_api_response(item)
+        vin = data.vin
+        if not vin:
+            continue
+        rows.append((vin, _vehicle_choice_label(data, vin)))
+    counts: dict[str, int] = {}
+    for _vin, label in rows:
+        counts[label] = counts.get(label, 0) + 1
+    labeled: list[tuple[str, str]] = []
+    for vin, label in rows:
+        if counts[label] > 1:
+            label = f"{label} ({vin[-4:]})"
+        labeled.append((vin, label))
+    return labeled
+
+
+def _vehicle_choice_label(data: CheryData, vin: str) -> str:
+    parts: list[str] = []
+    name = vehicle_display_name(data)
+    if name and name != "Chery Vehicle":
+        parts.append(name)
+    model = data.vehicle_full_name
+    if model and model not in parts and not _contains_same(model, vin):
+        parts.append(model)
+    color = data.vehicle_color_name_en
+    if color and color not in parts:
+        parts.append(color)
+    if not parts:
+        return f"…{vin[-4:]}"
+    return " · ".join(parts)
+
+
+def _contains_same(value: str, vin: str) -> bool:
+    return value.strip().upper() == vin.strip().upper()
+
+
+def _find_key(payload: Any, key: str) -> Any:
+    if not isinstance(payload, dict):
+        return None
+    if payload.get(key) not in (None, ""):
+        return payload.get(key)
+    for nested in ("body", "data"):
+        found = _find_key(payload.get(nested), key)
+        if found is not None:
+            return found
+    return None
 
 
 def _first(data: dict[str, Any], *keys: str) -> Any:

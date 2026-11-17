@@ -16,6 +16,8 @@ from custom_components.chery_europe.data import (
     apply_location,
     merge_chery_data,
     parse_charge_appointment,
+    parse_theft_alarm,
+    vehicle_choices,
     vehicle_display_name,
 )
 from custom_components.chery_europe.types.vehicle_models import VehicleStatus
@@ -594,10 +596,10 @@ def test_vehicle_display_name_prefers_nickname():
 
 
 def test_vehicle_display_name_never_returns_the_vin():
-    data = CheryData(vin="LNNBDDEH5SG089258", vehicle_nickname="LNNBDDEH5SG089258")
+    data = CheryData(vin="LVVDB21B0PD123456", vehicle_nickname="LVVDB21B0PD123456")
 
     assert vehicle_display_name(data) == "Chery Vehicle"
-    assert "LNNBDDEH5SG089258" not in vehicle_display_name(data)
+    assert "LVVDB21B0PD123456" not in vehicle_display_name(data)
 
 
 def test_registry_names_lose_the_vin():
@@ -607,7 +609,7 @@ def test_registry_names_lose_the_vin():
     from custom_components.chery_europe.const import DOMAIN
     from custom_components.chery_europe.entity import async_drop_vin_from_names
 
-    vin = "LNNBDDEH5SG089258"
+    vin = "LVVDB21B0PD123456"
     entity = SimpleNamespace(
         entity_id=f"sensor.{vin.lower()}_battery_level",
         unique_id=f"{vin}_battery_level",
@@ -927,3 +929,34 @@ def test_apply_command_feedback_seat_level():
     assert on.driver_seat_heating is True
     assert on.seat_levels["driver_seat_heating"] == 1
     assert off.seat_levels["driver_seat_heating"] == 0
+
+
+def test_heat_everything_feedback_turns_the_cabin_on():
+    base = CheryData(vin="VIN123", cool_everything=True, hvac_enabled=False)
+    heated = apply_command_feedback(base, "ve_1301", enabled=True)
+    assert heated.heat_everything is True
+    assert heated.cool_everything is False
+    assert heated.hvac_enabled is True
+    assert heated.front_windshield_heating is True
+    assert heated.driver_seat_heating is True
+    assert heated.seat_levels["driver_seat_heating"] == 3
+    assert heated.driver_seat_ventilation is False
+
+
+def test_parse_theft_alarm_reads_nested_switch():
+    assert parse_theft_alarm({"body": {"theftAlarmSwitch": "1"}}) is True
+    assert parse_theft_alarm({"data": {"theftAlarmSwitch": "0"}}) is False
+    assert parse_theft_alarm({"code": "000000"}) is None
+
+
+def test_vehicle_choices_hide_the_full_vin_and_split_duplicate_labels():
+    choices = vehicle_choices(
+        [
+            {"vin": "LVVDB21B0PD111111", "nickname": "Tiggo", "fullName": "Tiggo 9"},
+            {"vin": "LVVDB21B0PD222222", "nickname": "Tiggo", "fullName": "Tiggo 9"},
+        ]
+    )
+    assert choices[0][0] == "LVVDB21B0PD111111"
+    assert "LVVDB21B0PD111111" not in choices[0][1]
+    assert choices[0][1].endswith("(1111)")
+    assert choices[1][1].endswith("(2222)")

@@ -23,6 +23,8 @@ class VehicleCommandSpec:
 
     endpoint: str
     build_body: Callable[[dict[str, Any]], dict[str, Any]]
+    # Set when the command does not live under /asc/vehicleControl/.
+    path: str | None = None
 
 
 def build_air_control_body(values: dict[str, Any]) -> dict[str, str]:
@@ -191,6 +193,64 @@ def build_empty_body(_values: dict[str, Any]) -> dict[str, Any]:
     return {}
 
 
+def _macro_flag(enabled: bool) -> str:
+    return "1" if enabled else "0"
+
+
+def _macro_level(enabled: bool) -> str:
+    return "3" if enabled else "0"
+
+
+def build_heat_everything_body(values: dict[str, Any]) -> dict[str, str]:
+    """One-shot cabin heat: climate HI plus seats, glass and steering wheel.
+
+    The official app sends ``heatingControl`` with temperature 31.0 and
+    ``duration`` (not ``times``). That is the HI macro, separate from the
+    saved climate setpoint.
+    """
+    enabled = bool(values.get("enabled", True))
+    flag = _macro_flag(enabled)
+    level = _macro_level(enabled)
+    return {
+        "airControlType": flag,
+        "airType": "1",
+        "temperature": "31.0",
+        "duration": str(values.get("duration", DEFAULT_AIR_DURATION)),
+        "frontWindshieldHeat": flag,
+        "backDefrosting": flag,
+        "steerWheelHeatSwitch": flag,
+        "mSeatHeating": level,
+        "pSeatHeating": level,
+        "blSeatHeating": level,
+        "brSeatHeating": level,
+    }
+
+
+def build_cool_everything_body(values: dict[str, Any]) -> dict[str, str]:
+    """One-shot cabin cool: climate LO plus every ventilated seat.
+
+    The official app sends ``coolingControl`` with temperature 15.0.
+    """
+    enabled = bool(values.get("enabled", True))
+    level = _macro_level(enabled)
+    return {
+        "airControlType": _macro_flag(enabled),
+        "airType": "1",
+        "temperature": "15.0",
+        "duration": str(values.get("duration", DEFAULT_AIR_DURATION)),
+        "mSeatAiry": level,
+        "pSeatAiry": level,
+        "blSeatAiry": level,
+        "brSeatAiry": level,
+    }
+
+
+def build_theft_alarm_body(values: dict[str, Any]) -> dict[str, str]:
+    """Arm or disarm the theft alarm (``/act/theftAlarm/setSwitch``)."""
+    enabled = bool(values.get("enabled", True))
+    return {"theftAlarmSwitch": "1" if enabled else "0"}
+
+
 COMMAND_SPECS: dict[str, VehicleCommandSpec] = {
     "ve_1104": VehicleCommandSpec("airControl", build_air_control_body),
     "ve_1105": VehicleCommandSpec("lockControl", build_lock_control_body),
@@ -207,6 +267,13 @@ COMMAND_SPECS: dict[str, VehicleCommandSpec] = {
     "ve_1207": VehicleCommandSpec("skylightControl", build_skylight_body),
     "ve_1208": VehicleCommandSpec("findCar", build_empty_body),
     "ve_1209": VehicleCommandSpec("vehicleLocation", build_empty_body),
+    "ve_1301": VehicleCommandSpec("heatingControl", build_heat_everything_body),
+    "ve_1302": VehicleCommandSpec("coolingControl", build_cool_everything_body),
+    "ve_1303": VehicleCommandSpec(
+        "theftAlarm",
+        build_theft_alarm_body,
+        path="/act/theftAlarm/setSwitch",
+    ),
 }
 
 

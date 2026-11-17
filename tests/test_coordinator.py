@@ -122,6 +122,32 @@ async def test_last_data_update_does_not_flip_to_older_gps_time():
 
 
 @pytest.mark.asyncio
+async def test_coordinator_follows_the_selected_vehicle():
+    other = {**DEMO_VEHICLE, "vin": "OTHERVIN1234567", "nickname": "Other"}
+    api = SimpleNamespace(
+        get_vehicle_list=AsyncMock(return_value=[DEMO_VEHICLE, other]),
+        get_vehicle_status=AsyncMock(return_value=DEMO_STATUS),
+        get_vehicle_location=AsyncMock(return_value=None),
+        get_vehicle_authority=AsyncMock(return_value={209: 1}),
+    )
+    coordinator = _coordinator(api)
+    coordinator.vin_filter = "OTHERVIN1234567"
+    device_registry = Mock(async_get_device=Mock(return_value=None))
+
+    with patch(
+        "custom_components.chery_europe.coordinator.dr.async_get",
+        return_value=device_registry,
+    ):
+        data = await coordinator._async_update_data()
+
+    assert data.vin == "OTHERVIN1234567"
+    assert data.vehicle_nickname == "Other"
+    api.get_vehicle_status.assert_awaited_once_with("OTHERVIN1234567")
+    assert coordinator.permissions == {209: 1}
+    assert coordinator._permissions_loaded is True
+
+
+@pytest.mark.asyncio
 async def test_coordinator_overlays_charge_appointment_query():
     api = SimpleNamespace(
         get_vehicle_list=AsyncMock(return_value=[DEMO_VEHICLE]),
