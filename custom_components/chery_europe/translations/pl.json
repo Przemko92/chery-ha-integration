@@ -89,6 +89,15 @@
       "battery_level": {
         "name": "Poziom baterii"
       },
+      "charging_power_kw": {
+        "name": "Moc ładowania"
+      },
+      "battery_voltage_v": {
+        "name": "Napięcie baterii trakcyjnej"
+      },
+      "battery_current_a": {
+        "name": "Prąd baterii trakcyjnej"
+      },
       "fuel_level": {
         "name": "Pozostałe paliwo"
       },
