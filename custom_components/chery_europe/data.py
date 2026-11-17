@@ -418,9 +418,8 @@ def apply_location(data: CheryData, payload: dict[str, Any] | None) -> CheryData
     gps_time = _format_timestamp(_first(payload, "gpsTime", "positionTime"))
     if gps_time:
         updates["gps_time"] = gps_time
-    result_time = _format_timestamp(payload.get("resultTime"))
-    if result_time:
-        updates["last_updated"] = result_time
+    # Location resultTime is the age of the GPS fix. It is often hours older
+    # than the vehicle-status frame and must not drive "last data update".
     direction = _as_float(_first(payload, "direction", "heading"))
     if direction is not None:
         updates["gps_direction"] = direction
@@ -446,6 +445,92 @@ def _format_timestamp(value: Any) -> str | None:
         return datetime.fromtimestamp(stamp, tz=timezone.utc).isoformat()
     except (OSError, OverflowError, ValueError):
         return None
+
+
+# Clocks and GPS are not vehicle telemetry. A location poll and a status poll
+# carry different resultTime values; comparing them would look like new data.
+_FRESHNESS_IGNORE = frozenset(
+    {
+        "last_updated",
+        "latitude",
+        "longitude",
+        "gps_time",
+        "gps_direction",
+        "gps_speed",
+        "command_status",
+        "wake_status",
+        "probe_status",
+        "vin",
+        "vehicle_full_name",
+        "vehicle_color_name_en",
+        "vehicle_picture_url",
+        "vehicle_nickname",
+        "min_temperature",
+        "max_temperature",
+        "charge_appoint_plan",
+    }
+)
+
+
+def telemetry_fingerprint(data: CheryData) -> str:
+    """Canonical telemetry content, without clocks and without the GPS fix."""
+    payload = {
+        name: getattr(data, name)
+        for name in CheryData.__dataclass_fields__
+        if name not in _FRESHNESS_IGNORE and getattr(data, name) is not None
+    }
+    if not payload:
+        return ""
+    return json.dumps(payload, sort_keys=True, default=str)
+
+
+def apply_data_freshness(previous: CheryData | None, updated: CheryData) -> CheryData:
+    """Move last_updated only when vehicle telemetry actually changes.
+
+    Omoda/Jaecoo keep this clock separate from the GPS fix. ``resultTime`` on
+    the status frame can lag behind a real change, and the location frame's
+    ``resultTime`` is often much older, so the two must not be written into the
+    same sensor. The first frame keeps the car's own timestamp. Later frames
+    stay put while the content is unchanged, and jump to now when it changes.
+    The value never moves backwards.
+    """
+    if previous is None:
+        return updated
+    previous_fp = telemetry_fingerprint(previous)
+    updated_fp = telemetry_fingerprint(updated)
+    if not previous_fp or not updated_fp or previous_fp == updated_fp:
+        chosen = _newer_timestamp(previous.last_updated, updated.last_updated)
+    else:
+        chosen = _newer_timestamp(
+            previous.last_updated, datetime.now(timezone.utc).isoformat()
+        )
+    if chosen == updated.last_updated:
+        return updated
+    return replace(updated, last_updated=chosen)
+
+
+def _parse_timestamp(value: str | None) -> datetime | None:
+    """Parse an ISO-8601 timestamp produced by ``_format_timestamp``."""
+    if not value or not isinstance(value, str):
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed
+
+
+def _newer_timestamp(current: str | None, candidate: str | None) -> str | None:
+    """Return the later of two timestamps, keeping ``current`` when tied."""
+    current_dt = _parse_timestamp(current)
+    candidate_dt = _parse_timestamp(candidate)
+    if candidate_dt is None:
+        return current
+    if current_dt is None or candidate_dt > current_dt:
+        return candidate
+    return current
 
 
 def merge_chery_data(base: CheryData, update: CheryData) -> CheryData:

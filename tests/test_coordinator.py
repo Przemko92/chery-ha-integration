@@ -1,5 +1,5 @@
 # pyright: reportMissingImports=false
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
@@ -71,6 +71,54 @@ async def test_coordinator_update_fetches_vehicle_status_for_first_vehicle():
     assert data.longitude == pytest.approx(19.93)
     api.get_vehicle_status.assert_awaited_once_with("DEMO1234567890")
     api.get_vehicle_location.assert_awaited_once_with("DEMO1234567890")
+
+
+@pytest.mark.asyncio
+async def test_last_data_update_does_not_flip_to_older_gps_time():
+    """Status and location frames carry different resultTimes.
+
+    Drive-watch reads status every 3 minutes and the full poll also reads
+    location. Writing both clocks into one sensor made it jump between
+    yesterday's GPS fix and today's vehicle frame.
+    """
+    status_at = datetime(2026, 11, 17, 10, 9, tzinfo=timezone.utc)
+    location_at = datetime(2026, 11, 16, 18, 15, tzinfo=timezone.utc)
+    status = {
+        **DEMO_STATUS,
+        "resultTime": str(int(status_at.timestamp() * 1000)),
+    }
+    location = {
+        "lat": "50.06",
+        "lon": "19.93",
+        "resultTime": str(int(location_at.timestamp() * 1000)),
+        "gpsTime": str(int(location_at.timestamp() * 1000)),
+    }
+    api = SimpleNamespace(
+        get_vehicle_list=AsyncMock(return_value=[DEMO_VEHICLE]),
+        get_vehicle_status=AsyncMock(return_value=status),
+        get_vehicle_location=AsyncMock(return_value=location),
+        get_vehicle_authority=AsyncMock(return_value={}),
+    )
+    coordinator = _coordinator(api)
+    coordinator.async_set_updated_data = Mock(
+        side_effect=lambda data: setattr(coordinator, "data", data)
+    )
+    device_registry = Mock(async_get_device=Mock(return_value=None))
+
+    with patch(
+        "custom_components.chery_europe.coordinator.dr.async_get",
+        return_value=device_registry,
+    ):
+        first = await coordinator._async_update_data()
+        coordinator.data = first
+        second = await coordinator._async_update_data()
+        coordinator.data = second
+        await coordinator._async_drive_watch(None)
+
+    assert first.last_updated.startswith("2026-11-17T10:09:00")
+    assert second.last_updated == first.last_updated
+    assert coordinator.data.last_updated == first.last_updated
+    assert coordinator.data.gps_time.startswith("2026-11-16T18:15:00")
 
 
 @pytest.mark.asyncio

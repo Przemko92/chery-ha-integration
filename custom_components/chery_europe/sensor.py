@@ -489,7 +489,7 @@ class CheryEuropeStatusSensor(_CheryEuropeRestoreSensor):
 
 
 class CheryEuropeTimestampSensor(_CheryEuropeRestoreSensor):
-    """Diagnostic timestamp sensor sourced from API resultTime."""
+    """When the vehicle telemetry last changed, not the age of the GPS fix."""
 
     _attr_device_class = SensorDeviceClass.TIMESTAMP
     _attr_entity_category = EntityCategory.DIAGNOSTIC
