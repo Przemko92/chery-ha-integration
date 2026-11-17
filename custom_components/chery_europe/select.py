@@ -18,6 +18,7 @@ from .entity import (
     CheryEuropeEntity,
     async_remove_unsupported,
     control_permissions,
+    iter_entry_coordinators,
     keep_feature,
     stable_unique_id,
     vehicle_uid,
@@ -82,20 +83,22 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Chery Europe vent selects from a config entry."""
-    coordinator: CheryEuropeDataUpdateCoordinator = entry.runtime_data
-    perms = control_permissions(coordinator)
-    vin = vehicle_uid(coordinator, entry)
     removed: list[str] = []
-    async_add_entities(
-        CheryEuropeVentSelect(coordinator, description, entry)
-        for description in VENT_SELECT_DESCRIPTIONS
-        if keep_feature(
-            perms,
-            description.key,
-            f"{vin}_{description.key}_{description.middle_option}_select",
-            removed,
+    entities = []
+    for coordinator in iter_entry_coordinators(entry):
+        perms = control_permissions(coordinator)
+        vin = vehicle_uid(coordinator, entry)
+        entities.extend(
+            CheryEuropeVentSelect(coordinator, description, entry)
+            for description in VENT_SELECT_DESCRIPTIONS
+            if keep_feature(
+                perms,
+                description.key,
+                f"{vin}_{description.key}_{description.middle_option}_select",
+                removed,
+            )
         )
-    )
+    async_add_entities(entities)
     async_remove_unsupported(hass, SELECT, removed)
 
 
@@ -113,7 +116,9 @@ class CheryEuropeVentSelect(CheryEuropeEntity, SelectEntity):
         super().__init__(coordinator, description, entry)
         self._attr_translation_key = description.translation_key
         self._attr_unique_id = stable_unique_id(
-            entry, f"{description.key}_{description.middle_option}_select"
+            entry,
+            f"{description.key}_{description.middle_option}_select",
+            coordinator,
         )
 
     @property

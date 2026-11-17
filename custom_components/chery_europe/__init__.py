@@ -11,6 +11,7 @@ from homeassistant.helpers.typing import ConfigType
 
 from .const import (
     CONF_CLIENT_ID,
+    CONF_VINS,
     DEFAULT_BASE_URL,
     DEFAULT_CHANNEL_ID,
     DEFAULT_SCAN_INTERVAL,
@@ -43,7 +44,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Chery Europe from a config entry."""
     from .api import CheryEuropeApi
     from .auth import CheryEuropeAuth
-    from .coordinator import CheryEuropeDataUpdateCoordinator
+    from .coordinator import CheryEuropeDataUpdateCoordinator, CheryEuropeRuntime
+    from .entity import vehicle_slot
 
     access_token, refresh_token = read_tokens(entry)
     if not access_token:
@@ -105,19 +107,46 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         tsp_host=tsp_host,
         on_tokens_updated=_persist_tokens,
     )
-    coordinator = CheryEuropeDataUpdateCoordinator(
-        hass, api, entry, DEFAULT_SCAN_INTERVAL
-    )
+    vins = [str(vin) for vin in (entry.data.get(CONF_VINS) or []) if vin]
+    if len(vins) <= 1:
+        coordinators = [
+            CheryEuropeDataUpdateCoordinator(
+                hass,
+                api,
+                entry,
+                DEFAULT_SCAN_INTERVAL,
+                vin=vins[0] if vins else None,
+            )
+        ]
+    else:
+        coordinators = []
+        for index, vin in enumerate(vins):
+            slot = None if index == 0 else vehicle_slot(vin)
+            coordinators.append(
+                CheryEuropeDataUpdateCoordinator(
+                    hass,
+                    api,
+                    entry,
+                    DEFAULT_SCAN_INTERVAL,
+                    vin=vin,
+                    entity_slot=slot,
+                    device_id=entry.entry_id if slot is None else f"{entry.entry_id}_{slot}",
+                    rename_entry=False,
+                    owns_account_session=index == 0,
+                )
+            )
+    runtime = CheryEuropeRuntime(coordinators)
+    for coordinator in coordinators:
+        await coordinator.async_config_entry_first_refresh()
 
-    await coordinator.async_config_entry_first_refresh()
-
-    entry.runtime_data = coordinator
+    entry.runtime_data = runtime
     from .entity import async_drop_vin_from_names
 
-    vin = coordinator.data.vin if coordinator.data is not None else None
-    async_drop_vin_from_names(hass, entry, vin)
+    for coordinator in coordinators:
+        vin = coordinator.data.vin if coordinator.data is not None else None
+        async_drop_vin_from_names(hass, entry, vin)
 
-    await coordinator.async_start_live_updates()
+    await runtime.async_start_live_updates()
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_async_options_updated))
     return True
@@ -125,18 +154,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Apply polling option changes without reloading the whole integration."""
-    coordinator = entry.runtime_data
-    if coordinator is None:
+    runtime = entry.runtime_data
+    if runtime is None:
         return
-    coordinator.update_poll_options(entry.options)
-    if coordinator.data is not None:
-        coordinator._apply_scan_interval(coordinator.data)
+    runtime.update_poll_options(entry.options)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a Chery Europe config entry."""
-    coordinator = entry.runtime_data
-    await coordinator.async_stop_live_updates()
+    runtime = entry.runtime_data
+    await runtime.async_stop_live_updates()
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 

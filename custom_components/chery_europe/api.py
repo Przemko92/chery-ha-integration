@@ -14,6 +14,7 @@ from .const import (
     API_QUERY_LOCATION_PATH,
     API_CHARGE_APPOINT_QUERY_PATH,
     API_REALTIME_PATH,
+    API_THEFT_QUERY_PATH,
     API_TSP_LOGIN_PATH,
     API_VMC_QUERY_AUTHORITY_PATH,
     API_VMC_QUERY_LIST_PATH,
@@ -30,7 +31,7 @@ from .signing import SIGN_SECRET, get_identity_headers
 from .tsp_sign import auth_headers, sign_body
 from .vehicle_commands import COMMAND_SPECS, command_result
 from .permissions import UNKNOWN, adapt_command, normalize_permissions
-from .data import parse_charge_appointment
+from .data import parse_charge_appointment, parse_theft_alarm
 from .request_queue import ApiRequestQueue, command_interval_key
 from .exceptions import (
     CheryEuropeAuthError,
@@ -176,6 +177,26 @@ class CheryEuropeApi:
             return None
         return parse_charge_appointment(response)
 
+    async def query_theft_alarm(self, vin: str) -> bool | None:
+        """Return the theft-alarm switch, or None when the car did not answer."""
+        await self._ensure_tsp_session()
+        if not self._user_token:
+            return None
+        try:
+            response = await self._tsp_signed_post(API_THEFT_QUERY_PATH, {"vin": vin})
+        except Exception as exc:  # noqa: BLE001
+            _LOGGER.debug("Theft alarm query failed for %s: %s", vin, exc)
+            return None
+        if not isinstance(response, dict):
+            return None
+        code = response.get("code")
+        if code == TSP_CODE_ASLEEP:
+            return None
+        if code not in (TSP_CODE_OK, 0, "0", None):
+            _LOGGER.debug("Theft alarm query for %s returned code %s", vin, code)
+            return None
+        return parse_theft_alarm(response)
+
     async def _tsp_query_payload(self, path: str, vin: str) -> dict[str, Any] | None:
         """Return a tspconsole dict payload, or None when the vehicle is asleep."""
         await self._ensure_tsp_session()
@@ -206,7 +227,12 @@ class CheryEuropeApi:
         return None
 
     async def send_command(
-        self, vin: str, command_id: str, pin: str, **kwargs: Any
+        self,
+        vin: str,
+        command_id: str,
+        pin: str,
+        permissions: Mapping[int, int] | None = None,
+        **kwargs: Any,
     ) -> dict[str, Any]:
         """Send a remote vehicle command through tspconsole vehicleControl."""
         await self._ensure_tsp_session()
@@ -218,12 +244,14 @@ class CheryEuropeApi:
             raise CheryEuropeConnectionError(f"Unsupported command id: {command_id}")
 
         body = spec.build_body(kwargs)
-        endpoint, body = adapt_command(spec.endpoint, body, self._permissions)
+        perms = self._permissions if permissions is None else permissions
+        endpoint, body = adapt_command(spec.endpoint, body, perms)
         response = await self._send_vehicle_control(
             vin=vin,
             pin=pin,
             endpoint=endpoint,
             body=body,
+            path=spec.path,
         )
         return command_result(response)
 
@@ -253,6 +281,7 @@ class CheryEuropeApi:
         endpoint: str,
         body: dict[str, Any],
         *,
+        path: str | None = None,
         force_new_task_id: bool = False,
     ) -> Any:
         """Send a signed vehicle-control command, minting a taskId when needed."""
@@ -265,8 +294,8 @@ class CheryEuropeApi:
             "taskId": task_id,
             "vin": vin,
         }
-        path = f"/asc/vehicleControl/{endpoint}"
-        response = await self._tsp_signed_post(path, payload)
+        request_path = path or f"/asc/vehicleControl/{endpoint}"
+        response = await self._tsp_signed_post(request_path, payload)
 
         if isinstance(response, dict) and response.get("code") in TASK_ID_INVALID_CODES:
             if force_new_task_id:
@@ -277,6 +306,7 @@ class CheryEuropeApi:
                 pin,
                 endpoint,
                 body,
+                path=path,
                 force_new_task_id=True,
             )
         return response
