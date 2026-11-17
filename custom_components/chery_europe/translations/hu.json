@@ -40,6 +40,13 @@
           "ask_for_pin": "PIN kérése"
         }
       },
+      "vehicle": {
+        "title": "Járművek kiválasztása",
+        "description": "Ehhez a fiókhoz több jármű tartozik. Válassza ki, melyeket adjuk hozzá a Home Assistanthoz. Ugyanazt a bejelentkezést használják.",
+        "data": {
+          "vins": "Járművek"
+        }
+      },
       "reauth_confirm": {
         "title": "Chery Europe újbóli hitelesítése",
         "description": "Új bejelentkezési kód küldése a(z) {destination} címre a Chery Europe-fiók újbóli hitelesítéséhez.",
@@ -59,6 +66,8 @@
       "rate_limit": "Túl sok próbálkozás történt. Kérjük, várjon egy kicsit, mielőtt újra próbálkozik.",
       "pin_mismatch": "A PIN megerősítése nem egyezik.",
       "pin_required": "A PIN megadása kötelező.",
+      "no_vehicles": "Ehhez a fiókhoz nem tartozik jármű.",
+      "vehicle_required": "Válasszon legalább egy járművet.",
       "unknown": "Váratlan hiba történt. Kérjük, próbálja újra később."
     },
     "abort": {
@@ -76,12 +85,14 @@
           "ask_for_pin": "PIN kérése minden műveletnél",
           "poll_normal_min": "Frissítési intervallum parkoláskor (perc, 0 = kikapcsolva)",
           "poll_charging_min": "Frissítési intervallum töltés közben (perc, 0 = parkolási intervallum használata)",
-          "poll_hv_min": "Frissítési intervallum bekapcsolt nagyfeszültségű rendszer esetén (perc, 0 = parkolási intervallum használata)"
+          "poll_hv_min": "Frissítési intervallum bekapcsolt nagyfeszültségű rendszer esetén (perc, 0 = parkolási intervallum használata)",
+          "vins": "Járművek"
         }
       }
     },
     "error": {
-      "pin_mismatch": "A PIN megerősítése nem egyezik."
+      "pin_mismatch": "A PIN megerősítése nem egyezik.",
+      "vehicle_required": "Válasszon legalább egy járművet."
     }
   },
   "entity": {
@@ -285,6 +296,15 @@
       },
       "automatic_updates": {
         "name": "Automatikus frissítések"
+      },
+      "heat_everything": {
+        "name": "Minden fűtése"
+      },
+      "cool_everything": {
+        "name": "Minden hűtése"
+      },
+      "theft_alarm": {
+        "name": "Riasztó"
       }
     },
     "time": {
@@ -369,6 +389,10 @@
         "enabled": {
           "name": "Engedélyezve",
           "description": "Állítsa hamisra (false), ha le szeretné tiltani a töltési ütemezést."
+        },
+        "vin": {
+          "name": "VIN",
+          "description": "A jármű VIN-je. Kötelező, ha egynél több jármű van beállítva ezen a fiókon."
         }
       }
     }

@@ -43,6 +43,38 @@ from .pin import resolve_pin
 
 _LOGGER = logging.getLogger(__name__)
 
+
+def _vehicle_vin(vehicle: object) -> str | None:
+    """Return a VIN from a vehicle-list row."""
+    if isinstance(vehicle, dict):
+        vin = vehicle.get("vin") or vehicle.get("VIN") or vehicle.get("vehicleVin")
+    else:
+        vin = getattr(vehicle, "vin", None)
+    if vin in (None, ""):
+        return None
+    return str(vin)
+
+
+def _select_vehicle(vehicles: list, vin_filter: str | None) -> object | None:
+    """Pick the configured vehicle, or the first one on legacy entries."""
+    if vin_filter:
+        for vehicle in vehicles:
+            if _vehicle_vin(vehicle) == vin_filter:
+                return vehicle
+        return None
+    return vehicles[0]
+
+
+def _payload_vin(payload: dict) -> str | None:
+    """Return a VIN carried on an MQTT payload, if the cloud sent one."""
+    if not isinstance(payload, dict):
+        return None
+    for key in ("vin", "VIN", "vehicleVin"):
+        value = payload.get(key)
+        if value not in (None, ""):
+            return str(value)
+    return None
+
 _CONTROL_STATE_FIELDS = (
     "is_locked",
     "is_charging",
@@ -66,6 +98,9 @@ _CONTROL_STATE_FIELDS = (
     "rear_right_seat_heating",
     "rear_left_seat_ventilation",
     "rear_right_seat_ventilation",
+    "heat_everything",
+    "cool_everything",
+    "theft_alarm",
 )
 
 
@@ -78,9 +113,23 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
         api: CheryEuropeApi,
         entry: ConfigEntry,
         scan_interval: timedelta,
+        *,
+        vin: str | None = None,
+        entity_slot: str | None = None,
+        device_id: str | None = None,
+        rename_entry: bool = True,
+        owns_account_session: bool = True,
     ) -> None:
         self.api = api
         self.entry = entry
+        self.vin_filter = vin
+        self.entity_slot = entity_slot
+        self.device_id = device_id
+        self.rename_entry = rename_entry
+        self.owns_account_session = owns_account_session
+        self.permissions: dict[int, int] = {}
+        self._permissions_loaded = False
+        self._mqtt_siblings: list = []
         self.charge_start_minutes = 480
         self.charge_duration_hours = 6
         self.poll_enabled = True
@@ -127,12 +176,18 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
             vehicles = await self.api.get_vehicle_list()
             if not vehicles:
                 return getattr(self, "data", None) or CheryData()
-            if len(vehicles) > 1:
+            first_vehicle = _select_vehicle(vehicles, self.vin_filter)
+            if first_vehicle is None:
                 _LOGGER.warning(
-                    "Account has %s vehicles; Chery Europe currently monitors only the first one",
+                    "Selected vehicle is not on this account; keeping the last reading"
+                )
+                return getattr(self, "data", None) or CheryData()
+            if self.vin_filter is None and len(vehicles) > 1:
+                _LOGGER.warning(
+                    "Account has %s vehicles and this entry has no selection; using the first. "
+                    "Remove and add the integration to choose which cars to monitor.",
                     len(vehicles),
                 )
-            first_vehicle = vehicles[0]
             vin = getattr(first_vehicle, "vin", None)
             if isinstance(first_vehicle, dict):
                 vin = first_vehicle.get("vin")
@@ -144,7 +199,8 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
             if not base.vin and vin:
                 base = replace(base, vin=vin)
             try:
-                await self.api.get_vehicle_authority(vin)
+                self.permissions = await self.api.get_vehicle_authority(vin)
+                self._permissions_loaded = True
             except Exception as exc:  # noqa: BLE001
                 _LOGGER.debug("Vehicle permissions unavailable for %s: %s", vin, exc)
             try:
@@ -158,12 +214,14 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
                 self._sync_vehicle_identity(base)
                 self._apply_scan_interval(base)
                 base = await self._merge_charge_appointment(base)
+                base = await self._merge_theft_alarm(base)
                 return self._preserve_control_state(self._preserve_status(base))
             if not realtime:
                 self._sync_vehicle_identity(base)
                 self._apply_scan_interval(base)
                 merged = await self._merge_location(base)
                 merged = await self._merge_charge_appointment(merged)
+                merged = await self._merge_theft_alarm(merged)
                 return self._preserve_control_state(self._preserve_status(merged))
             merged = merge_chery_data(
                 base,
@@ -171,6 +229,7 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
             )
             merged = await self._merge_location(merged)
             merged = await self._merge_charge_appointment(merged)
+            merged = await self._merge_theft_alarm(merged)
             self._sync_vehicle_identity(merged)
             self._apply_scan_interval(merged)
             return self._preserve_control_state(self._preserve_status(merged))
@@ -211,14 +270,15 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
     def _sync_vehicle_identity(self, data: CheryData) -> None:
         """Keep the config entry and device names aligned with the vehicle nickname."""
         name = vehicle_display_name(data)
-        if getattr(self.entry, "title", None) != name:
+        if self.rename_entry and getattr(self.entry, "title", None) != name:
             self.hass.config_entries.async_update_entry(self.entry, title=name)
 
         device_registry = dr.async_get(self.hass)
         entry_id = getattr(self.entry, "entry_id", None)
-        if not entry_id:
+        device_key = self.device_id or entry_id
+        if not device_key:
             return
-        device = device_registry.async_get_device(identifiers={(DOMAIN, entry_id)})
+        device = device_registry.async_get_device(identifiers={(DOMAIN, device_key)})
         if device is not None and device.name != name:
             device_registry.async_update_device(device.id, name=name)
 
@@ -283,6 +343,22 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
             _LOGGER.debug("Charge appointment unavailable for %s: %s", data.vin, exc)
             return data
         return apply_charge_appointment(data, result)
+
+    async def _merge_theft_alarm(self, data: CheryData) -> CheryData:
+        """Read the theft-alarm switch. A failed query keeps the last state."""
+        if not data.vin:
+            return data
+        query = getattr(self.api, "query_theft_alarm", None)
+        if query is None:
+            return data
+        try:
+            state = await query(data.vin)
+        except Exception as exc:  # noqa: BLE001
+            _LOGGER.debug("Theft alarm unavailable: %s", exc)
+            return data
+        if state is None:
+            return data
+        return replace(data, theft_alarm=state)
 
     async def _async_refresh_location(self) -> None:
         """Retry location reads after vehicleLocation has woken the car."""
@@ -436,14 +512,15 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
 
     async def async_start_live_updates(self) -> None:
         """Start MQTT push, drive-watch poller, and session keep-alive."""
-        await self.hass.async_add_executor_job(self._start_mqtt)
+        if self.owns_account_session:
+            await self.hass.async_add_executor_job(self._start_mqtt)
+            self.async_start_keepalive()
         if self._watch_unsub is None:
             self._watch_unsub = async_track_time_interval(
                 self.hass,
                 self._async_drive_watch,
                 DRIVE_WATCH_INTERVAL,
             )
-        self.async_start_keepalive()
 
     def async_start_keepalive(self) -> None:
         """Refresh OAuth tokens before they expire so reload stays OTP-free."""
@@ -488,8 +565,19 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
     def _handle_mqtt_payload(self, service: str, payload: dict) -> None:
         self.hass.loop.call_soon_threadsafe(self._apply_mqtt_payload, service, payload)
 
-    def _apply_mqtt_payload(self, service: str, payload: dict) -> None:
+    def _apply_mqtt_payload(self, service: str, payload: dict, *, routed: bool = False) -> None:
         if self.data is None:
+            return
+        incoming = _payload_vin(payload)
+        if not routed and incoming and self._mqtt_siblings:
+            for sibling in self._mqtt_siblings:
+                target = sibling.vin_filter or (sibling.data.vin if sibling.data else None)
+                if target == incoming:
+                    sibling._apply_mqtt_payload(service, payload, routed=True)
+                    return
+            return
+        mine = self.vin_filter or self.data.vin
+        if incoming and mine and incoming != mine:
             return
         located = apply_location(self.data, payload)
         if located is not self.data:
@@ -539,3 +627,53 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
         self._mqtt = None
         if mqtt is not None:
             await self.hass.async_add_executor_job(mqtt.stop)
+
+
+class CheryEuropeRuntime:
+    """One account session shared by every selected vehicle."""
+
+    def __init__(self, coordinators: list[CheryEuropeDataUpdateCoordinator]) -> None:
+        self.coordinators = coordinators
+        if len(coordinators) > 1:
+            for coordinator in coordinators:
+                coordinator._mqtt_siblings = coordinators
+
+    @property
+    def api(self) -> CheryEuropeApi | None:
+        if not self.coordinators:
+            return None
+        return self.coordinators[0].api
+
+    @property
+    def data(self) -> CheryData | None:
+        if not self.coordinators:
+            return None
+        return self.coordinators[0].data
+
+    @property
+    def last_update_success(self) -> bool | None:
+        if not self.coordinators:
+            return None
+        return all(getattr(item, "last_update_success", False) for item in self.coordinators)
+
+    @property
+    def last_update_success_time(self):
+        times = [
+            getattr(item, "last_update_success_time", None) for item in self.coordinators
+        ]
+        present = [item for item in times if item is not None]
+        return max(present) if present else None
+
+    async def async_start_live_updates(self) -> None:
+        for coordinator in self.coordinators:
+            await coordinator.async_start_live_updates()
+
+    async def async_stop_live_updates(self) -> None:
+        for coordinator in self.coordinators:
+            await coordinator.async_stop_live_updates()
+
+    def update_poll_options(self, options: dict | None = None) -> None:
+        for coordinator in self.coordinators:
+            coordinator.update_poll_options(options)
+            if coordinator.data is not None:
+                coordinator._apply_scan_interval(coordinator.data)

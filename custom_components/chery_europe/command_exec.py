@@ -27,11 +27,14 @@ async def async_send_vehicle_command(
     if not vin:
         raise HomeAssistantError("Vehicle is unavailable")
     try:
+        send_kwargs = dict(command_kwargs)
+        if getattr(coordinator, "_permissions_loaded", False):
+            send_kwargs["permissions"] = coordinator.permissions
         response = await coordinator.api.send_command(
             vin,
             command_id,
             pin,
-            **command_kwargs,
+            **send_kwargs,
         )
         if not response.get("ok"):
             message = response.get("message") or response.get("code")

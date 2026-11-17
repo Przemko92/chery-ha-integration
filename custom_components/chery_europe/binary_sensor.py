@@ -15,7 +15,7 @@ from homeassistant.helpers.restore_state import RestoreEntity
 
 from .coordinator import CheryEuropeDataUpdateCoordinator
 from .data import CheryData
-from .entity import CheryEuropeEntity, stable_unique_id
+from .entity import CheryEuropeEntity, iter_entry_coordinators, stable_unique_id
 
 PARALLEL_UPDATES = 0
 
@@ -149,10 +149,12 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Chery Europe binary sensors from a config entry."""
-    coordinator: CheryEuropeDataUpdateCoordinator = entry.runtime_data
     async_add_entities(
-        CheryEuropeBinarySensor(coordinator, description, entry)
-        for description in BINARY_SENSOR_DESCRIPTIONS
+        [
+            CheryEuropeBinarySensor(coordinator, description, entry)
+            for coordinator in iter_entry_coordinators(entry)
+            for description in BINARY_SENSOR_DESCRIPTIONS
+        ]
     )
 
 
@@ -170,7 +172,7 @@ class CheryEuropeBinarySensor(CheryEuropeEntity, BinarySensorEntity, RestoreEnti
         """Initialize the binary sensor."""
         super().__init__(coordinator, description, entry)
         self._attr_translation_key = description.translation_key
-        self._attr_unique_id = stable_unique_id(entry, description.key)
+        self._attr_unique_id = stable_unique_id(entry, description.key, coordinator)
         self._restored: bool | None = None
         self._last_known: bool | None = None
 

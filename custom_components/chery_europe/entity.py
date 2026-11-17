@@ -1,3 +1,4 @@
+import hashlib
 import re
 
 from homeassistant.config_entries import ConfigEntry
@@ -39,8 +40,9 @@ class CheryEuropeEntity(CoordinatorEntity[CheryEuropeDataUpdateCoordinator]):
         model = data.vehicle_full_name or "Unknown"
         if _contains_vin(model, data.vin):
             model = "Unknown"
+        device_key = getattr(self.coordinator, "device_id", None) or stable_id(self._entry)
         return DeviceInfo(
-            identifiers={(DOMAIN, stable_id(self._entry))},
+            identifiers={(DOMAIN, device_key)},
             name=vehicle_display_name(data),
             manufacturer="Chery",
             model=model,
@@ -60,9 +62,28 @@ class CheryEuropeEntity(CoordinatorEntity[CheryEuropeDataUpdateCoordinator]):
 
 def control_permissions(coordinator: CheryEuropeDataUpdateCoordinator) -> dict[int, int]:
     """Return the vehicle authority map, or empty when it was not loaded."""
+    if getattr(coordinator, "_permissions_loaded", False):
+        perms = getattr(coordinator, "permissions", None)
+        return perms if isinstance(perms, dict) else {}
     api = getattr(coordinator, "api", None)
     perms = getattr(api, "permissions", None)
     return perms if isinstance(perms, dict) else {}
+
+
+def iter_entry_coordinators(entry: ConfigEntry) -> list[CheryEuropeDataUpdateCoordinator]:
+    """Return every vehicle coordinator for this config entry."""
+    runtime = getattr(entry, "runtime_data", None)
+    coordinators = getattr(runtime, "coordinators", None)
+    if coordinators:
+        return list(coordinators)
+    if runtime is None:
+        return []
+    return [runtime]
+
+
+def vehicle_slot(vin: str) -> str:
+    """Stable device suffix that is not the VIN itself."""
+    return hashlib.sha256(vin.encode()).hexdigest()[:8]
 
 
 def stable_id(entry: ConfigEntry | None) -> str:
@@ -71,14 +92,25 @@ def stable_id(entry: ConfigEntry | None) -> str:
     return str(entry_id) if entry_id else "chery"
 
 
-def stable_unique_id(entry: ConfigEntry | None, suffix: str) -> str:
+def stable_unique_id(
+    entry: ConfigEntry | None,
+    suffix: str,
+    coordinator: CheryEuropeDataUpdateCoordinator | None = None,
+) -> str:
     """Build a unique id that does not contain the vehicle VIN."""
-    return f"{stable_id(entry)}_{suffix}"
+    return f"{vehicle_uid(coordinator, entry)}_{suffix}"
 
 
-def vehicle_uid(_coordinator: CheryEuropeDataUpdateCoordinator, entry: ConfigEntry) -> str:
+def vehicle_uid(
+    coordinator: CheryEuropeDataUpdateCoordinator | None,
+    entry: ConfigEntry | None,
+) -> str:
     """Return the stable prefix for entity unique ids."""
-    return stable_id(entry)
+    base = stable_id(entry)
+    slot = getattr(coordinator, "entity_slot", None) if coordinator is not None else None
+    if slot:
+        return f"{base}_{slot}"
+    return base
 
 
 def async_drop_vin_from_names(
