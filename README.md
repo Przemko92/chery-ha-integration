@@ -145,6 +145,9 @@ Also enable **Automatic updates** on the device page to allow background polling
   wakes HV via climate).
 - Map position lives on the **device_tracker**, not on the Locate button
   (the button only records when it was pressed).
+- Distance, speed and temperature use Home Assistant's unit setting. Open the
+  entity, click the cogwheel, and choose **Unit of measurement** (miles, mph,
+  °F). Tyre pressure is stored in bar; the same menu offers psi.
 
 ### Services
 
@@ -334,6 +337,9 @@ Włącz też **Automatyczne aktualizacje** na stronie urządzenia, żeby polling
   Na postoju użyj **Odśwież pełny status** (krótko budzi HV przez klimat).
 - Pozycja na mapie jest na **device_tracker**, nie na przycisku Zlokalizuj
   (przycisk pokazuje tylko czas ostatniego naciśnięcia).
+- Dystans, prędkość i temperatura biorą jednostkę z Home Assistant. Otwórz
+  encję, kliknij zębatkę i wybierz **Jednostkę miary** (mile, mph, °F).
+  Ciśnienie opon jest zapisane w barach; w tym samym menu jest psi.
 
 ### Usługi
 

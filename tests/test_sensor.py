@@ -12,6 +12,7 @@ from homeassistant.const import (
     UnitOfElectricCurrent,
     UnitOfElectricPotential,
     UnitOfPower,
+    UnitOfPressure,
 )
 
 from custom_components.chery_europe.const import DOMAIN
@@ -107,6 +108,21 @@ def test_fuel_level_sensor_uses_percentage_unit():
     assert description.native_unit_of_measurement == PERCENTAGE
     assert sensor.native_value == 67.0
     assert sensor.native_unit_of_measurement == PERCENTAGE
+
+
+def test_tire_pressure_sensors_use_pressure_device_class():
+    """Bar stays the native unit so Home Assistant can offer psi."""
+    keys = (
+        "tire_pressure_front_left",
+        "tire_pressure_front_right",
+        "tire_pressure_rear_left",
+        "tire_pressure_rear_right",
+    )
+    by_key = {desc.key: desc for desc in SENSOR_DESCRIPTIONS}
+
+    for key in keys:
+        assert by_key[key].device_class == SensorDeviceClass.PRESSURE
+        assert by_key[key].native_unit_of_measurement == UnitOfPressure.BAR
 
 
 def test_numeric_sensors_have_long_term_statistics_state_class():
