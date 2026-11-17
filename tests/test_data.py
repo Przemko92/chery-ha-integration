@@ -2,6 +2,8 @@
 
 """Tests for CheryData.from_api_response normalization of HVAC/lock feedback fields."""
 
+from datetime import datetime, timezone
+
 import pytest
 
 pytest.importorskip("homeassistant")
@@ -10,6 +12,8 @@ from custom_components.chery_europe.data import (
     CheryData,
     apply_charge_appointment,
     apply_command_feedback,
+    apply_data_freshness,
+    apply_location,
     merge_chery_data,
     parse_charge_appointment,
     vehicle_display_name,
@@ -384,6 +388,78 @@ def test_from_realtime_maps_vehicle_speed():
     data = CheryData.from_realtime({"vehicleSpeed": "38"}, vin="VIN123")
 
     assert data.gps_speed == 38.0
+
+
+def test_apply_location_keeps_vehicle_timestamp():
+    """GPS resultTime is the fix age and must not replace the status clock."""
+    data = CheryData(
+        vin="VIN123",
+        battery_level=80,
+        last_updated="2026-11-17T10:09:00+00:00",
+    )
+    updated = apply_location(
+        data,
+        {
+            "lat": "50.06",
+            "lon": "19.93",
+            "resultTime": "1763316900000",
+            "gpsTime": "1763316900000",
+        },
+    )
+
+    assert updated.last_updated == "2026-11-17T10:09:00+00:00"
+    assert updated.gps_time is not None
+    assert updated.latitude == pytest.approx(50.06)
+
+
+def test_freshness_stays_on_newer_timestamp_when_telemetry_is_unchanged():
+    previous = CheryData(
+        vin="VIN123",
+        battery_level=80,
+        odometer_km=4082,
+        last_updated="2026-11-17T10:09:00+00:00",
+    )
+    polled = replace_same_telemetry(previous, "2026-11-16T18:15:00+00:00")
+
+    assert apply_data_freshness(previous, polled).last_updated == previous.last_updated
+
+
+def test_freshness_advances_when_telemetry_changes_and_never_backwards():
+    previous = CheryData(
+        vin="VIN123",
+        battery_level=80,
+        last_updated="2026-11-17T10:09:00+00:00",
+    )
+    changed = CheryData(
+        vin="VIN123",
+        battery_level=79,
+        last_updated="2026-11-16T18:15:00+00:00",
+    )
+    before = datetime.now(timezone.utc)
+    updated = apply_data_freshness(previous, changed)
+    after = datetime.now(timezone.utc)
+
+    stamped = datetime.fromisoformat(updated.last_updated)
+    assert before <= stamped <= after
+    assert stamped > datetime.fromisoformat(previous.last_updated)
+
+
+def test_freshness_keeps_car_timestamp_on_the_first_frame():
+    first = CheryData(vin="VIN123", battery_level=80, last_updated="2026-11-17T10:09:00+00:00")
+
+    assert apply_data_freshness(None, first).last_updated == first.last_updated
+
+
+def replace_same_telemetry(data: CheryData, last_updated: str) -> CheryData:
+    return CheryData(
+        vin=data.vin,
+        battery_level=data.battery_level,
+        odometer_km=data.odometer_km,
+        latitude=50.0,
+        longitude=19.9,
+        gps_time=last_updated,
+        last_updated=last_updated,
+    )
 
 
 def test_merge_chery_data_keeps_base_vin_and_overlays_realtime():

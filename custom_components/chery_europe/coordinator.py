@@ -32,6 +32,7 @@ from .const import (
 from .data import (
     CheryData,
     apply_charge_appointment,
+    apply_data_freshness,
     apply_location,
     is_command_ack,
     merge_chery_data,
@@ -139,7 +140,7 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
             if not vin:
                 data = CheryData.from_api_response(first_vehicle)
                 self._sync_vehicle_identity(data)
-                return self._preserve_status(data)
+                return self._publish_data(data)
             base = CheryData.from_api_response(first_vehicle)
             if not base.vin and vin:
                 base = replace(base, vin=vin)
@@ -158,13 +159,13 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
                 self._sync_vehicle_identity(base)
                 self._apply_scan_interval(base)
                 base = await self._merge_charge_appointment(base)
-                return self._preserve_control_state(self._preserve_status(base))
+                return self._publish_data(base)
             if not realtime:
                 self._sync_vehicle_identity(base)
                 self._apply_scan_interval(base)
                 merged = await self._merge_location(base)
                 merged = await self._merge_charge_appointment(merged)
-                return self._preserve_control_state(self._preserve_status(merged))
+                return self._publish_data(merged)
             merged = merge_chery_data(
                 base,
                 CheryData.from_realtime(realtime, vin=vin),
@@ -173,12 +174,18 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
             merged = await self._merge_charge_appointment(merged)
             self._sync_vehicle_identity(merged)
             self._apply_scan_interval(merged)
-            return self._preserve_control_state(self._preserve_status(merged))
+            return self._publish_data(merged)
         except CheryEuropeAuthError as exc:
             raise ConfigEntryAuthFailed("Chery Europe authentication failed") from exc
         except Exception as exc:
             _LOGGER.exception("Chery Europe data update failed")
             raise UpdateFailed("Failed to update Chery Europe data") from exc
+
+    def _publish_data(self, data: CheryData) -> CheryData:
+        """Preserve last-known fields and keep the data-age clock monotonic."""
+        data = self._preserve_control_state(data)
+        data = apply_data_freshness(getattr(self, "data", None), data)
+        return self._preserve_status(data)
 
     def _preserve_status(self, data: CheryData) -> CheryData:
         """Keep operational status text when refreshing telemetry."""
@@ -293,7 +300,7 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
             updated = await self._merge_location(self.data)
             if updated.latitude is not None and updated.longitude is not None:
                 if updated is not self.data:
-                    self.async_set_updated_data(self._preserve_status(updated))
+                    self.async_set_updated_data(self._publish_data(updated))
                 self._update_status(probe_status="Position updated ✅")
                 return
 
@@ -353,7 +360,7 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
         try:
             updated = await self._merge_location(self.data)
             if updated.latitude is not None and updated.longitude is not None:
-                self.async_set_updated_data(self._preserve_status(updated))
+                self.async_set_updated_data(self._publish_data(updated))
                 self._update_status(probe_status="Position updated ✅")
                 return
             pin = resolve_pin(self.entry)
@@ -493,7 +500,7 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
             return
         located = apply_location(self.data, payload)
         if located is not self.data:
-            self.async_set_updated_data(self._preserve_status(located))
+            self.async_set_updated_data(self._publish_data(located))
             if service == "1301" or is_command_ack(payload):
                 return
         elif service == "1301":
@@ -504,7 +511,7 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
         realtime = CheryData.from_realtime(payload, vin=self.data.vin)
         merged = merge_chery_data(self.data, realtime)
         self._apply_scan_interval(merged)
-        self.async_set_updated_data(self._preserve_status(merged))
+        self.async_set_updated_data(self._publish_data(merged))
 
     async def _async_drive_watch(self, _now) -> None:
         """Cheap realtime check while parked so a trip or charge is noticed quickly."""
@@ -525,7 +532,7 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
             CheryData.from_realtime(realtime, vin=self.data.vin),
         )
         self._apply_scan_interval(merged)
-        self.async_set_updated_data(self._preserve_status(merged))
+        self.async_set_updated_data(self._publish_data(merged))
 
     async def async_stop_live_updates(self) -> None:
         """Stop MQTT, drive-watch, and session keep-alive timers."""
