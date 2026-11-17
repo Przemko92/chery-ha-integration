@@ -100,6 +100,15 @@
       "battery_level": {
         "name": "Akkumulátor töltöttsége"
       },
+      "charging_power_kw": {
+        "name": "Töltési teljesítmény"
+      },
+      "battery_voltage_v": {
+        "name": "Hajtóakkumulátor feszültsége"
+      },
+      "battery_current_a": {
+        "name": "Hajtóakkumulátor áramerőssége"
+      },
       "fuel_level": {
         "name": "Üzemanyag szintje"
       },

@@ -59,6 +59,9 @@ class CheryData:
 
     vin: str | None = None
     battery_level: float | None = None
+    charging_power_kw: float | None = None
+    battery_voltage_v: float | None = None
+    battery_current_a: float | None = None
     fuel_level: float | None = None
     range_km: float | None = None
     electric_range_km: float | None = None
@@ -289,6 +292,9 @@ class CheryData:
         return cls(
             vin=vin,
             battery_level=battery_level,
+            charging_power_kw=_charging_power_kw(payload),
+            battery_voltage_v=_traction_voltage(payload.get("totalVoltage")),
+            battery_current_a=_traction_current(payload.get("totalCurrent")),
             fuel_level=_as_float(payload.get("oilSurplus")),
             range_km=range_km,
             electric_range_km=electric_range_km,
@@ -314,7 +320,7 @@ class CheryData:
             charge_appoint_plan=charge_plan,
             charge_gun_connected=_state_on(payload.get("chargeGunState")),
             fast_charge_gun_connected=_state_on(payload.get("fastChargingGunStatus")),
-            remain_charge_time_min=_remain_charge_time(payload.get("remainChargeTime")),
+            remain_charge_time_min=_remain_charge_time(payload),
             charge_status=charge_status,
             appointment_charge_status=_map_code(
                 payload.get("appointmentChargeState"), APPOINTMENT_CHARGE_STATUS_MAP
@@ -688,6 +694,58 @@ def _as_float(value: Any) -> float | None:
         return None
 
 
+# Parked vehicles send these instead of a live high-voltage reading.
+_HV_VOLTAGE_OFF = 0.0
+_HV_CURRENT_OFF = -1000.0
+
+
+def _traction_voltage(value: Any) -> float | None:
+    """Return pack voltage, ignoring the 0 V placeholder sent with HV off."""
+    voltage = _as_float(value)
+    if voltage is None or voltage == _HV_VOLTAGE_OFF:
+        return None
+    return voltage
+
+
+def _traction_current(value: Any) -> float | None:
+    """Return pack current, ignoring the -1000 A placeholder sent with HV off."""
+    current = _as_float(value)
+    if current is None or current == _HV_CURRENT_OFF:
+        return None
+    return current
+
+
+def _is_numeric_code(value: Any, expected: float) -> bool:
+    """Return True when an API code equals ``expected``, including ``"1.0"``."""
+    if value in (None, ""):
+        return False
+    try:
+        return float(value) == expected
+    except (TypeError, ValueError):
+        return False
+
+
+def _charging_power_kw(payload: dict[str, Any]) -> float | None:
+    """Return charging power in kW.
+
+    BEVs send ``chargingPower``. PHEV head units on this same realtime API omit
+    it, so while ``chargeState`` is charging the pack power ``|V × I| / 1000``
+    is used. Any other known charge state is 0 kW.
+    """
+    reported = _as_float(payload.get("chargingPower"))
+    if reported is not None:
+        return reported
+    if not _is_numeric_code(payload.get("chargeState"), 1):
+        if payload.get("chargeState") in (None, ""):
+            return None
+        return 0.0
+    voltage = _traction_voltage(payload.get("totalVoltage"))
+    current = _traction_current(payload.get("totalCurrent"))
+    if voltage is None or current is None:
+        return None
+    return round(abs(voltage * current) / 1000.0, 2)
+
+
 def _as_bool(value: Any) -> bool | None:
     """Convert common API boolean representations to bool."""
     if isinstance(value, bool):
@@ -867,10 +925,21 @@ def _map_code(value: Any, mapping: dict[str, str]) -> str | None:
     return mapping.get(code)
 
 
-def _remain_charge_time(value: Any) -> float | None:
-    minutes = _as_float(value)
-    if minutes is None or minutes <= 0:
+def _remain_charge_time(payload: dict[str, Any]) -> float | None:
+    """Return remaining charge minutes, or 0 once charging is no longer active.
+
+    The realtime payload often keeps the last few minutes, or drops
+    ``remainChargeTime`` entirely, after charging stops. ``None`` would leave
+    that stale value in place.
+    """
+    charge_state = payload.get("chargeState")
+    if charge_state not in (None, "") and not _is_numeric_code(charge_state, 1):
+        return 0.0
+    minutes = _as_float(payload.get("remainChargeTime"))
+    if minutes is None:
         return None
+    if minutes <= 0:
+        return 0.0
     return minutes
 
 

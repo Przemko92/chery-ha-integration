@@ -100,6 +100,15 @@
       "battery_level": {
         "name": "Battery level"
       },
+      "charging_power_kw": {
+        "name": "Charging power"
+      },
+      "battery_voltage_v": {
+        "name": "Traction battery voltage"
+      },
+      "battery_current_a": {
+        "name": "Traction battery current"
+      },
       "fuel_level": {
         "name": "Fuel remaining"
       },

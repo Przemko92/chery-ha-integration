@@ -13,7 +13,17 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import PERCENTAGE, UnitOfLength, UnitOfPressure, UnitOfSpeed, UnitOfTemperature, UnitOfTime
+from homeassistant.const import (
+    PERCENTAGE,
+    UnitOfElectricCurrent,
+    UnitOfElectricPotential,
+    UnitOfLength,
+    UnitOfPower,
+    UnitOfPressure,
+    UnitOfSpeed,
+    UnitOfTemperature,
+    UnitOfTime,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -35,6 +45,34 @@ class CheryEuropeSensorEntityDescription(SensorEntityDescription):
 
 
 SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
+    CheryEuropeSensorEntityDescription(
+        key="charging_power_kw",
+        name="Charging power",
+        translation_key="charging_power_kw",
+        device_class=SensorDeviceClass.POWER,
+        icon="mdi:ev-station",
+        native_unit_of_measurement=UnitOfPower.KILO_WATT,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda data: data.charging_power_kw,
+    ),
+    CheryEuropeSensorEntityDescription(
+        key="battery_voltage_v",
+        name="Traction battery voltage",
+        translation_key="battery_voltage_v",
+        device_class=SensorDeviceClass.VOLTAGE,
+        native_unit_of_measurement=UnitOfElectricPotential.VOLT,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda data: data.battery_voltage_v,
+    ),
+    CheryEuropeSensorEntityDescription(
+        key="battery_current_a",
+        name="Traction battery current",
+        translation_key="battery_current_a",
+        device_class=SensorDeviceClass.CURRENT,
+        native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda data: data.battery_current_a,
+    ),
     CheryEuropeSensorEntityDescription(
         key="battery_level",
         name="Battery level",

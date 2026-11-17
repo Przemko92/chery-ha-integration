@@ -303,6 +303,77 @@ def test_from_realtime_maps_battery_range_and_tires():
     assert data.last_updated == "2024-07-19T11:53:20+00:00"
 
 
+def test_from_realtime_maps_charging_power_and_traction_battery():
+    data = CheryData.from_realtime(
+        {
+            "chargingPower": "6.6",
+            "totalVoltage": "323.1",
+            "totalCurrent": "-12.5",
+        },
+        vin="VIN123",
+    )
+
+    assert data.charging_power_kw == 6.6
+    assert data.battery_voltage_v == 323.1
+    assert data.battery_current_a == -12.5
+
+
+def test_from_realtime_derives_charging_power_when_phev_omits_the_field():
+    """PHEV realtime omits chargingPower; pack power is |V × I| while charging."""
+    charging = CheryData.from_realtime(
+        {"chargeState": "1", "totalVoltage": "400", "totalCurrent": "-16.5"},
+        vin="VIN123",
+    )
+    charging_float_code = CheryData.from_realtime(
+        {"chargeState": "1.0", "totalVoltage": "323.1", "totalCurrent": "20.4"},
+        vin="VIN123",
+    )
+    idle = CheryData.from_realtime(
+        {"chargeState": "0", "totalVoltage": "350", "totalCurrent": "12"},
+        vin="VIN123",
+    )
+    missing = CheryData.from_realtime(
+        {"totalVoltage": "350", "totalCurrent": "12"},
+        vin="VIN123",
+    )
+    hv_off = CheryData.from_realtime(
+        {"chargeState": "1", "totalVoltage": "0", "totalCurrent": "-1000"},
+        vin="VIN123",
+    )
+
+    assert charging.charging_power_kw == 6.6
+    assert charging_float_code.charging_power_kw == 6.59
+    assert idle.charging_power_kw == 0.0
+    assert missing.charging_power_kw is None
+    assert hv_off.charging_power_kw is None
+
+
+def test_reported_charging_power_wins_over_pack_power():
+    data = CheryData.from_realtime(
+        {
+            "chargingPower": "7.2",
+            "chargeState": "1",
+            "totalVoltage": "400",
+            "totalCurrent": "-10",
+        },
+        vin="VIN123",
+    )
+
+    assert data.charging_power_kw == 7.2
+
+
+def test_from_realtime_ignores_hv_off_voltage_and_current_placeholders():
+    """0 V and -1000 A mean the high-voltage system is off, not a live reading."""
+    data = CheryData.from_realtime(
+        {"totalVoltage": "0", "totalCurrent": "-1000", "chargingPower": "0"},
+        vin="VIN123",
+    )
+
+    assert data.battery_voltage_v is None
+    assert data.battery_current_a is None
+    assert data.charging_power_kw == 0.0
+
+
 def test_from_realtime_maps_front_windshield_defrost():
     data = CheryData.from_realtime(
         {"frontWindshieldHeat": "0", "fWinHeatingState": "1"}, vin="VIN123"
@@ -608,6 +679,32 @@ def test_from_realtime_maps_charge_status_and_remaining_time():
     assert data.appointment_charge_status == "running"
     assert data.remain_charge_time_min == 42.0
     assert data.rear_left_seat_heating is True
+
+
+def test_remaining_charge_time_clears_when_charging_stops():
+    finished = CheryData.from_realtime(
+        {"chargeState": "2", "remainChargeTime": "4"},
+        vin="VIN123",
+    )
+    idle = CheryData.from_realtime({"chargeState": "0"}, vin="VIN123")
+    still_charging = CheryData.from_realtime(
+        {"chargeState": "1", "remainChargeTime": "4"},
+        vin="VIN123",
+    )
+    explicit_zero = CheryData.from_realtime(
+        {"chargeState": "1", "remainChargeTime": "0"},
+        vin="VIN123",
+    )
+    merged = merge_chery_data(
+        CheryData(vin="VIN123", remain_charge_time_min=4.0),
+        finished,
+    )
+
+    assert finished.remain_charge_time_min == 0.0
+    assert idle.remain_charge_time_min == 0.0
+    assert still_charging.remain_charge_time_min == 4.0
+    assert explicit_zero.remain_charge_time_min == 0.0
+    assert merged.remain_charge_time_min == 0.0
 
 
 def test_apply_command_feedback_updates_covers_and_seats():
