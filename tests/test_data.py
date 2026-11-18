@@ -16,6 +16,8 @@ from custom_components.chery_europe.data import (
     apply_location,
     merge_chery_data,
     parse_charge_appointment,
+    parse_theft_alarm,
+    vehicle_choices,
     vehicle_display_name,
 )
 from custom_components.chery_europe.types.vehicle_models import VehicleStatus
@@ -927,3 +929,43 @@ def test_apply_command_feedback_seat_level():
     assert on.driver_seat_heating is True
     assert on.seat_levels["driver_seat_heating"] == 1
     assert off.seat_levels["driver_seat_heating"] == 0
+
+
+def test_heat_everything_feedback_sets_hi_without_the_wheel():
+    from custom_components.chery_europe.data import climate_at_hi, climate_at_lo
+
+    base = CheryData(
+        vin="VIN123",
+        hvac_enabled=False,
+        steering_wheel_heating=False,
+        target_temperature=23.0,
+    )
+    heated = apply_command_feedback(base, "ve_1301", enabled=True)
+    assert heated.hvac_enabled is True
+    assert heated.target_temperature == 31.0
+    assert heated.steering_wheel_heating is False
+    assert climate_at_hi(heated) is True
+    assert climate_at_lo(heated) is False
+
+    settled = CheryData(vin="VIN123", hvac_enabled=True, target_temperature=23.0)
+    assert climate_at_hi(settled) is False
+    assert climate_at_lo(CheryData(vin="VIN123", hvac_enabled=False, target_temperature=31.0)) is False
+
+
+def test_parse_theft_alarm_reads_nested_switch():
+    assert parse_theft_alarm({"body": {"theftAlarmSwitch": "1"}}) is True
+    assert parse_theft_alarm({"data": {"theftAlarmSwitch": "0"}}) is False
+    assert parse_theft_alarm({"code": "000000"}) is None
+
+
+def test_vehicle_choices_hide_the_full_vin_and_split_duplicate_labels():
+    choices = vehicle_choices(
+        [
+            {"vin": "LVVDB21B0PD111111", "nickname": "Tiggo", "fullName": "Tiggo 9"},
+            {"vin": "LVVDB21B0PD222222", "nickname": "Tiggo", "fullName": "Tiggo 9"},
+        ]
+    )
+    assert choices[0][0] == "LVVDB21B0PD111111"
+    assert "LVVDB21B0PD111111" not in choices[0][1]
+    assert choices[0][1].endswith("(1111)")
+    assert choices[1][1].endswith("(2222)")

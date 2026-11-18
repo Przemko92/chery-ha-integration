@@ -4,6 +4,9 @@ pytest.importorskip("homeassistant")
 
 from custom_components.chery_europe.vehicle_commands import (
     build_air_control_body,
+    build_cool_everything_body,
+    build_heat_everything_body,
+    build_theft_alarm_body,
     build_charge_appoint_body,
     build_charge_plan,
     build_charge_start_stop_body,
@@ -175,3 +178,25 @@ def test_build_window_and_skylight_bodies():
         "controlType": "2",
         "skylightType": "1",
     }
+
+
+def test_heat_and_cool_set_climate_only():
+    heat = build_heat_everything_body({"enabled": True})
+    assert heat == {
+        "airControlType": "1",
+        "airType": "1",
+        "temperature": "31.0",
+        "times": "15",
+    }
+    assert "steerWheelHeatSwitch" not in heat
+    assert "mSeatHeating" not in heat
+
+    cool_off = build_cool_everything_body({"enabled": False})
+    assert cool_off["airControlType"] == "0"
+    assert cool_off["temperature"] == "15.0"
+    assert "mSeatAiry" not in cool_off
+
+
+def test_theft_alarm_body():
+    assert build_theft_alarm_body({"enabled": True}) == {"theftAlarmSwitch": "1"}
+    assert build_theft_alarm_body({"enabled": False}) == {"theftAlarmSwitch": "0"}

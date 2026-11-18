@@ -9,6 +9,7 @@ from homeassistant.config_entries import SOURCE_REAUTH
 
 from custom_components.chery_europe.config_flow import CheryEuropeConfigFlow
 from custom_components.chery_europe.const import (
+    CONF_VINS,
     CONF_ACCESS_TOKEN,
     CONF_AREA_CODE,
     CONF_ASK_FOR_PIN,
@@ -56,6 +57,14 @@ def _auth_response(access_token="demo_token", refresh_token="demo_refresh"):
     )
 
 
+def _vehicles(rows=None):
+    rows = rows or [("LVVDB21B0PD123456", "Tiggo 9")]
+    return patch(
+        "custom_components.chery_europe.config_flow.discover_account_vehicles",
+        AsyncMock(return_value=rows),
+    )
+
+
 def _flow():
     flow = CheryEuropeConfigFlow()
     flow.hass = Mock()
@@ -89,6 +98,7 @@ async def test_config_flow_email_sends_code_then_creates_entry():
     with (
         patch("custom_components.chery_europe.config_flow.async_create_clientsession"),
         patch("custom_components.chery_europe.auth.CheryEuropeAuth") as auth_cls,
+        _vehicles(),
     ):
         auth_cls.return_value.send_mail_code = send_mail_code
         auth_cls.return_value.login = login
@@ -117,6 +127,7 @@ async def test_config_flow_email_sends_code_then_creates_entry():
     assert result["data"][CONF_EXPIRES_IN] == 3600
     assert isinstance(result["data"][CONF_TOKEN_OBTAINED_AT], float)
     assert result["options"] == {CONF_PIN: "9876", CONF_ASK_FOR_PIN: False}
+    assert result["data"][CONF_VINS] == ["LVVDB21B0PD123456"]
     login.assert_awaited_once_with("driver@example.com", "123456")
     flow.async_set_unique_id.assert_awaited_once_with("driver@example.com")
     flow._abort_if_unique_id_configured.assert_called_once_with()
@@ -132,6 +143,7 @@ async def test_config_flow_sms_sends_code_then_creates_entry():
     with (
         patch("custom_components.chery_europe.config_flow.async_create_clientsession"),
         patch("custom_components.chery_europe.auth.CheryEuropeAuth") as auth_cls,
+        _vehicles(),
     ):
         auth_cls.return_value.send_sms_code = send_sms_code
         auth_cls.return_value.login_mobile = login_mobile
@@ -187,12 +199,46 @@ async def test_config_flow_pin_step_can_enable_ask_for_pin():
         CONF_TOKEN_OBTAINED_AT: 1.0,
     }
 
-    result = await flow.async_step_pin(
-        {CONF_PIN: "9876", CONF_PIN_CONFIRM: "9876", CONF_ASK_FOR_PIN: True}
-    )
+    with _vehicles():
+        result = await flow.async_step_pin(
+            {CONF_PIN: "9876", CONF_PIN_CONFIRM: "9876", CONF_ASK_FOR_PIN: True}
+        )
 
     assert result["type"] == "create_entry"
     assert result["options"] == {CONF_PIN: "9876", CONF_ASK_FOR_PIN: True}
+    assert result["data"][CONF_VINS] == ["LVVDB21B0PD123456"]
+
+
+@pytest.mark.asyncio
+async def test_config_flow_asks_which_vehicles_when_several_are_available():
+    flow = _flow()
+    flow._email = "driver@example.com"
+    flow._login_method = LOGIN_METHOD_EMAIL
+    flow._token_data = {
+        CONF_ACCESS_TOKEN: "demo_token",
+        CONF_REFRESH_TOKEN: "demo_refresh",
+        CONF_CLIENT_SECRET: "secret",
+        CONF_EXPIRES_IN: 3600,
+        CONF_TOKEN_OBTAINED_AT: 1.0,
+    }
+    rows = [
+        ("LVVDB21B0PD111111", "Tiggo 9"),
+        ("LVVDB21B0PD222222", "Tiggo 8"),
+    ]
+
+    with _vehicles(rows):
+        result = await flow.async_step_pin(
+            {CONF_PIN: "9876", CONF_PIN_CONFIRM: "9876"}
+        )
+
+    assert result["type"] == "form"
+    assert result["step_id"] == "vehicle"
+    flow.async_create_entry.assert_not_called()
+
+    result = await flow.async_step_vehicle({CONF_VINS: ["LVVDB21B0PD222222"]})
+
+    assert result["type"] == "create_entry"
+    assert result["data"][CONF_VINS] == ["LVVDB21B0PD222222"]
 
 
 @pytest.mark.asyncio

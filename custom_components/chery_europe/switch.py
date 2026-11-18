@@ -15,11 +15,12 @@ from .charge_schedule import plan_duration_hours, plan_start_time
 from .command_exec import async_send_vehicle_command
 from .const import SWITCH
 from .coordinator import CheryEuropeDataUpdateCoordinator
-from .data import SEAT_LEVEL_FIELDS, CheryData
+from .data import SEAT_LEVEL_FIELDS, CheryData, climate_at_hi, climate_at_lo
 from .entity import (
     CheryEuropeEntity,
     async_remove_unsupported,
     control_permissions,
+    iter_entry_coordinators,
     keep_feature,
     stable_unique_id,
     vehicle_uid,
@@ -150,6 +151,30 @@ SWITCH_DESCRIPTIONS: tuple[CheryEuropeSwitchEntityDescription, ...] = (
         command_values={"seat_field": "brSeatAiry"},
         state_fn=lambda data: data.rear_right_seat_ventilation,
     ),
+    CheryEuropeSwitchEntityDescription(
+        key="heat_everything",
+        name="Climate HI",
+        translation_key="heat_everything",
+        icon="mdi:thermometer-high",
+        command_id="ve_1301",
+        state_fn=climate_at_hi,
+    ),
+    CheryEuropeSwitchEntityDescription(
+        key="cool_everything",
+        name="Climate LO",
+        translation_key="cool_everything",
+        icon="mdi:thermometer-low",
+        command_id="ve_1302",
+        state_fn=climate_at_lo,
+    ),
+    CheryEuropeSwitchEntityDescription(
+        key="theft_alarm",
+        name="Theft alarm",
+        translation_key="theft_alarm",
+        icon="mdi:shield-car",
+        command_id="ve_1303",
+        state_fn=lambda data: data.theft_alarm,
+    ),
 )
 
 async def async_setup_entry(
@@ -158,20 +183,21 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Chery Europe switches from a config entry."""
-    coordinator: CheryEuropeDataUpdateCoordinator = entry.runtime_data
-    perms = control_permissions(coordinator)
-    vin = vehicle_uid(coordinator, entry)
     removed: list[str] = []
-    entities: list[SwitchEntity] = [
-        CheryEuropeCommandSwitch(coordinator, description, entry)
-        for description in SWITCH_DESCRIPTIONS
-        if keep_feature(perms, description.key, f"{vin}_{description.key}", removed)
-    ]
-    if keep_feature(perms, "charging_switch", f"{vin}_charging_switch", removed):
-        entities.append(CheryEuropeChargeSwitch(coordinator, entry))
-    if keep_feature(perms, "scheduled_charging", f"{vin}_scheduled_charging", removed):
-        entities.append(CheryEuropeScheduledChargeSwitch(coordinator, entry))
-    entities.append(CheryEuropePollingSwitch(coordinator, entry))
+    entities: list[SwitchEntity] = []
+    for coordinator in iter_entry_coordinators(entry):
+        perms = control_permissions(coordinator)
+        vin = vehicle_uid(coordinator, entry)
+        entities.extend(
+            CheryEuropeCommandSwitch(coordinator, description, entry)
+            for description in SWITCH_DESCRIPTIONS
+            if keep_feature(perms, description.key, f"{vin}_{description.key}", removed)
+        )
+        if keep_feature(perms, "charging_switch", f"{vin}_charging_switch", removed):
+            entities.append(CheryEuropeChargeSwitch(coordinator, entry))
+        if keep_feature(perms, "scheduled_charging", f"{vin}_scheduled_charging", removed):
+            entities.append(CheryEuropeScheduledChargeSwitch(coordinator, entry))
+        entities.append(CheryEuropePollingSwitch(coordinator, entry))
     async_remove_unsupported(hass, SWITCH, removed)
     async_add_entities(entities)
 
@@ -188,7 +214,7 @@ class CheryEuropeCommandSwitch(CheryEuropeEntity, SwitchEntity):
         """Initialize the switch."""
         super().__init__(coordinator, description, entry)
         self._attr_translation_key = description.translation_key
-        self._attr_unique_id = stable_unique_id(entry, description.key)
+        self._attr_unique_id = stable_unique_id(entry, description.key, coordinator)
 
     @property
     def is_on(self) -> bool | None:  # type: ignore[reportIncompatibleVariableOverride]
@@ -284,7 +310,7 @@ class CheryEuropePollingSwitch(CheryEuropeEntity, SwitchEntity, RestoreEntity):
         entry: ConfigEntry,
     ) -> None:
         super().__init__(coordinator, POLLING_SWITCH_DESCRIPTION, entry)
-        self._attr_unique_id = stable_unique_id(entry, POLLING_SWITCH_DESCRIPTION.key)
+        self._attr_unique_id = stable_unique_id(entry, POLLING_SWITCH_DESCRIPTION.key, coordinator)
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
@@ -348,7 +374,7 @@ class CheryEuropeChargeSwitch(CheryEuropeEntity, SwitchEntity, RestoreEntity):
         super().__init__(coordinator, CHARGING_SWITCH_DESCRIPTION, entry)
         self._optimistic: bool | None = None
         self._restored: bool | None = None
-        self._attr_unique_id = stable_unique_id(entry, CHARGING_SWITCH_DESCRIPTION.key)
+        self._attr_unique_id = stable_unique_id(entry, CHARGING_SWITCH_DESCRIPTION.key, coordinator)
 
     async def async_added_to_hass(self) -> None:
         """Restore the last known charging switch state."""
@@ -414,7 +440,9 @@ class CheryEuropeScheduledChargeSwitch(CheryEuropeEntity, SwitchEntity, RestoreE
         super().__init__(coordinator, SCHEDULED_CHARGING_SWITCH_DESCRIPTION, entry)
         self._optimistic: bool | None = None
         self._restored: bool | None = None
-        self._attr_unique_id = stable_unique_id(entry, SCHEDULED_CHARGING_SWITCH_DESCRIPTION.key)
+        self._attr_unique_id = stable_unique_id(
+            entry, SCHEDULED_CHARGING_SWITCH_DESCRIPTION.key, coordinator
+        )
 
     async def async_added_to_hass(self) -> None:
         """Restore the last known scheduled charging switch state."""

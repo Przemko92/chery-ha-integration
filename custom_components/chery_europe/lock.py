@@ -20,6 +20,7 @@ from .entity import (
     CheryEuropeEntity,
     async_remove_unsupported,
     control_permissions,
+    iter_entry_coordinators,
     keep_feature,
     stable_unique_id,
     vehicle_uid,
@@ -60,12 +61,14 @@ async def async_setup_entry(
         supports_response=SupportsResponse.NONE,
     )
 
-    coordinator: CheryEuropeDataUpdateCoordinator = entry.runtime_data
-    perms = control_permissions(coordinator)
-    vin = vehicle_uid(coordinator, entry)
     removed: list[str] = []
-    if keep_feature(perms, LOCK_DESCRIPTION.key, f"{vin}_doors_lock", removed):
-        async_add_entities([CheryEuropeLock(coordinator, LOCK_DESCRIPTION, entry)])
+    entities = []
+    for coordinator in iter_entry_coordinators(entry):
+        perms = control_permissions(coordinator)
+        vin = vehicle_uid(coordinator, entry)
+        if keep_feature(perms, LOCK_DESCRIPTION.key, f"{vin}_doors_lock", removed):
+            entities.append(CheryEuropeLock(coordinator, LOCK_DESCRIPTION, entry))
+    async_add_entities(entities)
     async_remove_unsupported(hass, LOCK, removed)
 
 
@@ -84,7 +87,7 @@ class CheryEuropeLock(CheryEuropeEntity, LockEntity):
         """Initialize the lock."""
         super().__init__(coordinator, description, entry)
         self._attr_translation_key = description.translation_key
-        self._attr_unique_id = stable_unique_id(entry, f"{description.key}_lock")
+        self._attr_unique_id = stable_unique_id(entry, f"{description.key}_lock", coordinator)
 
     @property
     def code_format(self) -> str | None:

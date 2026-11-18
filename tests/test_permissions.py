@@ -24,6 +24,25 @@ def test_category_denied_when_closed():
     assert category_denied("seatControl", {214: 0}) is True
 
 
+def test_adapt_command_drops_heat_fields_the_vehicle_cannot_use():
+    endpoint, body = adapt_command(
+        "heatingControl",
+        {
+            "airControlType": "1",
+            "temperature": "31.0",
+            "duration": "15",
+            "mSeatHeating": "3",
+            "blSeatHeating": "3",
+            "steerWheelHeatSwitch": "1",
+        },
+        {209: 1, 2047: 1, 20412: 0, 2081: 0},
+    )
+    assert endpoint == "heatingControl"
+    assert body["mSeatHeating"] == "3"
+    assert "blSeatHeating" not in body
+    assert "steerWheelHeatSwitch" not in body
+
+
 def test_adapt_command_raises_when_category_denied():
     with pytest.raises(CheryEuropePermissionError):
         adapt_command("findCar", {}, {202: 0})

@@ -50,7 +50,9 @@ or diagnostics.
 - **Restore last-known values** after a Home Assistant restart
 
 **Remote control**
-- Lock/unlock, climate (16–30 °C), front/rear glass heating
+- Lock/unlock, climate (15–31 °C, where 15 is LO and 31 is HI), front/rear glass heating
+- **Climate HI** and **Climate LO** switches (climate only, same setpoints)
+- Theft alarm arm/disarm
 - Seat heating/ventilation, steering wheel heating
 - Covers: trunk
 - Selects: windows (closed / vent / open), sunroof (closed / tilt / open)
@@ -107,7 +109,10 @@ The installed copy stays; HACS then tracks the default listing.
 3. Receive a **one-time code** (email or SMS) and enter it in Home Assistant.
 4. Enter the vehicle **remote-control PIN** twice to confirm (always stored).
    Optionally enable **Ask for PIN** to require matching confirmation on each action.
-5. The integration discovers your vehicle and creates all entities.
+5. The integration discovers your vehicles. If the account has more than one,
+   choose which ones to add. They share this login. A single vehicle is added
+   automatically.
+6. The integration creates entities for every selected vehicle.
 
 If the session expires, use **Re-authenticate** on the integration card
 (**“Send me a new code”** — no code is sent until you ask).
@@ -123,6 +128,7 @@ If the session expires, use **Re-authenticate** on the integration card
 | Parked interval | 15 min | Poll interval when parked (`0` = off) |
 | Charging interval | 2 min | Poll interval while charging |
 | HV interval | 1 min | Poll interval while HV/engine is on |
+| Vehicles | all found | Shown when the account has more than one vehicle |
 
 Also enable **Automatic updates** on the device page to allow background polling.
 
@@ -139,6 +145,9 @@ Also enable **Automatic updates** on the device page to allow background polling
   wakes HV via climate).
 - Map position lives on the **device_tracker**, not on the Locate button
   (the button only records when it was pressed).
+- Distance, speed and temperature use Home Assistant's unit setting. Open the
+  entity, click the cogwheel, and choose **Unit of measurement** (miles, mph,
+  °F). Tyre pressure is stored in bar; the same menu offers psi.
 
 ### Services
 
@@ -182,7 +191,9 @@ Chery Europe template and select the **Command result** sensor.
 
 ### Known limitations
 
-- **One vehicle per account** — only the first vehicle from the cloud list is exposed.
+- **Existing installs** that were added before vehicle selection keep monitoring
+  the first vehicle on the account. Open **Options** when more than one vehicle
+  is available, or remove the integration and add it again, to choose.
 - **Unofficial API** — Chery may change the backend without notice.
 - **Deep sleep** — many commands and readings fail with “vehicle asleep” until the car wakes.
 - **Simultaneous app use** — one session per account: HA login signs out the
@@ -234,7 +245,9 @@ PIN **nie** trafia do logów ani diagnostyki.
 - **Przywracanie ostatnich wartości** po restarcie Home Assistant
 
 **Sterowanie zdalne**
-- Zamek, klimatyzacja (16–30 °C), ogrzewanie szyb
+- Zamek, klimatyzacja (15–31 °C, gdzie 15 to LO, a 31 to HI), ogrzewanie szyb
+- Przełączniki **Klimatyzacja HI** i **Klimatyzacja LO** (sama klima, te same nastawy)
+- Uzbrajanie i rozbrajanie alarmu antykradzieżowego
 - Ogrzewanie/wentylacja foteli, ogrzewanie kierownicy
 - Klapy: bagażnik, szyby, szyberdach
 - Ładowanie: start/stop, ładowanie zaplanowane (encje czasu i czasu trwania)
@@ -290,7 +303,9 @@ Zainstalowana kopia zostaje; HACS przechodzi wtedy na wpis z domyślnego sklepu.
 3. Wpisz **kod jednorazowy** z e-maila lub SMS-a.
 4. Wpisz **PIN** do zdalnego sterowania dwa razy (zawsze zapisywany). Opcjonalnie
    włącz **Pytaj o PIN**, żeby przy każdej akcji wymagać PIN-u zgodnego z zapisanym.
-5. Integracja wykryje pojazd i utworzy encje.
+5. Integracja wykryje pojazdy. Jeśli konto ma więcej niż jedno auto, wybierz,
+   które dodać. Korzystają z tego samego logowania. Jedno auto dodaje się samo.
+6. Integracja utworzy encje dla każdego wybranego pojazdu.
 
 Po wygaśnięciu sesji użyj **Ponownej autoryzacji** na karcie integracji
 (**„Wyślij mi nowy kod”** — kod nie leci, dopóki o to nie poprosisz).
@@ -306,6 +321,7 @@ Po wygaśnięciu sesji użyj **Ponownej autoryzacji** na karcie integracji
 | Interwał na postoju | 15 min | Odświeżanie na postoju (`0` = wył.) |
 | Interwał przy ładowaniu | 2 min | Odświeżanie podczas ładowania |
 | Interwał przy HV | 1 min | Odświeżanie przy włączonym HV/silniku |
+| Pojazdy | wszystkie znalezione | Widoczne, gdy konto ma więcej niż jeden pojazd |
 
 Włącz też **Automatyczne aktualizacje** na stronie urządzenia, żeby polling działał w tle.
 
@@ -321,6 +337,9 @@ Włącz też **Automatyczne aktualizacje** na stronie urządzenia, żeby polling
   Na postoju użyj **Odśwież pełny status** (krótko budzi HV przez klimat).
 - Pozycja na mapie jest na **device_tracker**, nie na przycisku Zlokalizuj
   (przycisk pokazuje tylko czas ostatniego naciśnięcia).
+- Dystans, prędkość i temperatura biorą jednostkę z Home Assistant. Otwórz
+  encję, kliknij zębatkę i wybierz **Jednostkę miary** (mile, mph, °F).
+  Ciśnienie opon jest zapisane w barach; w tym samym menu jest psi.
 
 ### Usługi
 
@@ -364,7 +383,9 @@ szablon Chery Europe i wskaż sensor **Wynik komendy**.
 
 ### Znane ograniczenia
 
-- **Jeden pojazd na konto** — tylko pierwszy pojazd z listy w chmurze.
+- **Istniejące instalacje** sprzed wyboru pojazdów nadal śledzą pierwsze auto
+  na koncie. Gdy aut jest więcej, wybór jest w **Opcjach**, albo po usunięciu
+  i ponownym dodaniu integracji.
 - **Nieoficjalne API** — Chery może zmienić backend bez ostrzeżenia.
 - **Głęboki sen** — wiele komend i odczytów pada, dopóki auto nie obudzi.
 - **Równoległa aplikacja** — jedna sesja na konto: logowanie w HA wyloguje
