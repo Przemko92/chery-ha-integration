@@ -310,10 +310,10 @@
         "name": "Aktualizacje automatyczne"
       },
       "heat_everything": {
-        "name": "Grzej wszystko"
+        "name": "Klimatyzacja HI"
       },
       "cool_everything": {
-        "name": "Chłodź wszystko"
+        "name": "Klimatyzacja LO"
       },
       "theft_alarm": {
         "name": "Alarm antykradzieżowy"

@@ -50,8 +50,8 @@ or diagnostics.
 - **Restore last-known values** after a Home Assistant restart
 
 **Remote control**
-- Lock/unlock, climate (16–30 °C), front/rear glass heating
-- **Heat everything** and **Cool everything** (the app's one-shot HI / LO macros)
+- Lock/unlock, climate (15–31 °C, where 15 is LO and 31 is HI), front/rear glass heating
+- **Climate HI** and **Climate LO** switches (climate only, same setpoints)
 - Theft alarm arm/disarm
 - Seat heating/ventilation, steering wheel heating
 - Covers: trunk
@@ -245,8 +245,8 @@ PIN **nie** trafia do logów ani diagnostyki.
 - **Przywracanie ostatnich wartości** po restarcie Home Assistant
 
 **Sterowanie zdalne**
-- Zamek, klimatyzacja (16–30 °C), ogrzewanie szyb
-- **Grzej wszystko** i **Chłodź wszystko** (makra HI / LO z aplikacji)
+- Zamek, klimatyzacja (15–31 °C, gdzie 15 to LO, a 31 to HI), ogrzewanie szyb
+- Przełączniki **Klimatyzacja HI** i **Klimatyzacja LO** (sama klima, te same nastawy)
 - Uzbrajanie i rozbrajanie alarmu antykradzieżowego
 - Ogrzewanie/wentylacja foteli, ogrzewanie kierownicy
 - Klapy: bagażnik, szyby, szyberdach

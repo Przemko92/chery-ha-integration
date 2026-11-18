@@ -636,63 +636,43 @@ def apply_command_feedback(data: CheryData, command_id: str, **kwargs: Any) -> C
     return data
 
 
-_HEAT_SEATS = (
-    "driver_seat_heating",
-    "passenger_seat_heating",
-    "rear_left_seat_heating",
-    "rear_right_seat_heating",
-)
-_COOL_SEATS = (
-    "driver_seat_ventilation",
-    "passenger_seat_ventilation",
-    "rear_left_seat_ventilation",
-    "rear_right_seat_ventilation",
-)
+HI_SETPOINT = 31.0
+LO_SETPOINT = 15.0
+
+
+def climate_at_hi(data: CheryData) -> bool | None:
+    """True when climate is running at the HI setpoint."""
+    return _climate_at_extreme(data, hi=True)
+
+
+def climate_at_lo(data: CheryData) -> bool | None:
+    """True when climate is running at the LO setpoint."""
+    return _climate_at_extreme(data, hi=False)
+
+
+def _climate_at_extreme(data: CheryData, *, hi: bool) -> bool | None:
+    if data.hvac_enabled is False:
+        return False
+    if data.target_temperature is None:
+        return None
+    if hi:
+        at_extreme = data.target_temperature >= HI_SETPOINT - 0.5
+    else:
+        at_extreme = data.target_temperature <= LO_SETPOINT + 0.5
+    if data.hvac_enabled is None:
+        return at_extreme
+    return bool(data.hvac_enabled) and at_extreme
 
 
 def _apply_comfort_macro(data: CheryData, *, enabled: bool, heat: bool) -> CheryData:
-    """Reflect a heat-everything or cool-everything command on local state."""
-    levels = dict(data.seat_levels or {})
-    active = _HEAT_SEATS if heat else _COOL_SEATS
-    other = _COOL_SEATS if heat else _HEAT_SEATS
-    for key in active:
-        levels[key] = 3 if enabled else 0
-    if enabled:
-        for key in other:
-            levels[key] = 0
-    if heat:
-        return replace(
-            data,
-            heat_everything=enabled,
-            cool_everything=False if enabled else data.cool_everything,
-            hvac_enabled=enabled,
-            front_windshield_heating=enabled,
-            rear_window_defrost=enabled,
-            steering_wheel_heating=enabled,
-            driver_seat_heating=enabled,
-            passenger_seat_heating=enabled,
-            rear_left_seat_heating=enabled,
-            rear_right_seat_heating=enabled,
-            driver_seat_ventilation=False if enabled else data.driver_seat_ventilation,
-            passenger_seat_ventilation=False if enabled else data.passenger_seat_ventilation,
-            rear_left_seat_ventilation=False if enabled else data.rear_left_seat_ventilation,
-            rear_right_seat_ventilation=False if enabled else data.rear_right_seat_ventilation,
-            seat_levels=levels,
-        )
+    """Reflect a climate HI or LO command. Seats and the wheel stay untouched."""
+    temperature = HI_SETPOINT if heat else LO_SETPOINT
     return replace(
         data,
-        cool_everything=enabled,
-        heat_everything=False if enabled else data.heat_everything,
         hvac_enabled=enabled,
-        driver_seat_ventilation=enabled,
-        passenger_seat_ventilation=enabled,
-        rear_left_seat_ventilation=enabled,
-        rear_right_seat_ventilation=enabled,
-        driver_seat_heating=False if enabled else data.driver_seat_heating,
-        passenger_seat_heating=False if enabled else data.passenger_seat_heating,
-        rear_left_seat_heating=False if enabled else data.rear_left_seat_heating,
-        rear_right_seat_heating=False if enabled else data.rear_right_seat_heating,
-        seat_levels=levels,
+        target_temperature=temperature if enabled else data.target_temperature,
+        heat_everything=enabled and heat,
+        cool_everything=enabled and not heat,
     )
 
 

@@ -193,56 +193,31 @@ def build_empty_body(_values: dict[str, Any]) -> dict[str, Any]:
     return {}
 
 
-def _macro_flag(enabled: bool) -> str:
-    return "1" if enabled else "0"
+def build_climate_extreme_body(values: dict[str, Any], *, temperature: str) -> dict[str, str]:
+    """Climate only, at the HI (31) or LO (15) setpoint.
 
-
-def _macro_level(enabled: bool) -> str:
-    return "3" if enabled else "0"
+    Live checks on a Tiggo showed that ``airControl`` at 31 °C is what the car
+    treats as HI, and 15 °C as LO. The one-shot ``heatingControl`` /
+    ``coolingControl`` macros also switch the wheel and seats, and
+    ``coolingControl`` is denied on some vehicles, so the switch never appeared.
+    """
+    enabled = bool(values.get("enabled", True))
+    return {
+        "airControlType": "1" if enabled else "0",
+        "airType": "1",
+        "temperature": temperature,
+        "times": str(values.get("duration", DEFAULT_AIR_DURATION)),
+    }
 
 
 def build_heat_everything_body(values: dict[str, Any]) -> dict[str, str]:
-    """One-shot cabin heat: climate HI plus seats, glass and steering wheel.
-
-    The official app sends ``heatingControl`` with temperature 31.0 and
-    ``duration`` (not ``times``). That is the HI macro, separate from the
-    saved climate setpoint.
-    """
-    enabled = bool(values.get("enabled", True))
-    flag = _macro_flag(enabled)
-    level = _macro_level(enabled)
-    return {
-        "airControlType": flag,
-        "airType": "1",
-        "temperature": "31.0",
-        "duration": str(values.get("duration", DEFAULT_AIR_DURATION)),
-        "frontWindshieldHeat": flag,
-        "backDefrosting": flag,
-        "steerWheelHeatSwitch": flag,
-        "mSeatHeating": level,
-        "pSeatHeating": level,
-        "blSeatHeating": level,
-        "brSeatHeating": level,
-    }
+    """Turn the climate to HI (31 °C) without the seat and wheel macro."""
+    return build_climate_extreme_body(values, temperature="31.0")
 
 
 def build_cool_everything_body(values: dict[str, Any]) -> dict[str, str]:
-    """One-shot cabin cool: climate LO plus every ventilated seat.
-
-    The official app sends ``coolingControl`` with temperature 15.0.
-    """
-    enabled = bool(values.get("enabled", True))
-    level = _macro_level(enabled)
-    return {
-        "airControlType": _macro_flag(enabled),
-        "airType": "1",
-        "temperature": "15.0",
-        "duration": str(values.get("duration", DEFAULT_AIR_DURATION)),
-        "mSeatAiry": level,
-        "pSeatAiry": level,
-        "blSeatAiry": level,
-        "brSeatAiry": level,
-    }
+    """Turn the climate to LO (15 °C) without the seat ventilation macro."""
+    return build_climate_extreme_body(values, temperature="15.0")
 
 
 def build_theft_alarm_body(values: dict[str, Any]) -> dict[str, str]:
@@ -267,8 +242,8 @@ COMMAND_SPECS: dict[str, VehicleCommandSpec] = {
     "ve_1207": VehicleCommandSpec("skylightControl", build_skylight_body),
     "ve_1208": VehicleCommandSpec("findCar", build_empty_body),
     "ve_1209": VehicleCommandSpec("vehicleLocation", build_empty_body),
-    "ve_1301": VehicleCommandSpec("heatingControl", build_heat_everything_body),
-    "ve_1302": VehicleCommandSpec("coolingControl", build_cool_everything_body),
+    "ve_1301": VehicleCommandSpec("airControl", build_heat_everything_body),
+    "ve_1302": VehicleCommandSpec("airControl", build_cool_everything_body),
     "ve_1303": VehicleCommandSpec(
         "theftAlarm",
         build_theft_alarm_body,

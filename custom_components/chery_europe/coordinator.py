@@ -99,8 +99,6 @@ _CONTROL_STATE_FIELDS = (
     "rear_right_seat_heating",
     "rear_left_seat_ventilation",
     "rear_right_seat_ventilation",
-    "heat_everything",
-    "cool_everything",
     "theft_alarm",
 )
 

@@ -108,8 +108,10 @@ FEATURE_VOICES: dict[str, tuple[int, ...]] = {
     "trunk": (205,),
     "hvac": (204,),
     "doors": (203,),
-    "heat_everything": (209,),
-    "cool_everything": (210,),
+    # HI/LO ride on ordinary climate. Voice 210 (coolingControl) is denied on
+    # some cars, which used to hide the cool switch entirely.
+    "heat_everything": (204, 209),
+    "cool_everything": (204, 210),
     "theft_alarm": (401,),
 }
 

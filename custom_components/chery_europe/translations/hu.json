@@ -307,10 +307,10 @@
         "name": "Automatikus frissítések"
       },
       "heat_everything": {
-        "name": "Minden fűtése"
+        "name": "Klíma HI"
       },
       "cool_everything": {
-        "name": "Minden hűtése"
+        "name": "Klíma LO"
       },
       "theft_alarm": {
         "name": "Riasztó"

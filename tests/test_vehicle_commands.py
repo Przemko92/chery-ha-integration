@@ -180,21 +180,21 @@ def test_build_window_and_skylight_bodies():
     }
 
 
-def test_heat_and_cool_everything_match_the_app_macros():
+def test_heat_and_cool_set_climate_only():
     heat = build_heat_everything_body({"enabled": True})
-    assert heat["airControlType"] == "1"
-    assert heat["temperature"] == "31.0"
-    assert heat["duration"] == "15"
-    assert heat["frontWindshieldHeat"] == "1"
-    assert heat["mSeatHeating"] == "3"
-    assert heat["steerWheelHeatSwitch"] == "1"
-    assert "times" not in heat
+    assert heat == {
+        "airControlType": "1",
+        "airType": "1",
+        "temperature": "31.0",
+        "times": "15",
+    }
+    assert "steerWheelHeatSwitch" not in heat
+    assert "mSeatHeating" not in heat
 
     cool_off = build_cool_everything_body({"enabled": False})
     assert cool_off["airControlType"] == "0"
     assert cool_off["temperature"] == "15.0"
-    assert cool_off["mSeatAiry"] == "0"
-    assert cool_off["brSeatAiry"] == "0"
+    assert "mSeatAiry" not in cool_off
 
 
 def test_theft_alarm_body():

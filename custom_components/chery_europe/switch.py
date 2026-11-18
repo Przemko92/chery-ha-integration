@@ -15,7 +15,7 @@ from .charge_schedule import plan_duration_hours, plan_start_time
 from .command_exec import async_send_vehicle_command
 from .const import SWITCH
 from .coordinator import CheryEuropeDataUpdateCoordinator
-from .data import SEAT_LEVEL_FIELDS, CheryData
+from .data import SEAT_LEVEL_FIELDS, CheryData, climate_at_hi, climate_at_lo
 from .entity import (
     CheryEuropeEntity,
     async_remove_unsupported,
@@ -153,19 +153,19 @@ SWITCH_DESCRIPTIONS: tuple[CheryEuropeSwitchEntityDescription, ...] = (
     ),
     CheryEuropeSwitchEntityDescription(
         key="heat_everything",
-        name="Heat everything",
+        name="Climate HI",
         translation_key="heat_everything",
-        icon="mdi:heat-wave",
+        icon="mdi:thermometer-high",
         command_id="ve_1301",
-        state_fn=lambda data: data.heat_everything,
+        state_fn=climate_at_hi,
     ),
     CheryEuropeSwitchEntityDescription(
         key="cool_everything",
-        name="Cool everything",
+        name="Climate LO",
         translation_key="cool_everything",
-        icon="mdi:snowflake",
+        icon="mdi:thermometer-low",
         command_id="ve_1302",
-        state_fn=lambda data: data.cool_everything,
+        state_fn=climate_at_lo,
     ),
     CheryEuropeSwitchEntityDescription(
         key="theft_alarm",

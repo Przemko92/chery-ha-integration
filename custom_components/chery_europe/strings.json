@@ -310,10 +310,10 @@
         "name": "Automatic updates"
       },
       "heat_everything": {
-        "name": "Heat everything"
+        "name": "Climate HI"
       },
       "cool_everything": {
-        "name": "Cool everything"
+        "name": "Climate LO"
       },
       "theft_alarm": {
         "name": "Theft alarm"

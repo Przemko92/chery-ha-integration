@@ -931,16 +931,25 @@ def test_apply_command_feedback_seat_level():
     assert off.seat_levels["driver_seat_heating"] == 0
 
 
-def test_heat_everything_feedback_turns_the_cabin_on():
-    base = CheryData(vin="VIN123", cool_everything=True, hvac_enabled=False)
+def test_heat_everything_feedback_sets_hi_without_the_wheel():
+    from custom_components.chery_europe.data import climate_at_hi, climate_at_lo
+
+    base = CheryData(
+        vin="VIN123",
+        hvac_enabled=False,
+        steering_wheel_heating=False,
+        target_temperature=23.0,
+    )
     heated = apply_command_feedback(base, "ve_1301", enabled=True)
-    assert heated.heat_everything is True
-    assert heated.cool_everything is False
     assert heated.hvac_enabled is True
-    assert heated.front_windshield_heating is True
-    assert heated.driver_seat_heating is True
-    assert heated.seat_levels["driver_seat_heating"] == 3
-    assert heated.driver_seat_ventilation is False
+    assert heated.target_temperature == 31.0
+    assert heated.steering_wheel_heating is False
+    assert climate_at_hi(heated) is True
+    assert climate_at_lo(heated) is False
+
+    settled = CheryData(vin="VIN123", hvac_enabled=True, target_temperature=23.0)
+    assert climate_at_hi(settled) is False
+    assert climate_at_lo(CheryData(vin="VIN123", hvac_enabled=False, target_temperature=31.0)) is False
 
 
 def test_parse_theft_alarm_reads_nested_switch():
