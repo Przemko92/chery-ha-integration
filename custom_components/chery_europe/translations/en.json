@@ -247,6 +247,9 @@
       "door_rear_right": {
         "name": "Rear right door"
       },
+      "hood": {
+        "name": "Hood"
+      },
       "window_front_left": {
         "name": "Front left window"
       },

@@ -113,6 +113,13 @@ BINARY_SENSOR_DESCRIPTIONS: tuple[CheryEuropeBinarySensorEntityDescription, ...]
         value_fn=lambda data: data.door_rear_right_open,
     ),
     CheryEuropeBinarySensorEntityDescription(
+        key="hood",
+        name="Hood",
+        translation_key="hood",
+        device_class=BinarySensorDeviceClass.OPENING,
+        value_fn=lambda data: data.hood_open,
+    ),
+    CheryEuropeBinarySensorEntityDescription(
         key="window_front_left",
         name="Front left window",
         translation_key="window_front_left",

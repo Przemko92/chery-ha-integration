@@ -547,6 +547,34 @@ def test_from_realtime_maps_extended_vehicle_state():
     assert data.last_updated == "2026-08-14T08:38:51.068000+00:00"
 
 
+def test_from_realtime_maps_hood():
+    """Hood uses the MQTT field from the older integration: 0 closed, anything else open."""
+    assert CheryData.from_realtime({"hood": "0"}).hood_open is False
+    assert CheryData.from_realtime({"hood": "1"}).hood_open is True
+    assert CheryData.from_realtime({}).hood_open is None
+
+
+def test_hood_binary_sensor_reports_closed_as_off():
+    from homeassistant.components.binary_sensor import BinarySensorDeviceClass
+
+    from custom_components.chery_europe.binary_sensor import BINARY_SENSOR_DESCRIPTIONS
+
+    hood = next(item for item in BINARY_SENSOR_DESCRIPTIONS if item.key == "hood")
+    assert hood.device_class is BinarySensorDeviceClass.OPENING
+    assert hood.value_fn(CheryData(hood_open=False)) is False
+    assert hood.value_fn(CheryData(hood_open=True)) is True
+
+
+def test_from_realtime_maps_rear_window_heating_state_field():
+    """Tiggo reports rear-window heat as rWinHeatingState, ahead of backDefrostingState."""
+    heating = CheryData.from_realtime(
+        {"rWinHeatingState": "1", "backDefrostingState": "0"}
+    )
+    assert heating.rear_window_defrost is True
+    assert CheryData.from_realtime({"rWinHeatingState": "0"}).rear_window_defrost is False
+    assert CheryData.from_realtime({"backDefrostingState": "1"}).rear_window_defrost is True
+
+
 def test_from_realtime_maps_window_and_sunroof_vent_state():
     data = CheryData.from_realtime(
         {

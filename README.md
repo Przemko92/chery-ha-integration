@@ -45,7 +45,7 @@ or diagnostics.
 **Telemetry & status**
 - Battery, fuel, range, odometer, tyre pressure/temperature, charge status
 - Charging power, traction battery voltage and current
-- Door/window/trunk/engine/HV binary sensors
+- Door/window/hood/trunk/engine/HV binary sensors
 - Diagnostic vehicle metadata (nickname, model, colour, picture)
 - **Restore last-known values** after a Home Assistant restart
 
@@ -240,7 +240,7 @@ PIN **nie** trafia do logów ani diagnostyki.
 **Telemetria i status**
 - Bateria, paliwo, zasięg, przebieg, ciśnienie/temperatura opon, stan ładowania
 - Moc ładowania, napięcie i prąd baterii trakcyjnej
-- Binary sensory: drzwi, okna, silnik, HV itd.
+- Binary sensory: drzwi, maska, okna, silnik, HV itd.
 - Metadane diagnostyczne pojazdu (nick, model, kolor, zdjęcie)
 - **Przywracanie ostatnich wartości** po restarcie Home Assistant
 

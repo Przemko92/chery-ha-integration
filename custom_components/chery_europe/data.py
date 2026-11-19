@@ -111,6 +111,7 @@ class CheryData:
     door_rear_left_open: bool | None = None
     door_rear_right_open: bool | None = None
     trunk_open: bool | None = None
+    hood_open: bool | None = None
     window_front_left_open: bool | None = None
     window_front_right_open: bool | None = None
     window_rear_left_open: bool | None = None
@@ -210,6 +211,7 @@ class CheryData:
                         "rear_window_defrost",
                         "rearWindowDefrost",
                         "rear_window_heating",
+                        "rWinHeatingState",
                     )
                 ),
                 hvac_enabled=_as_bool(
@@ -341,7 +343,12 @@ class CheryData:
             ),
             front_windshield_defrost=_state_on(payload.get("fWinHeatingState")),
             rear_window_defrost=_state_on(
-                _first(payload, "backDefrostingState", "backDefrosting")
+                _first(
+                    payload,
+                    "rWinHeatingState",
+                    "backDefrostingState",
+                    "backDefrosting",
+                )
             ),
             steering_wheel_heating=_state_on(payload.get("steerWheelHeating")),
             air_purification=_state_on(payload.get("airPurification")),
@@ -356,6 +363,7 @@ class CheryData:
             door_rear_left_open=_is_open(payload.get("backLeftDoor")),
             door_rear_right_open=_is_open(payload.get("backRightDoor")),
             trunk_open=_is_open(payload.get("trunkDoor")),
+            hood_open=_is_open(payload.get("hood")),
             window_front_left_open=_is_open(payload.get("frontLeftWindowState")),
             window_front_right_open=_is_open(payload.get("frontRightWindowState")),
             window_rear_left_open=_is_open(payload.get("backLeftWindowState")),

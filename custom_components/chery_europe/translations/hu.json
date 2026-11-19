@@ -247,6 +247,9 @@
       "door_rear_right": {
         "name": "Jobb hátsó ajtó"
       },
+      "hood": {
+        "name": "Motorháztető"
+      },
       "window_front_left": {
         "name": "Bal első ablak"
       },
