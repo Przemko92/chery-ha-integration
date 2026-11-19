@@ -247,6 +247,9 @@
       "door_rear_right": {
         "name": "Drzwi tylne prawe"
       },
+      "hood": {
+        "name": "Maska"
+      },
       "window_front_left": {
         "name": "Szyba przednia lewa"
       },
