@@ -257,7 +257,7 @@ class CheryEuropeApi:
         The write path is discovered once (HTTP 404 means "not this module")
         and then cached for the rest of the session.
         """
-        body = build_travel_appoint_body({"plans": plans})
+        body = build_travel_appoint_body({"plans": plans, "vin": vin})
         perms = self._permissions if permissions is None else permissions
         endpoint, body = adapt_command(TRAVEL_APPOINT_ENDPOINT, body, perms)
         last_error: Exception | None = None
