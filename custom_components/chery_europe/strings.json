@@ -227,9 +227,6 @@
       "messages_unread": {
         "name": "Unread messages"
       },
-      "last_message": {
-        "name": "Last message"
-      },
       "messages_content": {
         "name": "Message details"
       }
