@@ -616,7 +616,60 @@ def test_scoped_device_lookup_matches_ha_signature():
     sig.bind(None, (DOMAIN, "vin"), "entry-1")
 
 
-def test_alarm_content_entity_id_follows_the_new_translation():
+def test_entity_id_renames_match_the_polish_names() -> None:
+    """Every rename target must be what the Polish name actually slugifies to."""
+    import json
+    from pathlib import Path
+
+    from homeassistant.util import slugify
+
+    from custom_components.chery_europe.entity import ENTITY_ID_RENAMES
+
+    path = Path(__file__).parent.parent / "custom_components/chery_europe/translations/pl.json"
+    translations = json.loads(path.read_text(encoding="utf-8"))["entity"]
+    names = {
+        key: value["name"]
+        for domain in translations.values()
+        for key, value in domain.items()
+        if "name" in value
+    }
+    for key, _old_slug, new_slug in ENTITY_ID_RENAMES:
+        assert key in names, f"{key} has no Polish name"
+        assert slugify(names[key]) == new_slug, (key, names[key], new_slug)
+
+
+def test_tire_entity_ids_group_by_wheel() -> None:
+    """Pressure and temperature of one wheel must end up next to each other."""
+    from types import SimpleNamespace
+    from unittest.mock import Mock, patch
+
+    from custom_components.chery_europe.entity import async_rename_entity_ids
+
+    entity = SimpleNamespace(
+        entity_id="sensor.wspolne_tiggo_cisnienie_przedniej_lewej_opony",
+        unique_id="wspolne_tiggo_tire_pressure_front_left",
+    )
+    registry = Mock()
+    registry.async_get.return_value = None
+    hass = Mock()
+    entry = SimpleNamespace(entry_id="entry-1")
+
+    with (
+        patch("custom_components.chery_europe.entity.er.async_get", return_value=registry),
+        patch(
+            "custom_components.chery_europe.entity.er.async_entries_for_config_entry",
+            return_value=[entity],
+        ),
+    ):
+        async_rename_entity_ids(hass, entry)
+
+    registry.async_update_entity.assert_called_once_with(
+        "sensor.wspolne_tiggo_cisnienie_przedniej_lewej_opony",
+        new_entity_id="sensor.wspolne_tiggo_kolo_przednie_lewe_cisnienie",
+    )
+
+
+def test_alarm_content_entity_id_follows_the_new_translation() -> None:
     """A renamed translation must move the stale entity id, not leave it behind."""
     from types import SimpleNamespace
     from unittest.mock import Mock, call, patch
