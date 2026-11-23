@@ -254,3 +254,49 @@ async def test_weekday_switch_refuses_to_drop_the_last_day(monkeypatch):
 
     assert coordinator.departure_days == [6]
     assert writes == []
+
+
+def _restored(state: str, attributes: dict | None = None):
+    return SimpleNamespace(state=state, attributes=attributes or {})
+
+
+@pytest.mark.asyncio
+async def test_a_legacy_off_state_is_not_believed_and_the_plan_reads_armed(monkeypatch):
+    """A restored off that HA never commanded is a leftover default, not a command."""
+    from homeassistant.helpers.update_coordinator import CoordinatorEntity
+
+    from custom_components.chery_europe.switch import CheryEuropeDepartureSwitch
+
+    monkeypatch.setattr(CoordinatorEntity, "async_added_to_hass", AsyncMock())
+    coordinator = _coordinator([])
+    entity = CheryEuropeDepartureSwitch(coordinator, _entry())
+    entity.async_write_ha_state = lambda: None
+    entity.async_get_last_state = AsyncMock(return_value=_restored("off"))
+
+    await entity.async_added_to_hass()
+
+    assert coordinator.departure_armed is True
+    assert entity.is_on is True
+    assert entity.extra_state_attributes is None
+
+
+@pytest.mark.asyncio
+async def test_a_commanded_off_state_survives_a_reload(monkeypatch):
+    """Disarming from HA is remembered across restarts."""
+    from homeassistant.helpers.update_coordinator import CoordinatorEntity
+
+    from custom_components.chery_europe.switch import CheryEuropeDepartureSwitch
+
+    monkeypatch.setattr(CoordinatorEntity, "async_added_to_hass", AsyncMock())
+    coordinator = _coordinator([])
+    entity = CheryEuropeDepartureSwitch(coordinator, _entry())
+    entity.async_write_ha_state = lambda: None
+    entity.async_get_last_state = AsyncMock(
+        return_value=_restored("off", {"armed_commanded": True})
+    )
+
+    await entity.async_added_to_hass()
+
+    assert coordinator.departure_armed is False
+    assert entity.is_on is False
+    assert entity.extra_state_attributes == {"armed_commanded": True}
