@@ -224,6 +224,12 @@
       "messages": {
         "name": "Wiadomości"
       },
+      "messages_unread": {
+        "name": "Nieprzeczytane wiadomości"
+      },
+      "last_message": {
+        "name": "Ostatnia wiadomość"
+      },
       "messages_content": {
         "name": "Treść wiadomości"
       }

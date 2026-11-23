@@ -17,6 +17,8 @@ from collections.abc import Iterable
 from datetime import UTC, datetime
 from typing import Any
 
+from .const import MESSAGES_ATTRIBUTE_ITEMS
+
 # ``status`` is 0 for an unread message and 1 once the app has opened it.
 STATUS_UNREAD = 0
 
@@ -140,8 +142,56 @@ def messages_content(messages: Iterable[dict[str, Any]]) -> str:
 
 
 def unread_count(messages: Iterable[dict[str, Any]]) -> int:
-    """Count the unread messages inside the fetched page."""
+    """Count the unread messages inside the given list."""
     return sum(1 for message in messages if not message.get("read", True))
+
+
+def unread_messages(messages: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Return only the unread messages, newest first."""
+    return [m for m in messages if not m.get("read", True)]
+
+
+def sort_messages(messages: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Sort messages newest first; entries without a timestamp go last."""
+    return sorted(
+        messages,
+        key=lambda message: str(message.get("received") or ""),
+        reverse=True,
+    )
+
+
+def merge_messages(
+    existing: Iterable[dict[str, Any]],
+    incoming: Iterable[dict[str, Any]],
+    *,
+    limit: int | None = None,
+) -> tuple[list[dict[str, Any]], int]:
+    """Merge freshly read messages into the stored history, keyed by ``id``.
+
+    Fresh records win (the read flag may have changed in the app), the result
+    is newest first and optionally capped at ``limit`` entries.  Returns the
+    merged list and how many ids were new.
+    """
+    merged: dict[str, dict[str, Any]] = {}
+    for message in existing:
+        message_id = message.get("id")
+        if message_id is not None:
+            merged[str(message_id)] = message
+    known = set(merged)
+    added = 0
+    for message in incoming:
+        message_id = message.get("id")
+        if message_id is None:
+            continue
+        key = str(message_id)
+        if key not in known:
+            known.add(key)
+            added += 1
+        merged[key] = message
+    items = sort_messages(merged.values())
+    if limit is not None and len(items) > limit:
+        items = items[:limit]
+    return items, added
 
 
 def messages_attributes(
@@ -150,15 +200,50 @@ def messages_attributes(
     total: int | None,
     unread: bool | None,
     polled_at: str | None,
+    unread_total: int | None = None,
+    backfilled_at: str | None = None,
+    limit: int = MESSAGES_ATTRIBUTE_ITEMS,
 ) -> dict[str, Any]:
-    """Build the extra state attributes of the messages sensor."""
-    items = list(messages)
+    """Build the extra state attributes of the messages sensor.
+
+    The stored history can be thousands of entries and Home Assistant drops
+    state attributes above 16 KiB, so only the newest ``limit`` messages are
+    exposed here.  The complete history lives in the store and in the export
+    file (see ``message_history``).
+    """
+    items = sort_messages(messages)
+    unread_items = unread_messages(items)
     return {
         "last_updated": polled_at,
         "total": total,
         "unread": unread,
+        "unread_count": unread_total if unread_total is not None else len(unread_items),
         "count": len(items),
-        "unread_in_page": unread_count(items),
+        "oldest": items[-1]["received"] if items else None,
+        "newest": items[0]["received"] if items else None,
         "latest": items[0] if items else None,
-        "messages": items,
+        "backfilled_at": backfilled_at,
+        "messages_truncated": len(items) > limit,
+        "messages": items[:limit],
+    }
+
+
+def last_message_attributes(message: dict[str, Any] | None) -> dict[str, Any]:
+    """Build the attributes of the "last message" sensor."""
+    if not message:
+        return {
+            "received": None,
+            "text": None,
+            "read": None,
+            "id": None,
+            "type": None,
+            "level": None,
+        }
+    return {
+        "received": message.get("received"),
+        "text": message.get("text"),
+        "read": message.get("read"),
+        "id": message.get("id"),
+        "type": message.get("type"),
+        "level": message.get("level"),
     }

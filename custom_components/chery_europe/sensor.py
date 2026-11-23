@@ -31,10 +31,17 @@ from homeassistant.helpers.typing import StateType
 from homeassistant.util import dt as dt_util
 
 from .alerts import alerts_content, collect_alerts
-from .messages import messages_attributes, messages_content
+from .const import MESSAGES_CONTENT_ITEMS
 from .coordinator import CheryEuropeDataUpdateCoordinator
 from .data import CheryData
 from .entity import CheryEuropeEntity, iter_entry_coordinators, stable_unique_id
+from .messages import (
+    last_message_attributes,
+    message_line,
+    messages_attributes,
+    messages_content,
+    unread_messages,
+)
 
 PARALLEL_UPDATES = 0
 
@@ -386,11 +393,28 @@ MESSAGE_SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
         value_fn=lambda data: data.messages_total or len(data.messages or []),
     ),
     CheryEuropeSensorEntityDescription(
+        key="messages_unread",
+        name="Unread messages",
+        translation_key="messages_unread",
+        icon="mdi:email-badge",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda data: data.messages_unread_count or 0,
+    ),
+    CheryEuropeSensorEntityDescription(
+        key="last_message",
+        name="Last message",
+        translation_key="last_message",
+        icon="mdi:message-text-clock-outline",
+        value_fn=lambda data: (data.messages[0].get("title") if data.messages else None),
+    ),
+    CheryEuropeSensorEntityDescription(
         key="messages_content",
         name="Message details",
         translation_key="messages_content",
         icon="mdi:message-badge-outline",
-        value_fn=lambda data: messages_content(data.messages or []),
+        value_fn=lambda data: messages_content(
+            (data.messages or [])[:MESSAGES_CONTENT_ITEMS]
+        ),
     ),
 )
 
@@ -741,30 +765,59 @@ class CheryEuropeMessageSensor(CheryEuropeEntity, SensorEntity):
         self._attr_unique_id = stable_unique_id(entry, description.key, coordinator)
 
     def _messages(self) -> list[dict[str, Any]]:
-        """Return the fetched message page (empty until the first poll)."""
+        """Return the stored message history (empty until the first poll)."""
         if self.coordinator.data is None:
             return []
         return list(self.chery_data.messages or [])
 
     @property
     def native_value(self) -> StateType:
-        """Return the inbox size or the rendered messages."""
+        """Return the inbox size, the unread count, the last title or the texts."""
         if self.coordinator.data is None:
             return None
         data = self.chery_data
-        if self.entity_description.key == "messages":
+        key = self.entity_description.key
+        if key == "messages":
             return data.messages_total or len(self._messages())
-        return messages_content(self._messages())
+        if key == "messages_unread":
+            return data.messages_unread_count or 0
+        if key == "last_message":
+            items = self._messages()
+            return items[0].get("title") if items else None
+        return messages_content(self._messages()[:MESSAGES_CONTENT_ITEMS])
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """Return the unread flag and every fetched message."""
+        """Return the history summary, the unread list or the last message."""
         data = self.chery_data
+        key = self.entity_description.key
+        items = self._messages()
+        if key == "messages_unread":
+            return {
+                "total": data.messages_total,
+                "unread_count": data.messages_unread_count,
+                "flag_set": data.messages_unread,
+                "last_updated": data.messages_polled_at,
+                "backfilled_at": data.messages_backfilled_at,
+                "unread": [
+                    line
+                    for line in (
+                        message_line(message) for message in unread_messages(items)
+                    )
+                    if line
+                ][:MESSAGES_CONTENT_ITEMS],
+            }
+        if key == "last_message":
+            return last_message_attributes(items[0] if items else None)
+        if key != "messages":
+            return {}
         return messages_attributes(
-            self._messages(),
+            items,
             total=data.messages_total,
             unread=data.messages_unread,
             polled_at=data.messages_polled_at,
+            unread_total=data.messages_unread_count,
+            backfilled_at=data.messages_backfilled_at,
         )
 
 

@@ -49,7 +49,7 @@ or diagnostics.
 - Diagnostic vehicle metadata (nickname, model, colour, picture)
 - **Restore last-known values** after a Home Assistant restart
 - **Alerts** — a count plus the alert texts (tyre pressure, low traction battery, oil service, open doors/windows/trunk/sunroof)
-- **Messages** — the vehicle message inbox: total count, unread flag and the newest messages with their texts (read at most every 30 minutes, two cheap requests per read)
+- **Messages** — the vehicle message inbox: total count, unread count, the last message and the newest texts. The first run imports the whole inbox (all pages, a few requests), later polls only read the newest page every 30 minutes; the full history (up to 2000 entries) is stored in `.storage` and mirrored to `config/chery_messages.json`
 
 **Remote control**
 - Lock/unlock, climate (16–30 °C), front/rear glass heating
@@ -231,6 +231,26 @@ The same data is exposed as two read-only sensors: **Scheduled preparation**
 Plans are re-read at most once an hour, so a short polling interval does not
 multiply the requests sent to your account.
 
+#### `chery_europe.get_messages`
+
+Return a page of the stored message history. It only reads the local copy — no
+request is sent to the Chery cloud, so it is safe in automations and templates:
+
+```yaml
+action: chery_europe.get_messages
+data:
+  page: 1
+  page_size: 20
+  unread_only: false
+response_variable: inbox
+# {{ inbox.total }}, {{ inbox.pages }}, {{ inbox.messages }}
+```
+
+Newest messages come first. The entities stay small on purpose: **Messages**
+carries the counts and the last 20 entries, **Message details** the last ten
+texts, while the whole history lives in `config/chery_messages.json` (keyed by
+VIN) and in the integration `.storage` file.
+
 #### `chery_europe.send_command`
 
 Low-level remote command (requires `vin` and `command_id`; `pin` is optional when
@@ -312,7 +332,7 @@ PIN **nie** trafia do logów ani diagnostyki.
 - Metadane diagnostyczne pojazdu (nick, model, kolor, zdjęcie)
 - **Przywracanie ostatnich wartości** po restarcie Home Assistant
 - **Alarmy** — licznik i treść aktywnych alarmów (ciśnienie w oponach, niski poziom baterii trakcyjnej, serwis oleju, otwarte drzwi/okna/klapa bagażnika/szyberdach)
-- **Wiadomości** — skrzynka wiadomości z serwisu: łączna liczba, flaga nieprzeczytanych oraz treść najnowszych wiadomości (odczyt najwyżej co 30 minut, dwa tanie zapytania na odczyt)
+- **Wiadomości** — skrzynka wiadomości z serwisu: łączna liczba, liczba nieprzeczytanych, ostatnia wiadomość i treść najnowszych. Pierwsze uruchomienie pobiera całą skrzynkę (wszystkie strony, kilka zapytań), później odczytywana jest tylko najnowsza strona co 30 minut; pełna historia (do 2000 wpisów) leży w `.storage` i w kopii `config/chery_messages.json`
 
 **Sterowanie zdalne**
 - Zamek, klimatyzacja (16–30 °C), ogrzewanie szyb
@@ -409,6 +429,26 @@ Włącz też **Automatyczne aktualizacje** na stronie urządzenia, żeby polling
   (przycisk pokazuje tylko czas ostatniego naciśnięcia).
 
 ### Usługi
+
+#### `chery_europe.get_messages`
+
+Zwraca stronę zapisanej historii wiadomości. Czyta tylko lokalną kopię — żadne
+zapytanie nie leci do chmury Chery, więc można jej używać w automatyzacjach:
+
+```yaml
+action: chery_europe.get_messages
+data:
+  page: 1
+  page_size: 20
+  unread_only: false
+response_variable: inbox
+# {{ inbox.total }}, {{ inbox.pages }}, {{ inbox.messages }}
+```
+
+Najnowsze wiadomości są pierwsze. Encje celowo pozostają małe: **Wiadomości**
+niosą liczniki i ostatnie 20 wpisów, **Treść wiadomości** ostatnie dziesięć
+tekstów, a cała historia leży w `config/chery_messages.json` (klucz: VIN) oraz
+w pliku `.storage` integracji.
 
 #### `chery_europe.set_scheduled_charging`
 

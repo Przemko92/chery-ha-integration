@@ -156,7 +156,10 @@ class CheryData:
     messages: list[dict[str, Any]] | None = None
     messages_total: int | None = None
     messages_unread: bool | None = None
+    messages_unread_count: int | None = None
     messages_polled_at: str | None = None
+    # When the complete inbox was imported for the first time.
+    messages_backfilled_at: str | None = None
 
     @classmethod
     def from_api_response(cls, response: dict[str, Any] | VehicleStatus | None) -> CheryData:
@@ -504,7 +507,9 @@ _FRESHNESS_IGNORE = frozenset(
         "messages",
         "messages_total",
         "messages_unread",
+        "messages_unread_count",
         "messages_polled_at",
+        "messages_backfilled_at",
     }
 )
 
@@ -1018,9 +1023,11 @@ def apply_messages(
     *,
     total: int | None = None,
     unread: bool | None = None,
+    unread_count: int | None = None,
     polled_at: str | None = None,
+    backfilled_at: str | None = None,
 ) -> CheryData:
-    """Overlay a message-inbox page; ``None`` keeps what is already known."""
+    """Overlay the stored message history; ``None`` keeps what is known."""
     if messages is None:
         return data
     updates: dict[str, Any] = {"messages": messages}
@@ -1028,8 +1035,12 @@ def apply_messages(
         updates["messages_total"] = total
     if unread is not None:
         updates["messages_unread"] = unread
+    if unread_count is not None:
+        updates["messages_unread_count"] = unread_count
     if polled_at is not None:
         updates["messages_polled_at"] = polled_at
+    if backfilled_at is not None:
+        updates["messages_backfilled_at"] = backfilled_at
     return replace(data, **updates)
 
 
