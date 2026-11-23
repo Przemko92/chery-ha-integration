@@ -30,6 +30,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import StateType
 from homeassistant.util import dt as dt_util
 
+from .alerts import alerts_content, collect_alerts
 from .coordinator import CheryEuropeDataUpdateCoordinator
 from .data import CheryData
 from .entity import CheryEuropeEntity, iter_entry_coordinators, stable_unique_id
@@ -356,6 +357,24 @@ PREPARE_SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
     ),
 )
 
+ALERT_SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
+    CheryEuropeSensorEntityDescription(
+        key="alerts",
+        name="Alerts",
+        translation_key="alerts",
+        icon="mdi:alert-circle-outline",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda data: len(collect_alerts(data)),
+    ),
+    CheryEuropeSensorEntityDescription(
+        key="alerts_content",
+        name="Alert details",
+        translation_key="alerts_content",
+        icon="mdi:alert-decagram-outline",
+        value_fn=lambda data: alerts_content(collect_alerts(data)),
+    ),
+)
+
 STATUS_SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
     CheryEuropeSensorEntityDescription(
         key="command_status",
@@ -421,6 +440,10 @@ async def async_setup_entry(
         entities.extend(
             CheryEuropePrepareSensor(coordinator, description, entry)
             for description in PREPARE_SENSOR_DESCRIPTIONS
+        )
+        entities.extend(
+            CheryEuropeAlertSensor(coordinator, description, entry)
+            for description in ALERT_SENSOR_DESCRIPTIONS
         )
     async_add_entities(entities)
 
@@ -627,6 +650,55 @@ class CheryEuropeTimestampSensor(_CheryEuropeRestoreSensor):
         if self._last_known_dt is not None:
             return self._last_known_dt
         return self._parse_timestamp(self._restored)
+
+
+class CheryEuropeAlertSensor(CheryEuropeEntity, SensorEntity):
+    """Active vehicle alerts: a count plus the alert texts."""
+
+    entity_description: CheryEuropeSensorEntityDescription
+
+    def __init__(
+        self,
+        coordinator: CheryEuropeDataUpdateCoordinator,
+        description: CheryEuropeSensorEntityDescription,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the alert sensor."""
+        super().__init__(coordinator, description, entry)
+        self._attr_translation_key = description.translation_key
+        self._attr_unique_id = stable_unique_id(entry, description.key, coordinator)
+
+    def _language(self) -> str | None:
+        """Return the Home Assistant UI language for the alert texts."""
+        return getattr(self.hass.config, "language", None)
+
+    def _alerts(self):
+        if self.coordinator.data is None:
+            return []
+        return collect_alerts(self.chery_data, self._language())
+
+    @property
+    def native_value(self) -> StateType:
+        """Return the alert count or the alert texts."""
+        if self.coordinator.data is None:
+            return None
+        alerts = self._alerts()
+        if self.entity_description.key == "alerts":
+            return len(alerts)
+        return alerts_content(alerts)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return every active alert so automations can read the texts."""
+        data = self.chery_data
+        alerts = self._alerts()
+        return {
+            "last_updated": data.last_updated,
+            "count": len(alerts),
+            "warnings": sum(1 for alert in alerts if alert.severity == "warning"),
+            "categories": sorted({alert.category for alert in alerts}),
+            "alerts": [alert.as_dict() for alert in alerts],
+        }
 
 
 # Backwards compatibility alias for tests and external consumers

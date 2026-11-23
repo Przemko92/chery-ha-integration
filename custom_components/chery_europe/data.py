@@ -121,6 +121,14 @@ class CheryData:
     window_front_right_position: int | None = None
     window_rear_left_position: int | None = None
     window_rear_right_position: int | None = None
+    # the car's own warning flags (``*Call`` fields of the status payload)
+    alert_tire_front_left: bool | None = None
+    alert_tire_front_right: bool | None = None
+    alert_tire_rear_left: bool | None = None
+    alert_tire_rear_right: bool | None = None
+    alert_soc_low: bool | None = None
+    alert_oil_service: bool | None = None
+    alert_electricity: bool | None = None
     driver_seat_heating: bool | None = None
     passenger_seat_heating: bool | None = None
     driver_seat_ventilation: bool | None = None
@@ -371,6 +379,13 @@ class CheryData:
             window_front_right_position=_window_position(payload.get("frontRightWindowState")),
             window_rear_left_position=_window_position(payload.get("backLeftWindowState")),
             window_rear_right_position=_window_position(payload.get("backRightWindowState")),
+            alert_tire_front_left=_alert_active(payload.get("lFrontTyreCall")),
+            alert_tire_front_right=_alert_active(payload.get("rFrontTyreCall")),
+            alert_tire_rear_left=_alert_active(payload.get("lRearTyreCall")),
+            alert_tire_rear_right=_alert_active(payload.get("rRearTyreCall")),
+            alert_soc_low=_alert_active(payload.get("socLowCall")),
+            alert_oil_service=_alert_active(payload.get("oilCall")),
+            alert_electricity=_alert_active(payload.get("electricityCall")),
             # seat states are levels (0 = off, 1-3); the remote seat command
             # switches them on at level 3
             driver_seat_heating=_level_on(payload.get("dSeatHeatingState")),
@@ -904,6 +919,13 @@ def _level_on(value: Any) -> bool | None:
         return float(value) > 0
     except (TypeError, ValueError):
         return str(value).lower() not in ("0", "false", "off", "none")
+
+
+def _alert_active(value: Any) -> bool | None:
+    """Return True when a ``*Call`` warning flag reports an active alert."""
+    if value in (None, ""):
+        return None
+    return str(value) != "0"
 
 
 def _is_open(value: Any) -> bool | None:
