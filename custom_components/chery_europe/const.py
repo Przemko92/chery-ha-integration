@@ -6,7 +6,7 @@ from datetime import timedelta
 NAME = "Chery Europe"
 DOMAIN = "chery_europe"
 DOMAIN_DATA = f"{DOMAIN}_data"
-VERSION = "0.6.0b7"
+VERSION = "0.6.0b8"
 ISSUE_URL = "https://github.com/Przemko92/chery-ha-integration/issues"
 
 # Platforms
@@ -189,6 +189,10 @@ MESSAGES_EXPORT_FILENAME = "chery_messages.json"
 # Attributes must stay well under the 16 KiB recorder limit, hence the caps.
 MESSAGES_ATTRIBUTE_ITEMS = 20
 MESSAGES_CONTENT_ITEMS = 10
+# The text sensor keeps the newest messages as one line each; the attribute payload must
+# stay well below the 16 KiB recorder limit for the whole state object.
+MESSAGES_HISTORY_ITEMS = 200
+MESSAGES_HISTORY_CHARS = 9000
 API_THEFT_QUERY_PATH = "/act/theftAlarm/querySwitch"
 API_THEFT_SET_PATH = "/act/theftAlarm/setSwitch"
 TSP_CODE_OK = "000000"

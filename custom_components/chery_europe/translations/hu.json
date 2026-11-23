@@ -227,8 +227,8 @@
       "messages_unread": {
         "name": "Olvasatlan üzenetek"
       },
-      "messages_content": {
-        "name": "Üzenet részletei"
+      "messages_history": {
+        "name": "Üzenetek tartalma"
       }
     },
     "binary_sensor": {

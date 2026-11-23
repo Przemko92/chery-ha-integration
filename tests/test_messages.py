@@ -13,6 +13,7 @@ from custom_components.chery_europe.messages import (
     message_line,
     messages_attributes,
     messages_content,
+    messages_history,
     parse_messages,
     parse_unread_messages,
     unread_count,
@@ -95,6 +96,17 @@ def test_message_line_and_content_render_date_title_text():
     )
     assert messages_content(messages).count("\n") == 1
     assert unread_count(messages) == 1
+
+
+def test_messages_history_keeps_newest_first_within_the_budget():
+    """The history attribute lists the newest messages and honours the char budget."""
+    messages, _ = parse_messages(PAGE)
+
+    assert messages_history(messages)[0] == message_line(messages[0])
+    assert len(messages_history(messages)) == 2
+    # a budget smaller than the first line leaves an empty list instead of overshooting
+    assert messages_history(messages, char_budget=5) == []
+    assert messages_history(messages, limit=1) == [message_line(messages[0])]
 
 
 def test_merge_messages_dedupes_by_id_and_keeps_the_newest_first():
@@ -387,8 +399,8 @@ def test_message_sensors_expose_count_unread_and_last_message():
     assert sensors["messages"].native_value == 563
     assert sensors["messages_unread"].native_value == 1
     assert "last_message" not in sensors
-    assert sensors["messages_content"].native_value.startswith("2026-11-")
-    assert "Tyre temperature warning" in sensors["messages_content"].native_value
+    assert sensors["messages_history"].native_value.startswith("2026-11-")
+    assert "Tyre temperature warning" in sensors["messages_history"].native_value
 
     attributes = sensors["messages"].extra_state_attributes
     assert attributes["total"] == 563
@@ -403,7 +415,11 @@ def test_message_sensors_expose_count_unread_and_last_message():
     unread = sensors["messages_unread"].extra_state_attributes
     assert unread["unread_count"] == 1
     assert unread["unread"][0].startswith("2026-11-19")
-    assert sensors["messages_content"].extra_state_attributes == {}
+    history = sensors["messages_history"].extra_state_attributes
+    assert history["stored"] == 2
+    assert history["count"] == 2
+    assert history["history"][0].startswith("2026-11-19")
+    assert "Tyre temperature warning" in history["history"][0]
 
 
 def test_messages_page_slices_the_stored_history():
