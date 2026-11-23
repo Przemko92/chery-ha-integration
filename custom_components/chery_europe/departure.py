@@ -17,6 +17,7 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.exceptions import HomeAssistantError
 
+from .const import TSP_CODE_ASLEEP
 from .coordinator import CheryEuropeDataUpdateCoordinator
 from .data import apply_travel_appointment
 from .exceptions import CheryEuropeCommandError, CheryEuropeException
@@ -107,7 +108,13 @@ async def async_set_departure(
             f"Chery Europe preparation command failed: {exc}"
         ) from exc
     if not response.get("ok"):
-        message = response.get("message") or response.get("code")
+        code = response.get("code")
+        if code == TSP_CODE_ASLEEP:
+            raise CheryEuropeCommandError(
+                "Chery Europe preparation command failed: the car is asleep; "
+                "wake it (open the app or unlock the car) and retry"
+            )
+        message = response.get("message") or code
         raise CheryEuropeCommandError(
             f"Chery Europe preparation command failed: {message}"
         )

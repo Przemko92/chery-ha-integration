@@ -15,6 +15,7 @@ from homeassistant.helpers import config_validation as cv
 from .charge_schedule import local_time_to_minutes
 from .command_exec import async_send_vehicle_command
 from .const import (
+    TSP_CODE_ASLEEP,
     ATTR_BATTERY_HEAT,
     ATTR_COMMAND_ID,
     ATTR_DAYS,
@@ -273,7 +274,7 @@ def async_setup_services(hass: HomeAssistant) -> None:
                 "success": True,
                 "dry_run": True,
                 "plans": plans,
-                "body": _prepare_body(plans),
+                "body": _prepare_body(plans, vin),
             }
         response = await _write_prepare_plans(coordinator, entry, vin, plans, call)
         return {"success": True, "plans": plans, "response": response}
@@ -298,7 +299,7 @@ def async_setup_services(hass: HomeAssistant) -> None:
                 "success": True,
                 "dry_run": True,
                 "plans": plans,
-                "body": _prepare_body(plans),
+                "body": _prepare_body(plans, vin),
             }
         response = await _write_prepare_plans(coordinator, entry, vin, plans, call)
         return {"success": True, "plans": plans, "response": response}
@@ -362,7 +363,13 @@ def async_setup_services(hass: HomeAssistant) -> None:
                 f"Chery Europe preparation command failed: {exc}"
             ) from exc
         if not response.get("ok"):
-            message = response.get("message") or response.get("code")
+            code = response.get("code")
+            if code == TSP_CODE_ASLEEP:
+                raise CheryEuropeCommandError(
+                    "Chery Europe preparation command failed: the car is asleep; "
+                    "wake it (open the app or unlock the car) and retry"
+                )
+            message = response.get("message") or code
             raise CheryEuropeCommandError(
                 f"Chery Europe preparation command failed: {message}"
             )
@@ -387,11 +394,13 @@ def async_setup_services(hass: HomeAssistant) -> None:
             unread_only=call.data[ATTR_UNREAD_ONLY],
         )
 
-    def _prepare_body(plans: list[dict[str, Any]]) -> dict[str, Any]:
+    def _prepare_body(
+        plans: list[dict[str, Any]], vin: str = ""
+    ) -> dict[str, Any]:
         """Build the payload without sending it (dry-run helper)."""
         from .vehicle_commands import build_travel_appoint_body
 
-        return build_travel_appoint_body({"plans": plans})
+        return build_travel_appoint_body({"plans": plans, "vin": vin})
 
     if not hass.services.has_service(DOMAIN, SERVICE_SEND_COMMAND):
         hass.services.async_register(

@@ -279,14 +279,57 @@ def build_prepare_plan_entry(plan: dict[str, Any]) -> dict[str, Any]:
     return entry
 
 
-def build_travel_appoint_body(values: dict[str, Any]) -> dict[str, Any]:
-    """Build the nested body for the scheduled cabin/battery preparation.
+def _clock_parts(travel_time: Any) -> tuple[str, str]:
+    """Split ``HH:MM`` into the hour/minute strings the app sends."""
+    text = str(travel_time or "").strip()
+    hour, _, minute = text.partition(":")
+    if not hour.isdigit():
+        return "", ""
+    return str(int(hour)), str(int(minute)) if minute.isdigit() else "0"
 
-    ``values["plans"]`` is the complete plan list: the car replaces the stored
-    plans with what is sent, so callers must pass every plan they want to keep.
+
+def build_travel_appoint_body(values: dict[str, Any]) -> dict[str, Any]:
+    """Build the ``appointmentTravel`` body exactly as the app does.
+
+    The APK class ``CVAppointGoParam`` serialises ``vin``, ``mainSwitcher``,
+    the plan list under ``appointmentTravelSetVOS`` (each entry carrying
+    ``travelTime``, ``hour``, ``minute``, ``mainSwitcher`` and ``cycleData``),
+    a second list under ``appointmentTravelAOS`` (``mainSwitcher``,
+    ``travelTime``, ``vin``) plus ``swi`` and the two async timeouts.  The list
+    replaces whatever the car stored, so callers must pass every plan.
     """
     plans = values.get("plans") or []
-    return {"preparePlans": [build_prepare_plan_entry(plan) for plan in plans]}
+    vin = str(values.get("vin") or "")
+    set_vos: list[dict[str, Any]] = []
+    aos: list[dict[str, Any]] = []
+    armed = False
+    for plan in plans:
+        travel_time = str(plan.get("travel_time") or "").strip()
+        hour, minute = _clock_parts(travel_time)
+        enabled = bool(plan.get("enabled", True))
+        armed = armed or enabled
+        set_vos.append(
+            {
+                "travelTime": travel_time,
+                "hour": hour,
+                "minute": minute,
+                "mainSwitcher": "1" if enabled else "0",
+                "cycleData": [str(day) for day in plan.get("days") or []],
+            }
+        )
+        if enabled:
+            aos.append(
+                {"mainSwitcher": "1", "travelTime": travel_time, "vin": vin}
+            )
+    return {
+        "vin": vin,
+        "mainSwitcher": "1" if armed else "0",
+        "appointmentTravelSetVOS": set_vos,
+        "appointmentTravelAOS": aos,
+        "swi": "1",
+        "firstAsyncTimeOut": "35",
+        "secondAsyncTimeOut": "35",
+    }
 
 
 COMMAND_SPECS: dict[str, VehicleCommandSpec] = {
