@@ -110,10 +110,10 @@
         "name": "Bateria — prąd"
       },
       "fuel_level": {
-        "name": "Pozostałe paliwo"
+        "name": "Paliwo — poziom"
       },
       "range": {
-        "name": "Zasięg"
+        "name": "Zasięg — łączny"
       },
       "tire_pressure_front_left": {
         "name": "Koło przednie lewe — ciśnienie"
@@ -128,25 +128,25 @@
         "name": "Koło tylne prawe — ciśnienie"
       },
       "odometer": {
-        "name": "Przebieg"
+        "name": "Przebieg — łączny"
       },
       "electric_range": {
-        "name": "Zasięg elektryczny"
+        "name": "Zasięg — elektryczny"
       },
       "electric_odometer": {
-        "name": "Przebieg na prądzie"
+        "name": "Przebieg — elektryczny"
       },
       "vehicle_speed": {
-        "name": "Prędkość pojazdu"
+        "name": "Pojazd — prędkość"
       },
       "fuel_range": {
-        "name": "Zasięg na paliwie"
+        "name": "Zasięg — paliwo"
       },
       "power_consumption": {
-        "name": "Zużycie prądu"
+        "name": "Energia — zużycie"
       },
       "fuel_consumption": {
-        "name": "Spalanie"
+        "name": "Paliwo — spalanie"
       },
       "remain_charge_time": {
         "name": "Ładowanie — pozostały czas"
@@ -180,22 +180,22 @@
         "name": "Pojazd — zdjęcie"
       },
       "climate_min_temperature": {
-        "name": "Minimalna temperatura klimatyzacji"
+        "name": "Klimatyzacja — temperatura min."
       },
       "climate_max_temperature": {
-        "name": "Maksymalna temperatura klimatyzacji"
+        "name": "Klimatyzacja — temperatura maks."
       },
       "last_data_update": {
-        "name": "Ostatnie pobranie danych"
+        "name": "Diagnostyka — ostatnie pobranie"
       },
       "command_status": {
-        "name": "Wynik komendy"
+        "name": "Diagnostyka — wynik komendy"
       },
       "wake_status": {
-        "name": "Wynik wybudzenia"
+        "name": "Diagnostyka — wynik wybudzenia"
       },
       "probe_status": {
-        "name": "Wynik odczytu pozycji"
+        "name": "Diagnostyka — wynik pozycji"
       },
       "tire_temperature_front_left": {
         "name": "Koło przednie lewe — temperatura"
@@ -210,10 +210,10 @@
         "name": "Koło tylne prawe — temperatura"
       },
       "prepare_plans": {
-        "name": "Zaplanowane przygotowanie"
+        "name": "Wyjazd — plany"
       },
       "prepare_next_departure": {
-        "name": "Następny wyjazd"
+        "name": "Wyjazd — następny"
       },
       "alerts": {
         "name": "Alarmy"
@@ -230,52 +230,52 @@
     },
     "binary_sensor": {
       "online": {
-        "name": "Online"
+        "name": "Pojazd — online"
       },
       "charging": {
-        "name": "Ładowanie"
+        "name": "Ładowanie — trwa"
       },
       "appointment_charging": {
-        "name": "Ładowanie — zaplanowane"
+        "name": "Ładowanie — plan"
       },
       "charge_gun_connected": {
-        "name": "Kabel ładowania podłączony"
+        "name": "Ładowanie — kabel podłączony"
       },
       "fast_charge_gun_connected": {
-        "name": "Szybka ładowarka podłączona"
+        "name": "Ładowanie — szybka ładowarka"
       },
       "engine": {
-        "name": "Silnik"
+        "name": "Pojazd — silnik"
       },
       "high_voltage": {
-        "name": "Układ wysokiego napięcia"
+        "name": "Bateria — wysokie napięcie"
       },
       "air_purification": {
-        "name": "Oczyszczanie powietrza"
+        "name": "Klimatyzacja — oczyszczanie powietrza"
       },
       "door_front_left": {
-        "name": "Drzwi przednie lewe"
+        "name": "Drzwi — przednie lewe"
       },
       "door_front_right": {
-        "name": "Drzwi przednie prawe"
+        "name": "Drzwi — przednie prawe"
       },
       "door_rear_left": {
-        "name": "Drzwi tylne lewe"
+        "name": "Drzwi — tylne lewe"
       },
       "door_rear_right": {
-        "name": "Drzwi tylne prawe"
+        "name": "Drzwi — tylne prawe"
       },
       "window_front_left": {
-        "name": "Szyba przednia lewa"
+        "name": "Szyba — przednia lewa"
       },
       "window_front_right": {
-        "name": "Szyba przednia prawa"
+        "name": "Szyba — przednia prawa"
       },
       "window_rear_left": {
-        "name": "Szyba tylna lewa"
+        "name": "Szyba — tylna lewa"
       },
       "window_rear_right": {
-        "name": "Szyba tylna prawa"
+        "name": "Szyba — tylna prawa"
       }
     },
     "switch": {
@@ -283,73 +283,79 @@
         "name": "Szyba przednia — ogrzewanie"
       },
       "front_windshield_defrost": {
-        "name": "Szyba przednia — odmrażanie (nawiew)"
+        "name": "Szyba przednia — odmrażanie"
       },
       "air_purification": {
-        "name": "Oczyszczanie powietrza"
+        "name": "Klimatyzacja — oczyszczanie powietrza"
       },
       "rear_window_defrost": {
         "name": "Szyba tylna — ogrzewanie"
       },
       "steering_wheel_heating": {
-        "name": "Ogrzewanie kierownicy"
+        "name": "Kierownica — ogrzewanie"
       },
       "driver_seat_heating": {
-        "name": "Ogrzewanie fotela kierowcy"
+        "name": "Fotel kierowcy — ogrzewanie"
       },
       "passenger_seat_heating": {
-        "name": "Ogrzewanie fotela pasażera"
+        "name": "Fotel pasażera — ogrzewanie"
       },
       "driver_seat_ventilation": {
-        "name": "Wentylacja fotela kierowcy"
+        "name": "Fotel kierowcy — wentylacja"
       },
       "passenger_seat_ventilation": {
-        "name": "Wentylacja fotela pasażera"
+        "name": "Fotel pasażera — wentylacja"
       },
       "rear_left_seat_heating": {
-        "name": "Ogrzewanie fotela tylnego lewego"
+        "name": "Fotel tylny lewy — ogrzewanie"
       },
       "rear_right_seat_heating": {
-        "name": "Ogrzewanie fotela tylnego prawego"
+        "name": "Fotel tylny prawy — ogrzewanie"
       },
       "rear_left_seat_ventilation": {
-        "name": "Wentylacja fotela tylnego lewego"
+        "name": "Fotel tylny lewy — wentylacja"
       },
       "rear_right_seat_ventilation": {
-        "name": "Wentylacja fotela tylnego prawego"
+        "name": "Fotel tylny prawy — wentylacja"
       },
       "charging": {
-        "name": "Ładowanie"
+        "name": "Ładowanie — start"
       },
       "scheduled_charging": {
-        "name": "Ładowanie — zaplanowane"
+        "name": "Ładowanie — plan"
       },
       "automatic_updates": {
-        "name": "Aktualizacje automatyczne"
+        "name": "Aktualizacje — automatyczne"
       },
       "heat_everything": {
-        "name": "Grzej wszystko"
+        "name": "Klimatyzacja — grzej wszystko"
       },
       "cool_everything": {
-        "name": "Chłodź wszystko"
+        "name": "Klimatyzacja — chłodź wszystko"
       },
       "theft_alarm": {
-        "name": "Alarm antykradzieżowy"
+        "name": "Alarmy — antykradzieżowy"
+      },
+      "departure": {
+        "name": "Wyjazd — start"
       }
     },
     "time": {
       "charge_start_time": {
-        "name": "Godzina rozpoczęcia ładowania"
+        "name": "Ładowanie — godzina startu"
+      },
+      "departure_time": {
+        "name": "Godzina wyjazdu"
       }
     },
     "number": {
       "charge_duration_hours": {
-        "name": "Czas trwania ładowania"
+        "name": "Ładowanie — czas trwania"
       }
     },
     "lock": {
       "doors": {
-        "name": "Drzwi"
+        "name": "Drzwi — zamek"
       }
     },
     "climate": {
@@ -364,7 +370,7 @@
     },
     "select": {
       "windows": {
-        "name": "Szyby",
+        "name": "Szyby — wszystkie",
         "state": {
           "closed": "Zamknięte",
           "vent": "Wentylacja",
@@ -372,7 +378,7 @@
         }
       },
       "sunroof": {
-        "name": "Szyberdach",
+        "name": "Szyberdach — pozycja",
         "state": {
           "closed": "Zamknięty",
           "tilt": "Uchylony",
@@ -382,19 +388,19 @@
     },
     "button": {
       "locate": {
-        "name": "Zlokalizuj"
+        "name": "Pozycja — zlokalizuj"
       },
       "find_car": {
-        "name": "Znajdź auto"
+        "name": "Pojazd — znajdź"
       },
       "wake": {
-        "name": "Wybudź auto"
+        "name": "Pojazd — wybudź"
       },
       "refresh_position": {
-        "name": "Odśwież pozycję"
+        "name": "Pozycja — odśwież"
       },
       "refresh_full_status": {
-        "name": "Odśwież pełny status"
+        "name": "Diagnostyka — odśwież status"
       }
     },
     "device_tracker": {

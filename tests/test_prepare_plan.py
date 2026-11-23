@@ -7,9 +7,13 @@ from datetime import datetime, timezone
 import pytest
 
 from custom_components.chery_europe.prepare_plan import (
+    DEFAULT_DEPARTURE_TIME,
+    DEPARTURE_PLAN_NAME,
     MAX_PLANS,
     build_plan,
+    departure_plan_update,
     disable_plan,
+    find_plan_by_name,
     merge_plan,
     next_departure,
     next_run,
@@ -17,6 +21,7 @@ from custom_components.chery_europe.prepare_plan import (
     normalize_temperature,
     normalize_travel_time,
     parse_plans,
+    repeat_for_days,
     travel_minutes,
     validate_plans,
 )
@@ -220,3 +225,75 @@ def test_parse_plans_accepts_a_bare_list_and_a_single_plan() -> None:
     assert wrapped is not None and [plan["name"] for plan in wrapped] == ["Work"]
     listed = parse_plans({"data": [single, {"nope": 1}]})
     assert listed is not None and len(listed) == 1
+
+
+def test_find_plan_by_name_is_case_insensitive_and_tolerates_none() -> None:
+    plan = _plan(name="Wyjazd")
+    assert find_plan_by_name([plan]) is plan
+    assert find_plan_by_name([plan], "  wyjazd ") is plan
+    assert find_plan_by_name(None) is None
+    assert find_plan_by_name([_plan(name="Praca")]) is None
+
+
+@pytest.mark.parametrize(
+    ("days", "expected"),
+    [
+        (None, "daily"),
+        ([], "daily"),
+        ([1, 2, 3, 4, 5, 6, 7], "daily"),
+        ([1, 2, 3, 4, 5], "workdays"),
+        ([6, 7], "weekend"),
+        ([2, 4], "custom"),
+    ],
+)
+def test_repeat_for_days_maps_the_day_list_to_the_plan_mode(days, expected) -> None:
+    assert repeat_for_days(days) == expected
+
+
+def test_departure_plan_update_creates_the_managed_plan_only_when_armed() -> None:
+    plans = [_plan(name="Praca", travel_time="18:00")]
+
+    created = departure_plan_update(plans, "07:30", enabled=True)
+
+    departure = find_plan_by_name(created)
+    assert departure is not None
+    assert departure["travel_time"] == "07:30"
+    assert departure["enabled"] is True
+    assert departure["name"] == DEPARTURE_PLAN_NAME
+    # The owner's other plans survive the rewrite, because the car replaces the
+    # whole list on every command.
+    assert created[0]["name"] == "Praca"
+    assert len(created) == 2
+
+
+def test_departure_plan_update_moves_the_time_and_keeps_the_features() -> None:
+    plans = [_plan(name=DEPARTURE_PLAN_NAME, travel_time="07:30", temperature=21)]
+    plans[0]["plan_id"] = "plan-1"
+    plans[0]["features"]["steering_wheel_heat"] = True
+    plans.append(_plan(name="Praca", travel_time="18:00"))
+
+    updated = departure_plan_update(plans, "06:15", enabled=True)
+
+    departure = find_plan_by_name(updated)
+    assert departure["plan_id"] == "plan-1"
+    assert departure["travel_time"] == "06:15"
+    assert departure["features"]["steering_wheel_heat"] is True
+    assert len(updated) == len(plans)
+
+
+def test_departure_plan_update_disables_instead_of_dropping_the_plan() -> None:
+    plans = [_plan(name=DEPARTURE_PLAN_NAME, travel_time=DEFAULT_DEPARTURE_TIME)]
+    plans[0]["plan_id"] = "plan-1"
+
+    updated = departure_plan_update(plans, "07:30", enabled=False)
+
+    departure = find_plan_by_name(updated)
+    assert departure is not None
+    assert departure["enabled"] is False
+
+
+def test_departure_plan_update_rejects_a_time_next_to_another_plan() -> None:
+    plans = [_plan(name="Praca", travel_time="07:35")]
+
+    with pytest.raises(ValueError):
+        departure_plan_update(plans, "07:30", enabled=True)

@@ -157,6 +157,7 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
         self._permissions_loaded = False
         self._mqtt_siblings: list = []
         self.charge_start_minutes = 480
+        self.departure_draft: str | None = None
         self.charge_duration_hours = 6
         self.poll_enabled = True
         self._mqtt: CheryEuropeMqttClient | None = None

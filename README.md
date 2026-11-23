@@ -60,6 +60,8 @@ or diagnostics.
 - Selects: windows (closed / vent / open), sunroof (closed / tilt / open)
 - Charging: start/stop, scheduled charging (time + duration entities)
 - Scheduled **cabin/battery preparation** (departure time, repeat, temperature, battery/steering wheel/seat heating, defrost)
+- **Departure time** — a configuration `time` entity for the next departure, plus a **Departure start**
+  switch that arms or disarms it without touching your other plans
 - Buttons: locate, find car, **wake vehicle**, **refresh position**, **refresh full status**
 
 **Operations**
@@ -230,6 +232,24 @@ The same data is exposed as two read-only sensors: **Scheduled preparation**
 (enabled plan count, full plan list in the attributes) and **Next departure**.
 Plans are re-read at most once an hour, so a short polling interval does not
 multiply the requests sent to your account.
+
+#### Departure time and departure switch
+
+Two entities drive the plan the integration manages itself, so a daily
+departure needs no service call:
+
+- **Departure time** (`time`, configuration) — reads the time of the plan named
+  `Wyjazd`, or the default `07:30` when that plan does not exist yet.
+- **Departure start** (`switch`) — `on` while the plan is armed, `off` when it is
+  deactivated.
+
+Changing the time only keeps a local draft until the switch is turned on; that
+is deliberate, because a `time` value has to exist before a plan can be created.
+Turning the switch on sends the plan to the car, turning it off clears the
+`enabled` flag (the car will not let an armed plan be deleted). Both actions send
+the whole plan list, so your other plans are preserved, and a departure closer
+than 20 minutes to another plan is rejected with a message instead of being
+written.
 
 #### `chery_europe.get_messages`
 

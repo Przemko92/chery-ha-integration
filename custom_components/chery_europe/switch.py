@@ -16,6 +16,7 @@ from .command_exec import async_send_vehicle_command
 from .const import SWITCH
 from .coordinator import CheryEuropeDataUpdateCoordinator
 from .data import SEAT_LEVEL_FIELDS, CheryData
+from .departure import async_set_departure, departure_state
 from .entity import (
     CheryEuropeEntity,
     async_remove_unsupported,
@@ -27,6 +28,13 @@ from .entity import (
 )
 
 PARALLEL_UPDATES = 0
+
+DEPARTURE_SWITCH_DESCRIPTION = SwitchEntityDescription(
+    key="departure",
+    name="Departure",
+    translation_key="departure",
+    icon="mdi:car-clock",
+)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -197,6 +205,8 @@ async def async_setup_entry(
             entities.append(CheryEuropeChargeSwitch(coordinator, entry))
         if keep_feature(perms, "scheduled_charging", f"{vin}_scheduled_charging", removed):
             entities.append(CheryEuropeScheduledChargeSwitch(coordinator, entry))
+        if keep_feature(perms, "departure", f"{vin}_departure", removed):
+            entities.append(CheryEuropeDepartureSwitch(coordinator, entry))
         entities.append(CheryEuropePollingSwitch(coordinator, entry))
     async_remove_unsupported(hass, SWITCH, removed)
     async_add_entities(entities)
@@ -515,4 +525,34 @@ class CheryEuropeScheduledChargeSwitch(CheryEuropeEntity, SwitchEntity, RestoreE
             duration_hours=self.coordinator.charge_duration_hours,
         )
         self._optimistic = None
+        self.async_write_ha_state()
+
+
+class CheryEuropeDepartureSwitch(CheryEuropeEntity, SwitchEntity):
+    """Arm the managed preparation plan so the car leaves at that time."""
+
+    def __init__(
+        self,
+        coordinator: CheryEuropeDataUpdateCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the departure switch."""
+        super().__init__(coordinator, DEPARTURE_SWITCH_DESCRIPTION, entry)
+        self._attr_unique_id = stable_unique_id(
+            entry, DEPARTURE_SWITCH_DESCRIPTION.key, coordinator
+        )
+
+    @property
+    def is_on(self) -> bool:
+        """Return whether the departure plan is armed."""
+        return departure_state(self.coordinator)[1]
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Arm the departure plan, creating it from the configured time."""
+        await async_set_departure(self.coordinator, self._entry, enabled=True)
+        self.async_write_ha_state()
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Disarm the departure plan without deleting it."""
+        await async_set_departure(self.coordinator, self._entry, enabled=False)
         self.async_write_ha_state()

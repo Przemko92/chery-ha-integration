@@ -136,45 +136,112 @@ LEGACY_ENTITY_KEYS = ("last_message", "messages_content", "messages_history")
 
 # Entity ids are generated from the translated name only once, when the entity is
 # first registered, so a renamed translation leaves the old slug behind forever.
-# (unique_id suffix, old slug, new slug)
+# (domain, unique_id suffix, old slug, new slug)
+# Unique-id suffixes that differ from the translation key of their entity.
+UID_TRANSLATION_KEYS = {"charging_switch": "charging"}
+
 ENTITY_ID_RENAMES = (
-    ("alerts_content", "tresc_alarmow", "alarmy_tresc"),
-    ("messages_unread", "nieprzeczytane_wiadomosci", "wiadomosci_nieprzeczytane"),
-    ("tire_pressure_front_left", "cisnienie_przedniej_lewej_opony", "kolo_przednie_lewe_cisnienie"),
-    ("tire_pressure_front_right", "cisnienie_przedniej_prawej_opony", "kolo_przednie_prawe_cisnienie"),
-    ("tire_pressure_rear_left", "cisnienie_tylnej_lewej_opony", "kolo_tylne_lewe_cisnienie"),
-    ("tire_pressure_rear_right", "cisnienie_tylnej_prawej_opony", "kolo_tylne_prawe_cisnienie"),
-    ("tire_temperature_front_left", "temperatura_przedniej_lewej_opony", "kolo_przednie_lewe_temperatura"),
-    ("tire_temperature_front_right", "temperatura_przedniej_prawej_opony", "kolo_przednie_prawe_temperatura"),
-    ("tire_temperature_rear_left", "temperatura_tylnej_lewej_opony", "kolo_tylne_lewe_temperatura"),
-    ("tire_temperature_rear_right", "temperatura_tylnej_prawej_opony", "kolo_tylne_prawe_temperatura"),
-    ("battery_level", "poziom_baterii", "bateria_poziom"),
-    ("battery_voltage_v", "napiecie_baterii_trakcyjnej", "bateria_napiecie"),
-    ("battery_current_a", "prad_baterii_trakcyjnej", "bateria_prad"),
-    ("charging_power_kw", "moc_ladowania", "ladowanie_moc"),
-    ("remain_charge_time", "pozostaly_czas_ladowania", "ladowanie_pozostaly_czas"),
-    ("charge_status", "stan_ladowania", "ladowanie_stan"),
-    ("appointment_charge_status", "stan_zaplanowanego_ladowania", "ladowanie_stan_zaplanowany"),
-    ("vehicle_nickname", "nazwa_pojazdu", "pojazd_nazwa"),
-    ("vehicle_full_name", "model_pojazdu", "pojazd_model"),
-    ("vehicle_color", "kolor_pojazdu", "pojazd_kolor"),
-    ("vehicle_picture", "zdjecie_pojazdu", "pojazd_zdjecie"),
-    ("front_windshield_heating", "ogrzewanie_przedniej_szyby", "szyba_przednia_ogrzewanie"),
-    ("front_windshield_defrost", "odmrazanie_przedniej_szyby_nawiew", "szyba_przednia_odmrazanie_nawiew"),
-    ("rear_window_defrost", "ogrzewanie_tylnej_szyby", "szyba_tylna_ogrzewanie"),
-    ("scheduled_charging", "zaplanowane_ladowanie", "ladowanie_zaplanowane"),
-    ("appointment_charging", "zaplanowane_ladowanie", "ladowanie_zaplanowane"),
+    # Messages and alarms.
+    ("sensor", "alerts_content", "tresc_alarmow", "alarmy_tresc"),
+    ("sensor", "messages_unread", "nieprzeczytane_wiadomosci", "wiadomosci_nieprzeczytane"),
+    # Wheels.
+    ("sensor", "tire_pressure_front_left", "cisnienie_przedniej_lewej_opony", "kolo_przednie_lewe_cisnienie"),
+    ("sensor", "tire_pressure_front_right", "cisnienie_przedniej_prawej_opony", "kolo_przednie_prawe_cisnienie"),
+    ("sensor", "tire_pressure_rear_left", "cisnienie_tylnej_lewej_opony", "kolo_tylne_lewe_cisnienie"),
+    ("sensor", "tire_pressure_rear_right", "cisnienie_tylnej_prawej_opony", "kolo_tylne_prawe_cisnienie"),
+    ("sensor", "tire_temperature_front_left", "temperatura_przedniej_lewej_opony", "kolo_przednie_lewe_temperatura"),
+    ("sensor", "tire_temperature_front_right", "temperatura_przedniej_prawej_opony", "kolo_przednie_prawe_temperatura"),
+    ("sensor", "tire_temperature_rear_left", "temperatura_tylnej_lewej_opony", "kolo_tylne_lewe_temperatura"),
+    ("sensor", "tire_temperature_rear_right", "temperatura_tylnej_prawej_opony", "kolo_tylne_prawe_temperatura"),
+    # Battery.
+    ("sensor", "battery_level", "poziom_baterii", "bateria_poziom"),
+    ("sensor", "battery_voltage_v", "napiecie_baterii_trakcyjnej", "bateria_napiecie"),
+    ("sensor", "battery_current_a", "prad_baterii_trakcyjnej", "bateria_prad"),
+    ("binary_sensor", "high_voltage", "uklad_wysokiego_napiecia", "bateria_wysokie_napiecie"),
+    # Charging.
+    ("sensor", "charging_power_kw", "moc_ladowania", "ladowanie_moc"),
+    ("sensor", "remain_charge_time", "pozostaly_czas_ladowania", "ladowanie_pozostaly_czas"),
+    ("sensor", "charge_status", "stan_ladowania", "ladowanie_stan"),
+    ("sensor", "appointment_charge_status", "stan_zaplanowanego_ladowania", "ladowanie_stan_zaplanowany"),
+    ("binary_sensor", "charging", "ladowanie", "ladowanie_trwa"),
+    ("binary_sensor", "charge_gun_connected", "kabel_ladowania_podlaczony", "ladowanie_kabel_podlaczony"),
+    ("binary_sensor", "fast_charge_gun_connected", "szybka_ladowarka_podlaczona", "ladowanie_szybka_ladowarka"),
+    ("switch", "charging_switch", "ladowanie", "ladowanie_start"),
+    ("switch", "scheduled_charging", "zaplanowane_ladowanie", "ladowanie_plan"),
+    ("switch", "scheduled_charging", "ladowanie_zaplanowane", "ladowanie_plan"),
+    ("binary_sensor", "appointment_charging", "zaplanowane_ladowanie", "ladowanie_plan"),
+    ("binary_sensor", "appointment_charging", "ladowanie_zaplanowane", "ladowanie_plan"),
+    ("time", "charge_start_time", "godzina_rozpoczecia_ladowania", "ladowanie_godzina_startu"),
+    ("number", "charge_duration_hours", "czas_trwania_ladowania", "ladowanie_czas_trwania"),
+    # Vehicle.
+    ("sensor", "vehicle_nickname", "nazwa_pojazdu", "pojazd_nazwa"),
+    ("sensor", "vehicle_full_name", "model_pojazdu", "pojazd_model"),
+    ("sensor", "vehicle_color", "kolor_pojazdu", "pojazd_kolor"),
+    ("sensor", "vehicle_picture", "zdjecie_pojazdu", "pojazd_zdjecie"),
+    ("binary_sensor", "online", "online", "pojazd_online"),
+    ("binary_sensor", "engine", "silnik", "pojazd_silnik"),
+    # Climate.
+    ("binary_sensor", "air_purification", "oczyszczanie_powietrza", "klimatyzacja_oczyszczanie_powietrza"),
+    ("switch", "air_purification", "oczyszczanie_powietrza", "klimatyzacja_oczyszczanie_powietrza"),
+    ("sensor", "climate_min_temperature", "minimalna_temperatura_klimatyzacji", "klimatyzacja_temperatura_min"),
+    ("sensor", "climate_max_temperature", "maksymalna_temperatura_klimatyzacji", "klimatyzacja_temperatura_maks"),
+    ("switch", "heat_everything", "grzej_wszystko", "klimatyzacja_grzej_wszystko"),
+    ("switch", "cool_everything", "chlodz_wszystko", "klimatyzacja_chlodz_wszystko"),
+    # Windows.
+    ("switch", "front_windshield_heating", "ogrzewanie_przedniej_szyby", "szyba_przednia_ogrzewanie"),
+    ("switch", "front_windshield_defrost", "odmrazanie_przedniej_szyby_nawiew", "szyba_przednia_odmrazanie"),
+    ("switch", "front_windshield_defrost", "szyba_przednia_odmrazanie_nawiew", "szyba_przednia_odmrazanie"),
+    ("switch", "rear_window_defrost", "ogrzewanie_tylnej_szyby", "szyba_tylna_ogrzewanie"),
+    ("select", "windows", "szyby", "szyby_wszystkie"),
+    ("select", "sunroof", "szyberdach", "szyberdach_pozycja"),
+    # Doors, seats and steering wheel.
+    ("lock", "doors", "drzwi", "drzwi_zamek"),
+    ("switch", "steering_wheel_heating", "ogrzewanie_kierownicy", "kierownica_ogrzewanie"),
+    ("switch", "driver_seat_heating", "ogrzewanie_fotela_kierowcy", "fotel_kierowcy_ogrzewanie"),
+    ("switch", "passenger_seat_heating", "ogrzewanie_fotela_pasazera", "fotel_pasazera_ogrzewanie"),
+    ("switch", "driver_seat_ventilation", "wentylacja_fotela_kierowcy", "fotel_kierowcy_wentylacja"),
+    ("switch", "passenger_seat_ventilation", "wentylacja_fotela_pasazera", "fotel_pasazera_wentylacja"),
+    ("switch", "rear_left_seat_heating", "ogrzewanie_fotela_tylnego_lewego", "fotel_tylny_lewy_ogrzewanie"),
+    ("switch", "rear_right_seat_heating", "ogrzewanie_fotela_tylnego_prawego", "fotel_tylny_prawy_ogrzewanie"),
+    ("switch", "rear_left_seat_ventilation", "wentylacja_fotela_tylnego_lewego", "fotel_tylny_lewy_wentylacja"),
+    ("switch", "rear_right_seat_ventilation", "wentylacja_fotela_tylnego_prawego", "fotel_tylny_prawy_wentylacja"),
+    # Alarms.
+    ("switch", "theft_alarm", "alarm_antykradziezowy", "alarmy_antykradziezowy"),
+    # Departures.
+    ("sensor", "prepare_plans", "zaplanowane_przygotowanie", "wyjazd_plany"),
+    ("sensor", "prepare_next_departure", "nastepny_wyjazd", "wyjazd_nastepny"),
+    # Buttons.
+    ("button", "locate", "zlokalizuj", "pozycja_zlokalizuj"),
+    ("button", "refresh_position", "odswiez_pozycje", "pozycja_odswiez"),
+    ("button", "find_car", "znajdz_auto", "pojazd_znajdz"),
+    ("button", "wake", "wybudz_auto", "pojazd_wybudz"),
+    ("button", "refresh_full_status", "odswiez_pelny_status", "diagnostyka_odswiez_status"),
+    ("button", "refresh_full_status", "status_odswiez", "diagnostyka_odswiez_status"),
+    # Ranges, consumption and diagnostics.
+    ("sensor", "fuel_level", "pozostale_paliwo", "paliwo_poziom"),
+    ("sensor", "range", "zasieg", "zasieg_laczny"),
+    ("sensor", "fuel_range", "zasieg_na_paliwie", "zasieg_paliwo"),
+    ("sensor", "odometer", "przebieg", "przebieg_laczny"),
+    ("sensor", "electric_odometer", "przebieg_na_pradzie", "przebieg_elektryczny"),
+    ("sensor", "fuel_consumption", "spalanie", "paliwo_spalanie"),
+    ("sensor", "power_consumption", "zuzycie_pradu", "energia_zuzycie"),
+    ("sensor", "vehicle_speed", "predkosc_pojazdu", "pojazd_predkosc"),
+    ("sensor", "vehicle_speed", "predkosc", "pojazd_predkosc"),
+    ("sensor", "last_data_update", "ostatnie_pobranie_danych", "diagnostyka_ostatnie_pobranie"),
+    ("sensor", "command_status", "wynik_komendy", "diagnostyka_wynik_komendy"),
+    ("sensor", "wake_status", "wynik_wybudzenia", "diagnostyka_wynik_wybudzenia"),
+    ("sensor", "probe_status", "wynik_odczytu_pozycji", "diagnostyka_wynik_pozycji"),
 )
 
 
 def async_rename_entity_ids(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Move entity ids still carrying an old translated slug to the current one."""
     registry = er.async_get(hass)
-    for key, old_slug, new_slug in ENTITY_ID_RENAMES:
+    for domain, key, old_slug, new_slug in ENTITY_ID_RENAMES:
         for entity in er.async_entries_for_config_entry(registry, entry.entry_id):
-            if not entity.unique_id.endswith(f"_{key}"):
+            if entity.domain != domain or not entity.unique_id.endswith(f"_{key}"):
                 continue
-            domain, _, object_id = entity.entity_id.partition(".")
+            object_id = entity.entity_id.partition(".")[2]
             if not object_id.endswith(old_slug) or object_id.endswith(new_slug):
                 continue
             new_id = f"{domain}.{object_id[: -len(old_slug)]}{new_slug}"
