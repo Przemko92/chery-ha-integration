@@ -158,6 +158,15 @@ API_TRAVEL_APPOINT_QUERY_FALLBACKS = (
     "/asd/travelAppointManage/queryTravelAppoint",
 )
 TRAVEL_APPOINT_ENDPOINT = "travelAppointControl"
+# The control command does not live under /asc/vehicleControl like the rest of
+# the command set: the appointment service ("asd") owns the write as well as the
+# read, so the module that answered prepareQuery is tried first. A wrong path
+# comes back as HTTP 404, which is what the switch used to report.
+API_TRAVEL_APPOINT_CONTROL_PATHS: tuple[str, ...] = (
+    "/asd/prepareManage/travelAppointControl",
+    "/asd/prepareManage/prepareControl",
+    "/asc/vehicleControl/travelAppointControl",
+)
 # Preparation plans are read at most this often, whatever the poll interval,
 # so a 1-minute HV poll does not multiply the API calls.
 PREPARE_POLL_INTERVAL = timedelta(minutes=60)
@@ -166,7 +175,9 @@ PREPARE_POLL_INTERVAL = timedelta(minutes=60)
 # ``{"pageNo": n, "pageSize": n}``.
 API_MESSAGES_PAGING_PATH = "/api/message/v1/message/inbox/inboxs/C/pagingToC"
 API_MESSAGES_UNREAD_PATH = "/api/message/v1/message/inbox/inboxs/C/getUnread"
-API_MESSAGES_UPDATE_READ_PATH = "/api/message/v1/message/inbox/inboxs/C/updateStatusToRead"
+API_MESSAGES_UPDATE_READ_PATH = (
+    "/api/message/v1/message/inbox/inboxs/C/updateStatusToRead"
+)
 DEFAULT_MESSAGES_PAGE_SIZE = 10
 # The inbox costs one extra request pair, so it is read at most this often even
 # when the vehicle itself is polled every minute.

@@ -12,8 +12,8 @@ import pytest
 
 pytest.importorskip("homeassistant")
 
-from custom_components.chery_europe.api import MAX_RETRIES, CheryEuropeApi  # noqa: E402
-from custom_components.chery_europe.exceptions import (  # noqa: E402
+from custom_components.chery_europe.api import MAX_RETRIES, CheryEuropeApi
+from custom_components.chery_europe.exceptions import (
     CheryEuropeAuthError,
     CheryEuropeConnectionError,
 )
@@ -472,7 +472,6 @@ async def test_ensure_fresh_token_skips_when_not_needed():
     assert await api.ensure_fresh_token() is False
 
 
-
 @pytest.mark.asyncio
 @pytest.mark.parametrize("status", [401, 424])
 async def test_tsp_rejected_session_relogins_and_retries_once(status):
@@ -511,3 +510,90 @@ async def test_tsp_still_rejected_after_relogin_raises():
     with pytest.raises(CheryEuropeAuthError):
         await api.get_vehicle_status(vin="TESTVIN")
     assert session.request_count == 3
+
+
+@pytest.mark.asyncio
+async def test_mark_messages_read_posts_an_empty_body_to_the_inbox():
+    """The read call hits updateStatusToRead once with an empty JSON body."""
+    session = _Session(
+        payload={"code": 0, "msg": "operation.successful", "data": True, "ok": True}
+    )
+    api = _api(_auth(), session)
+
+    assert await api.mark_messages_read() is True
+
+    method, url, kwargs = session.last_call
+    assert method == "POST"
+    assert url.endswith("/message/inbox/inboxs/C/updateStatusToRead")
+    assert kwargs["json"] == {}
+    assert session.request_count == 1
+
+
+@pytest.mark.asyncio
+async def test_mark_messages_read_rejects_a_cloud_error_code():
+    """A non-zero cloud code is reported as failure, not swallowed as success."""
+    session = _Session(payload={"code": "9999", "msg": "denied", "data": True})
+    api = _api(_auth(), session)
+
+    assert await api.mark_messages_read() is False
+
+
+@pytest.mark.asyncio
+async def test_mark_messages_read_reports_a_missing_data_flag():
+    """``data: false`` means the cloud did nothing, so the caller must know."""
+    session = _Session(payload={"code": 0, "msg": "ok", "data": False})
+    api = _api(_auth(), session)
+
+    assert await api.mark_messages_read() is False
+
+
+@pytest.mark.asyncio
+async def test_travel_appointment_control_falls_back_past_404(monkeypatch):
+    """A 404 on the first control path must not fail the switch.
+
+    The appointment service answers prepareQuery under /asd, so the write is
+    tried there before the /asc/vehicleControl prefix that the rest of the
+    command set uses. The path that worked is cached for later calls.
+    """
+    api = _api(_auth(), _Session())
+    tried: list[str] = []
+
+    async def _fake_send(vin, pin, endpoint, body, *, path=None, **kwargs):
+        tried.append(path)
+        if path == "/asd/prepareManage/travelAppointControl":
+            raise CheryEuropeConnectionError(
+                "Chery Europe request failed with status 404"
+            )
+        return {"code": 0, "data": True}
+
+    monkeypatch.setattr(api, "_send_vehicle_control", _fake_send)
+
+    result = await api.send_travel_appointment("VIN", "1234", [])
+
+    assert result["ok"] is True
+    assert tried[0] == "/asd/prepareManage/travelAppointControl"
+    assert tried[1].startswith("/asd/")
+    assert api._travel_control_path == tried[1]
+
+    # The discovered path is used first on the next command.
+    tried.clear()
+    await api.send_travel_appointment("VIN", "1234", [])
+    assert tried == [api._travel_control_path]
+
+
+@pytest.mark.asyncio
+async def test_travel_appointment_control_does_not_retry_other_errors(monkeypatch):
+    """Only a 404 means "wrong module"; a real failure is raised immediately."""
+    api = _api(_auth(), _Session())
+    tried: list[str] = []
+
+    async def _fake_send(vin, pin, endpoint, body, *, path=None, **kwargs):
+        tried.append(path)
+        raise CheryEuropeConnectionError("connection reset")
+
+    monkeypatch.setattr(api, "_send_vehicle_control", _fake_send)
+
+    with pytest.raises(CheryEuropeConnectionError):
+        await api.send_travel_appointment("VIN", "1234", [])
+
+    assert len(tried) == 1

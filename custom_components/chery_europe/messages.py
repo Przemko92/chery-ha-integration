@@ -142,7 +142,9 @@ def message_time(message: dict[str, Any]) -> str | None:
 
 def message_line(message: dict[str, Any]) -> str:
     """Render ``date — title: text`` for one message on a single line."""
-    return " — ".join(part for part in (message_time(message), message_text(message)) if part)
+    return " — ".join(
+        part for part in (message_time(message), message_text(message)) if part
+    )
 
 
 def messages_content(messages: Iterable[dict[str, Any]]) -> str:
@@ -185,6 +187,19 @@ def unread_count(messages: Iterable[dict[str, Any]]) -> int:
 def unread_messages(messages: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
     """Return only the unread messages, newest first."""
     return [m for m in messages if not m.get("read", True)]
+
+
+def mark_all_read(
+    messages: Iterable[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], int]:
+    """Flag every message as read; return the list and how many changed."""
+    flagged: list[dict[str, Any]] = []
+    changed = 0
+    for message in messages:
+        flagged.append({**message, "read": True})
+        if message.get("read", True) is False:
+            changed += 1
+    return flagged, changed
 
 
 def sort_messages(messages: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:

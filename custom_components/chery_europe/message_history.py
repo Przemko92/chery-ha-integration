@@ -25,6 +25,7 @@ from .const import (
     MESSAGES_STORE_KEY,
     MESSAGES_STORE_VERSION,
 )
+from .messages import mark_all_read as flag_all_read
 from .messages import merge_messages, sort_messages
 
 _LOGGER = logging.getLogger(__name__)
@@ -108,6 +109,13 @@ class MessageHistory:
         """Record that the complete inbox has been imported once."""
         self._backfilled_at = stamp or datetime.now(UTC).isoformat()
         self._dirty = True
+
+    def mark_all_read(self) -> int:
+        """Flag every stored message as read; return how many changed."""
+        self._messages, changed = flag_all_read(self._messages)
+        if changed:
+            self._dirty = True
+        return changed
 
     async def async_save(self) -> None:
         """Persist the history and refresh the JSON export when it changed."""

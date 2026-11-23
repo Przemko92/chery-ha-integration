@@ -9,6 +9,7 @@ import pytest
 from custom_components.chery_europe.data import CheryData, apply_messages
 from custom_components.chery_europe.messages import (
     last_message_attributes,
+    mark_all_read,
     merge_messages,
     message_line,
     message_text,
@@ -269,6 +270,10 @@ class FakeHistory:
     def mark_backfilled(self, stamp=None):
         self._backfilled_at = stamp or "now"
 
+    def mark_all_read(self):
+        self._messages, changed = mark_all_read(self._messages)
+        return changed
+
     async def async_save(self):
         self.saved += 1
 
@@ -449,6 +454,74 @@ def test_message_sensors_expose_count_unread_and_last_message():
     unread = sensors["messages_unread"].extra_state_attributes
     assert unread["unread_count"] == 1
     assert unread["unread"][0].startswith("2026-11-19")
+
+
+def test_mark_all_read_flags_every_unread_message():
+    """Flagging the inbox flips only the unread entries and counts them."""
+    messages = [{"id": 1, "read": False}, {"id": 2, "read": True}, {"id": 3}]
+
+    flagged, changed = mark_all_read(messages)
+
+    assert changed == 1
+    assert all(message.get("read") for message in flagged)
+    assert messages[0]["read"] is False
+    assert "read" not in messages[2]
+
+
+def test_mark_all_read_leaves_a_read_inbox_untouched():
+    """A second press on an already read inbox changes nothing."""
+    messages = [{"id": 1, "read": True}]
+
+    flagged, changed = mark_all_read(messages)
+
+    assert changed == 0
+    assert flagged == messages
+
+
+def test_coordinator_mark_messages_read_clears_the_unread_entities():
+    """The button clears the cloud inbox, the history and the sensors."""
+
+    async def mark_messages_read():
+        return True
+
+    coordinator = _coordinator(fetch=lambda *a, **k: PAGE)
+    coordinator.api.mark_messages_read = mark_messages_read
+    coordinator._message_history = FakeHistory([{"id": 1001, "read": False}])
+    coordinator.data = apply_messages(
+        CheryData(vin="VIN"),
+        [{"id": 1001, "read": False}],
+        total=1,
+        unread=True,
+        unread_count=1,
+        polled_at="2026-11-23T10:00:00+00:00",
+    )
+    published: list[CheryData] = []
+    coordinator.async_set_updated_data = published.append
+
+    assert asyncio.run(coordinator.async_mark_messages_read()) is True
+
+    assert coordinator._message_history.messages[0]["read"] is True
+    assert coordinator._message_history.saved == 1
+    assert published[-1].messages_unread is False
+    assert published[-1].messages_unread_count == 0
+
+
+def test_coordinator_mark_messages_read_keeps_the_inbox_on_rejection():
+    """A refused cloud call leaves the history and the entities alone."""
+
+    async def mark_messages_read():
+        return False
+
+    coordinator = _coordinator(fetch=lambda *a, **k: PAGE)
+    coordinator.api.mark_messages_read = mark_messages_read
+    history = FakeHistory([{"id": 1001, "read": False}])
+    coordinator._message_history = history
+    coordinator.data = CheryData(vin="VIN")
+    coordinator.async_set_updated_data = lambda data: pytest.fail("published")
+
+    assert asyncio.run(coordinator.async_mark_messages_read()) is False
+    assert history.messages[0]["read"] is False
+    assert history.saved == 0
 
 
 def test_messages_page_slices_the_stored_history():
