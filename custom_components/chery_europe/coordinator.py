@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from dataclasses import replace
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -21,7 +21,6 @@ from .const import (
     DEFAULT_POLL_CHARGING_MIN,
     DEFAULT_POLL_HV_MIN,
     DEFAULT_POLL_NORMAL_MIN,
-    DEFAULT_SCAN_INTERVAL,
     DEFAULT_SESSION_KEEPALIVE,
     DOMAIN,
     DRIVE_WATCH_INTERVAL,
@@ -89,6 +88,7 @@ def _payload_vin(payload: dict) -> str | None:
         if value not in (None, ""):
             return str(value)
     return None
+
 
 _CONTROL_STATE_FIELDS = (
     "is_locked",
@@ -394,7 +394,7 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
         """
         if not data.vin:
             return data
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         last = self._prepare_polled_at
         if last is not None and now - last < PREPARE_POLL_INTERVAL:
             return data
@@ -409,9 +409,7 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
             return data
         if plans is None:
             return data
-        return apply_travel_appointment(
-            data, plans, polled_at=now.isoformat()
-        )
+        return apply_travel_appointment(data, plans, polled_at=now.isoformat())
 
     def invalidate_prepare_cache(self) -> None:
         """Force the next update to re-read the plans after we wrote them."""
@@ -462,7 +460,7 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
         rescan, at most once per ``MESSAGES_RESCAN_INTERVAL``.  A failed read
         keeps the stored history and the last state.
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         last = self._messages_polled_at
         if last is not None and now - last < MESSAGES_POLL_INTERVAL:
             return data
@@ -504,7 +502,11 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
                 _LOGGER.debug("Unread messages flag unavailable: %s", exc)
 
         local_unread = unread_count(history.messages)
-        if unread is not None and bool(local_unread) != unread and self._may_rescan(now):
+        if (
+            unread is not None
+            and bool(local_unread) != unread
+            and self._may_rescan(now)
+        ):
             _LOGGER.debug(
                 "Unread flag (%s) disagrees with the stored history (%s); "
                 "re-reading the inbox",
@@ -559,6 +561,43 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
             "backfilled_at": history.backfilled_at,
             "messages": items[start : start + page_size],
         }
+
+    async def async_mark_messages_read(self) -> bool:
+        """Mark the inbox read in the cloud and in the stored history.
+
+        Everything here is user triggered: one cloud call per button press,
+        then the local history is flagged in place so the unread entities drop
+        to zero right away instead of waiting for the next message poll.
+        """
+        mark = getattr(self.api, "mark_messages_read", None)
+        if mark is None:
+            return False
+        try:
+            accepted = await mark()
+        except Exception as exc:  # noqa: BLE001
+            _LOGGER.debug("Marking the inbox read failed: %s", exc)
+            return False
+        if not accepted:
+            return False
+        history = self._message_history or self._create_message_history()
+        await history.async_load()
+        if history.mark_all_read():
+            await history.async_save()
+        data = self.data
+        if data is None:
+            return True
+        self.async_set_updated_data(
+            apply_messages(
+                data,
+                history.messages,
+                total=data.messages_total,
+                unread=False,
+                unread_count=unread_count(history.messages),
+                polled_at=data.messages_polled_at,
+                backfilled_at=history.backfilled_at,
+            )
+        )
+        return True
 
     def _create_message_history(self) -> MessageHistory:
         """Build the on-disk message history for this config entry."""
@@ -635,16 +674,14 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
             response = await self.api.send_command(vin, "ve_1209", pin)
             if not response.get("ok"):
                 message = response.get("message") or response.get("code")
-                raise CheryEuropeCommandError(
-                    f"Chery Europe command failed: {message}"
-                )
+                raise CheryEuropeCommandError(f"Chery Europe command failed: {message}")
             self._update_status(wake_status="Wake request sent ✅")
             self.schedule_location_refresh()
             self.schedule_refresh_after_command()
         except CheryEuropeException as exc:
             self._update_status(wake_status=f"Wake failed ❌: {exc}")
             raise
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             self._update_status(wake_status=f"Wake failed ❌: {exc}")
             raise HomeAssistantError("Failed to wake Chery Europe vehicle") from exc
 
@@ -664,17 +701,13 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
             response = await self.api.send_command(vin, "ve_1209", pin)
             if not response.get("ok"):
                 message = response.get("message") or response.get("code")
-                raise CheryEuropeCommandError(
-                    f"Chery Europe command failed: {message}"
-                )
+                raise CheryEuropeCommandError(f"Chery Europe command failed: {message}")
             self.schedule_location_refresh()
-            self._update_status(
-                probe_status="Locate sent — waiting for GPS fix… ⏳"
-            )
+            self._update_status(probe_status="Locate sent — waiting for GPS fix… ⏳")
         except CheryEuropeException as exc:
             self._update_status(probe_status=f"Position read failed ❌: {exc}")
             raise
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             self._update_status(probe_status=f"Position read failed ❌: {exc}")
             raise HomeAssistantError("Failed to read Chery Europe position") from exc
 
@@ -703,9 +736,7 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
             )
             if not response.get("ok"):
                 message = response.get("message") or response.get("code")
-                raise CheryEuropeCommandError(
-                    f"Chery Europe command failed: {message}"
-                )
+                raise CheryEuropeCommandError(f"Chery Europe command failed: {message}")
 
             got = False
             for _ in range(6):
@@ -729,7 +760,7 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
         except CheryEuropeException as exc:
             self._update_status(probe_status=f"Full refresh failed ❌: {exc}")
             raise
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             self._update_status(probe_status=f"Full refresh failed ❌: {exc}")
             raise HomeAssistantError("Failed to refresh Chery Europe status") from exc
 
@@ -793,13 +824,17 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
     def _handle_mqtt_payload(self, service: str, payload: dict) -> None:
         self.hass.loop.call_soon_threadsafe(self._apply_mqtt_payload, service, payload)
 
-    def _apply_mqtt_payload(self, service: str, payload: dict, *, routed: bool = False) -> None:
+    def _apply_mqtt_payload(
+        self, service: str, payload: dict, *, routed: bool = False
+    ) -> None:
         if self.data is None:
             return
         incoming = _payload_vin(payload)
         if not routed and incoming and self._mqtt_siblings:
             for sibling in self._mqtt_siblings:
-                target = sibling.vin_filter or (sibling.data.vin if sibling.data else None)
+                target = sibling.vin_filter or (
+                    sibling.data.vin if sibling.data else None
+                )
                 if target == incoming:
                     sibling._apply_mqtt_payload(service, payload, routed=True)
                     return
@@ -882,12 +917,15 @@ class CheryEuropeRuntime:
     def last_update_success(self) -> bool | None:
         if not self.coordinators:
             return None
-        return all(getattr(item, "last_update_success", False) for item in self.coordinators)
+        return all(
+            getattr(item, "last_update_success", False) for item in self.coordinators
+        )
 
     @property
     def last_update_success_time(self):
         times = [
-            getattr(item, "last_update_success_time", None) for item in self.coordinators
+            getattr(item, "last_update_success_time", None)
+            for item in self.coordinators
         ]
         present = [item for item in times if item is not None]
         return max(present) if present else None

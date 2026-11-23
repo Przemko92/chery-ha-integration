@@ -3,22 +3,23 @@ import inspect
 import json
 import logging
 import time
-from collections.abc import Awaitable, Callable
-from typing import Any, Mapping
+from collections.abc import Awaitable, Callable, Mapping
+from typing import Any
 
 import aiohttp
 
 from .auth import CheryEuropeAuth
 from .const import (
+    API_CHARGE_APPOINT_QUERY_PATH,
     API_CPM_CHECK_PASSWORD_PATH,
     API_MESSAGES_PAGING_PATH,
     API_MESSAGES_UNREAD_PATH,
+    API_MESSAGES_UPDATE_READ_PATH,
     API_QUERY_LOCATION_PATH,
-    API_CHARGE_APPOINT_QUERY_PATH,
     API_REALTIME_PATH,
-    API_TRAVEL_APPOINT_QUERY_FALLBACKS,
-    API_TRAVEL_APPOINT_QUERY_PATH,
     API_THEFT_QUERY_PATH,
+    API_TRAVEL_APPOINT_CONTROL_PATHS,
+    API_TRAVEL_APPOINT_QUERY_FALLBACKS,
     API_TSP_LOGIN_PATH,
     API_VMC_QUERY_AUTHORITY_PATH,
     API_VMC_QUERY_LIST_PATH,
@@ -33,29 +34,30 @@ from .const import (
     TSP_CODE_OK,
 )
 from .crypto import encrypt_command_pin
-from .signing import SIGN_SECRET, get_identity_headers
-from .tsp_sign import auth_headers, sign_body
-from .vehicle_commands import (
-    COMMAND_SPECS,
-    build_travel_appoint_body,
-    command_result,
-)
-from .permissions import UNKNOWN, adapt_command, normalize_permissions
 from .data import (
     parse_charge_appointment,
     parse_theft_alarm,
     parse_travel_appointment,
 )
-from .messages import parse_unread_messages
-from .request_queue import ApiRequestQueue, command_interval_key
 from .exceptions import (
     CheryEuropeAuthError,
+    CheryEuropeCommandError,
     CheryEuropeConnectionError,
     CheryEuropeRateLimitError,
     CheryEuropeTimeoutError,
 )
+from .messages import parse_unread_messages
+from .permissions import UNKNOWN, adapt_command, normalize_permissions
+from .request_queue import ApiRequestQueue, command_interval_key
+from .signing import SIGN_SECRET, get_identity_headers
+from .tsp_sign import auth_headers, sign_body
 from .types.auth_models import AuthResponse
 from .types.vehicle_models import VehicleStatus
+from .vehicle_commands import (
+    COMMAND_SPECS,
+    build_travel_appoint_body,
+    command_result,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -192,9 +194,7 @@ class CheryEuropeApi:
             return None
         return parse_charge_appointment(response)
 
-    async def query_travel_appointment(
-        self, vin: str
-    ) -> list[dict[str, Any]] | None:
+    async def query_travel_appointment(self, vin: str) -> list[dict[str, Any]] | None:
         """Return the scheduled cabin/battery preparation plans.
 
         ``None`` means the query failed or the car did not answer, so callers
@@ -254,14 +254,40 @@ class CheryEuropeApi:
 
         The body is the whole list — the car replaces what is stored — so the
         caller must pass every plan that should survive, disabled ones too.
+        The write path is discovered once (HTTP 404 means "not this module")
+        and then cached for the rest of the session.
         """
         body = build_travel_appoint_body({"plans": plans})
         perms = self._permissions if permissions is None else permissions
         endpoint, body = adapt_command(TRAVEL_APPOINT_ENDPOINT, body, perms)
-        response = await self._send_vehicle_control(
-            vin=vin, pin=pin, endpoint=endpoint, body=body
+        last_error: Exception | None = None
+        for path in self._travel_control_paths():
+            try:
+                response = await self._send_vehicle_control(
+                    vin=vin, pin=pin, endpoint=endpoint, body=body, path=path
+                )
+            except CheryEuropeConnectionError as exc:
+                if "status 404" not in str(exc):
+                    raise
+                _LOGGER.debug("Travel appointment control path %s is 404", path)
+                last_error = exc
+                continue
+            if getattr(self, "_travel_control_path", None) != path:
+                _LOGGER.debug("Travel appointment control path is %s", path)
+                self._travel_control_path = path
+            return command_result(response)
+        raise last_error or CheryEuropeCommandError(
+            "No travel appointment control endpoint answered"
         )
-        return command_result(response)
+
+    def _travel_control_paths(self) -> list[str]:
+        """Return the control paths to try, the known-good one first."""
+        cached = getattr(self, "_travel_control_path", None)
+        paths = list(API_TRAVEL_APPOINT_CONTROL_PATHS)
+        if cached and cached in paths:
+            paths.remove(cached)
+            paths.insert(0, cached)
+        return paths
 
     async def query_theft_alarm(self, vin: str) -> bool | None:
         """Return the theft-alarm switch, or None when the car did not answer."""
@@ -324,6 +350,31 @@ class CheryEuropeApi:
             _LOGGER.debug("Unread messages query failed: %s", exc)
             return None
         return parse_unread_messages(response)
+
+    async def mark_messages_read(self) -> bool:
+        """Mark the whole inbox as read; ``True`` when the cloud accepted it.
+
+        ``updateStatusToRead`` flips every entry in one shot -- an ``id`` in
+        the body is accepted but not needed, and the response carries
+        ``data: true`` on success.  The call is user triggered only; polling
+        must never touch it so the account stays well below the rate limits.
+        """
+        await self._ensure_tsp_session()
+        try:
+            response = await self._request(
+                "POST", API_MESSAGES_UPDATE_READ_PATH, json={}
+            )
+        except Exception as exc:  # noqa: BLE001
+            _LOGGER.debug("Marking the inbox read failed: %s", exc)
+            return False
+        if not isinstance(response, dict):
+            return False
+        if response.get("code") not in (TSP_CODE_OK, 0, "0", None):
+            _LOGGER.debug(
+                "Marking the inbox read returned code %s", response.get("code")
+            )
+            return False
+        return bool(response.get("data", True))
 
     async def _tsp_query_payload(self, path: str, vin: str) -> dict[str, Any] | None:
         """Return a tspconsole dict payload, or None when the vehicle is asleep."""
@@ -573,7 +624,7 @@ class CheryEuropeApi:
                 _post,
                 command_key=command_interval_key(path, params),
             )
-        except asyncio.TimeoutError as exc:
+        except TimeoutError as exc:
             raise CheryEuropeTimeoutError("Chery Europe TSP request timed out") from exc
         except aiohttp.ClientConnectionError as exc:
             raise CheryEuropeConnectionError(
@@ -699,7 +750,7 @@ class CheryEuropeApi:
 
         try:
             return await self._request_queue.execute(_send)
-        except asyncio.TimeoutError as exc:
+        except TimeoutError as exc:
             raise CheryEuropeTimeoutError("Chery Europe API request timed out") from exc
         except aiohttp.ClientConnectionError as exc:
             raise CheryEuropeConnectionError(

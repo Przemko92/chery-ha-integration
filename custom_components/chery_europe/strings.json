@@ -401,6 +401,9 @@
       },
       "refresh_full_status": {
         "name": "Diagnostics refresh status"
+      },
+      "message_read": {
+        "name": "Message read"
       }
     },
     "device_tracker": {

@@ -62,7 +62,7 @@ or diagnostics.
 - Scheduled **cabin/battery preparation** (departure time, repeat, temperature, battery/steering wheel/seat heating, defrost)
 - **Departure time** — a configuration `time` entity for the next departure, plus a **Departure start**
   switch that arms or disarms it without touching your other plans
-- Buttons: locate, find car, **wake vehicle**, **refresh position**, **refresh full status**
+- Buttons: locate, find car, **wake vehicle**, **refresh position**, **refresh full status**, **message read** (configuration, marks the whole Chery inbox read on demand)
 
 **Operations**
 - MQTT push (live updates when the vehicle is online)

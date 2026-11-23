@@ -401,6 +401,9 @@
       },
       "refresh_full_status": {
         "name": "Diagnostyka odśwież status"
+      },
+      "message_read": {
+        "name": "Wiadomość przeczytana"
       }
     },
     "device_tracker": {

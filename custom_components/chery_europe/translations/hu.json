@@ -392,6 +392,9 @@
       },
       "refresh_full_status": {
         "name": "Teljes állapot frissítése"
+      },
+      "message_read": {
+        "name": "Üzenet olvasott"
       }
     },
     "device_tracker": {
