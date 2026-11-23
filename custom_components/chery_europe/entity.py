@@ -148,9 +148,24 @@ def async_remove_legacy_entities(hass: HomeAssistant, entry: ConfigEntry) -> Non
             registry.async_remove(entity.entity_id)
 
 
+def async_device_by_identifier(
+    registry: dr.DeviceRegistry, identifier: str, entry_id: str | None
+) -> dr.DeviceEntry | None:
+    """Look a device up by its identifier, scoped to the config entry.
+
+    ``async_get_device(identifiers=...)`` is deprecated because identifiers are
+    no longer unique across config entries.  Keep the old call only as a
+    fallback for Home Assistant versions without the scoped lookup.
+    """
+    lookup = getattr(registry, "async_get_device_by_identifier", None)
+    if lookup is not None:
+        return lookup(identifier, DOMAIN, config_entry_id=entry_id)
+    return registry.async_get_device(identifiers={(DOMAIN, identifier)})
+
+
 def _rename_device(hass: HomeAssistant, entry: ConfigEntry, vin: str) -> None:
     registry = dr.async_get(hass)
-    device = registry.async_get_device(identifiers={(DOMAIN, vin)})
+    device = async_device_by_identifier(registry, vin, entry.entry_id)
     if device is None:
         return
     identifiers = {
