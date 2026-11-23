@@ -165,10 +165,14 @@ data:
   enabled: true  # optional; false disables the schedule
 ```
 
+The charging duration follows a 15 minute grid in the **1.5 h–24 h** range — the
+car rejects shorter windows, so both the `number` entity and the service enforce
+that bound.
+
 #### `chery_europe.set_prepare_plan`
 
 Create or update a scheduled **cabin/battery preparation** plan — the same
-feature as *Zaplanowane wstępne przygotowanie kabiny* in the official app. The
+feature the official app exposes as *scheduled pre-conditioning*. The
 car pre-conditions the cabin (and optionally the traction battery) so it is
 ready at your departure time.
 
@@ -233,24 +237,26 @@ The same data is exposed as two read-only sensors: **Scheduled preparation**
 Plans are re-read at most once an hour, so a short polling interval does not
 multiply the requests sent to your account.
 
-#### Departure time and departure switch
+#### Departure time and the departure switches
 
-Two entities drive the plan the integration manages itself, so a daily
-departure needs no service call:
+Nine configuration entities drive the plan the integration manages itself, so a
+daily departure needs no service call:
 
-- **Departure time** (`time`, configuration, `time.wyjazd_godzina`) — reads the
-  time of the plan named `Wyjazd`, or the default `07:30` when that plan does not
-  exist yet.
-- **Departure plan** (`switch`, configuration, `switch.wyjazd_plan`) — `on` while the plan is
-  armed, `off` when it is deactivated.
+- **Departure time** (`time`, `time.chery_*_departure_time`) — reads the time of
+  the plan named `Wyjazd`, or the default `07:30` when that plan does not exist yet.
+- **Departure plan** (`switch`, `switch.chery_*_departure_plan`) — `on` while the
+  plan is armed, `off` when it is deactivated.
+- **Departure plan Monday … Sunday** (seven `switch` entities,
+  `switch.chery_*_departure_plan_monday` …) — the weekdays the plan repeats on.
 
-Changing the time only keeps a local draft until the switch is turned on; that
-is deliberate, because a `time` value has to exist before a plan can be created.
-Turning the switch on sends the plan to the car, turning it off clears the
-`enabled` flag (the car will not let an armed plan be deleted). Both actions send
-the whole plan list, so your other plans are preserved, and a departure closer
-than 20 minutes to another plan is rejected with a message instead of being
-written.
+Changing the time only keeps a local draft until the master switch is turned on;
+that is deliberate, because a `time` value has to exist before a plan can be
+created. Turning the switch on sends the plan to the car, turning it off clears
+the `enabled` flag (the car will not let an armed plan be deleted). Day switches
+write the weekday list through with every toggle and refuse to drop the last
+remaining day. Every action sends the whole plan list, so your other plans are
+preserved, and a departure closer than 20 minutes to another plan is rejected
+with a message instead of being written.
 
 #### `chery_europe.get_messages`
 
@@ -268,9 +274,8 @@ response_variable: inbox
 ```
 
 Everything lives in one entity: **Messages** shows the newest message as its state
-and keeps the growing list in the `history` attribute — oldest line first, newest
-last, capped (200 lines / 9000 characters) so the payload stays inside the recorder
-limit — while the whole history lives in `config/chery_messages.json` (keyed by VIN)
+and keeps the growing list in the `history` attribute — newest line first, capped
+(200 lines / 9000 characters) so the payload stays inside the recorder limit — while the whole history lives in `config/chery_messages.json` (keyed by VIN)
 and in the integration `.storage` file. The `messages` attribute keeps the last 10
 entries as structured dicts for templates.
 
@@ -468,11 +473,13 @@ response_variable: inbox
 # {{ inbox.total }}, {{ inbox.pages }}, {{ inbox.messages }}
 ```
 
-Najnowsze wiadomości są pierwsze. Encje celowo pozostają małe: **Wiadomości**
-niosą liczniki i ostatnie 20 wpisów, **Wiadomości – treść** pokazuje najnowszą
-wiadomość jako stan i trzyma narastającą listę w atrybucie `history` (najnowsze
-pierwsze, przycinana do limitu recordera), a cała historia leży
-w `config/chery_messages.json` (klucz: VIN) oraz w pliku `.storage` integracji.
+Wszystko mieści się w jednej encji: **Wiadomości** pokazują najnowszą wiadomość
+jako stan i trzymają narastającą listę w atrybucie `history` — najnowsze wpisy
+pierwsze, przycinana (200 linii / 9000 znaków), żeby payload został w limicie
+recordera — a obok stoi **Wiadomości nieprzeczytane** z licznikiem. Pełna historia
+leży w `config/chery_messages.json` (klucz: VIN) oraz w pliku `.storage`
+integracji; atrybut `messages` trzyma ostatnie 10 wpisów jako słowniki dla
+szablonów.
 
 #### `chery_europe.set_scheduled_charging`
 
@@ -485,6 +492,95 @@ data:
   duration_hours: 6
   enabled: true  # opcjonalnie; false wyłącza plan
 ```
+
+Czas ładowania przyjmuje siatkę 15 minut w zakresie **1,5 h–24 h** — auto odrzuca
+krótsze okna, więc encja `number` i usługa pilnują tej granicy.
+
+#### `chery_europe.set_prepare_plan`
+
+Tworzy albo aktualizuje plan **przygotowania kabiny/baterii** — funkcja, którą
+aplikacja oficjalna nazywa *zaplanowanym wstępnym przygotowaniem*. Auto dogrzewa
+lub schładza kabinę (opcjonalnie też baterię trakcyjną), żeby było gotowe na
+godzinę wyjazdu.
+
+```yaml
+action: chery_europe.set_prepare_plan
+data:
+  plan_name: "Praca"         # maks. 10 znaków, nazwa musi być unikalna
+  travel_time: "07:30"       # godzina wyjazdu, HH:MM
+  repeat: workdays           # daily | workdays | weekend | custom
+  # days: [1, 2, 3, 4, 5]    # tylko dla repeat: custom (1 = poniedziałek)
+  temperature: 22            # opcjonalnie, 16–32 °C
+  battery_heat: true         # opcjonalnie; dogrzanie baterii trakcyjnej
+  steering_wheel_heat: true  # opcjonalnie
+  driver_seat_heat: false    # opcjonalnie
+  front_defrost: true        # opcjonalnie
+  rear_defrost: false        # opcjonalnie
+```
+
+Dodaj `plan_id: "<id>"`, żeby edytować istniejący plan zamiast tworzyć nowy. Auto
+przyjmuje **najwyżej 5 planów**, nazwy do **10 znaków** i wyjazdy **co najmniej
+20 minut od siebie**; usługa odrzuca resztę, zanim odezwie się do auta.
+
+Dodaj `dry_run: true`, żeby tylko zbudować i zwrócić payload:
+
+```yaml
+action: chery_europe.set_prepare_plan
+data:
+  plan_name: "Test"
+  travel_time: "06:45"
+  battery_heat: true
+  dry_run: true
+response_variable: preview
+# {{ preview.body.preparePlans }}
+```
+
+#### `chery_europe.cancel_prepare_plan`
+
+Wyłącza plan. Auto wymaga, żeby plan był **najpierw dezaktywowany, a dopiero potem
+usunięty**, więc integracja czyści `enabled` i wszystkie flagi grzania, zamiast
+kasować wpis.
+
+```yaml
+action: chery_europe.cancel_prepare_plan
+data:
+  plan_id: "1234567890"
+```
+
+#### `chery_europe.list_prepare_plans`
+
+Czyta plany zapisane w aucie i zwraca je (jedno zapytanie, bez pełnego odświeżenia):
+
+```yaml
+action: chery_europe.list_prepare_plans
+response_variable: plans
+# {{ plans.plans }}, {{ plans.next_departure }}
+```
+
+Te same dane wystawia para sensorów tylko do odczytu: **Wyjazd plany** (liczba
+włączonych planów, pełna lista w atrybutach) oraz **Wyjazd następny**. Plany są
+odczytywane najwyżej raz na godzinę, więc krótki interwał pollingu nie mnoży
+zapytań do konta.
+
+#### Godzina i przełączniki wyjazdu
+
+Dziewięć encji konfiguracyjnych steruje planem, którym zarządza sama integracja,
+więc codzienny wyjazd nie wymaga wywołania usługi:
+
+- **Wyjazd godzina** (`time`, `time.wyjazd_godzina`) — czyta godzinę planu o nazwie
+  `Wyjazd` albo domyślne `07:30`, gdy takiego planu jeszcze nie ma.
+- **Wyjazd plan** (`switch`, `switch.wyjazd_plan`) — `on`, gdy plan jest uzbrojony,
+  `off`, gdy jest wyłączony.
+- **Wyjazd plan poniedziałek … niedziela** (siedem encji `switch`,
+  `switch.wyjazd_plan_poniedzialek` …) — dni tygodnia, w które plan się powtarza.
+
+Zmiana godziny trzyma tylko lokalny szkic do momentu włączenia głównego
+przełącznika; to celowe, bo wartość `time` musi istnieć, zanim powstanie plan.
+Włączenie przełącznika wysyła plan do auta, wyłączenie czyści flagę `enabled`
+(auto nie pozwoli usunąć uzbrojonego planu). Przełączniki dni zapisują listę dni
+przy każdym przełączeniu i nie pozwalają usunąć ostatniego dnia. Każda akcja
+wysyła całą listę planów, więc Twoje pozostałe plany zostają, a wyjazd bliższy niż
+20 minut od innego planu jest odrzucany komunikatem zamiast zapisu.
 
 #### `chery_europe.send_command`
 
