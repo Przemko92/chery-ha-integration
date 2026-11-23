@@ -628,7 +628,7 @@ def apply_command_feedback(data: CheryData, command_id: str, **kwargs: Any) -> C
             plan = build_charge_plan(
                 switch_status=1 if enabled else 0,
                 start_minutes=int(start_minutes or 480),
-                duration_hours=int(duration_hours or 6),
+                duration_hours=float(duration_hours or 6),
             )
             return replace(
                 data,

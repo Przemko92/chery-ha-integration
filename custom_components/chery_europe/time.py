@@ -129,7 +129,7 @@ class CheryEuropeChargeStartTime(CheryEuropeEntity, TimeEntity, RestoreEntity):
             command_id="ve_1202",
             enabled=bool(self.chery_data.scheduled_charge_enabled),
             start_minutes=local_time_to_minutes(new_value),
-            duration_hours=int(self.coordinator.charge_duration_hours),
+            duration_hours=float(self.coordinator.charge_duration_hours),
         )
         self._value = new_value
         self._sync_coordinator()
