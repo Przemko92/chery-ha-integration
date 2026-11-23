@@ -1083,3 +1083,36 @@ def test_vehicle_choices_hide_the_full_vin_and_split_duplicate_labels():
     assert "LVVDB21B0PD111111" not in choices[0][1]
     assert choices[0][1].endswith("(1111)")
     assert choices[1][1].endswith("(2222)")
+
+
+def test_parse_charge_appointment_unwraps_the_tspconsole_body():
+    """chargeAppointQuery answers {"code", "body"}, not {"data"}."""
+    enabled, plan = parse_charge_appointment(
+        {
+            "code": "000000",
+            "sign": "1TGBQ9PVC5JUTI5Z6MCEM0PLYBQ2DN/QQQ7+PSJELMI=",
+            "body": {
+                "mainSwitch": 0,
+                "vin": "LNNBBDEE1SD407504",
+                "id": 50056,
+                "chargeAppointPlans": [
+                    {
+                        "timeConsuming": 780,
+                        "chargeAppointMainId": 50056,
+                        "cycleData": [1, 2, 3, 4, 5, 6, 7],
+                        "startTime": 375,
+                        "id": 421517421,
+                        "switchStatus": 0,
+                    }
+                ],
+            },
+        }
+    )
+
+    assert enabled is False
+    assert plan is not None
+    assert plan["startTime"] == 375
+    assert plan["timeConsuming"] == 780
+    from custom_components.chery_europe.charge_schedule import plan_duration_hours
+
+    assert plan_duration_hours(plan) == 13
