@@ -49,6 +49,7 @@ or diagnostics.
 - Diagnostic vehicle metadata (nickname, model, colour, picture)
 - **Restore last-known values** after a Home Assistant restart
 - **Alerts** — a count plus the alert texts (tyre pressure, low traction battery, oil service, open doors/windows/trunk/sunroof)
+- **Messages** — the vehicle message inbox: total count, unread flag and the newest messages with their texts (read at most every 30 minutes, two cheap requests per read)
 
 **Remote control**
 - Lock/unlock, climate (16–30 °C), front/rear glass heating
@@ -311,6 +312,7 @@ PIN **nie** trafia do logów ani diagnostyki.
 - Metadane diagnostyczne pojazdu (nick, model, kolor, zdjęcie)
 - **Przywracanie ostatnich wartości** po restarcie Home Assistant
 - **Alarmy** — licznik i treść aktywnych alarmów (ciśnienie w oponach, niski poziom baterii trakcyjnej, serwis oleju, otwarte drzwi/okna/klapa bagażnika/szyberdach)
+- **Wiadomości** — skrzynka wiadomości z serwisu: łączna liczba, flaga nieprzeczytanych oraz treść najnowszych wiadomości (odczyt najwyżej co 30 minut, dwa tanie zapytania na odczyt)
 
 **Sterowanie zdalne**
 - Zamek, klimatyzacja (16–30 °C), ogrzewanie szyb

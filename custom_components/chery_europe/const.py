@@ -157,6 +157,16 @@ TRAVEL_APPOINT_ENDPOINT = "travelAppointControl"
 # Preparation plans are read at most this often, whatever the poll interval,
 # so a 1-minute HV poll does not multiply the API calls.
 PREPARE_POLL_INTERVAL = timedelta(minutes=60)
+# Vehicle message inbox (message centre).  The path carries the service name
+# (``message``) instead of ``tsp``; the app reads it with a POST body of
+# ``{"pageNo": n, "pageSize": n}``.
+API_MESSAGES_PAGING_PATH = "/api/message/v1/message/inbox/inboxs/C/pagingToC"
+API_MESSAGES_UNREAD_PATH = "/api/message/v1/message/inbox/inboxs/C/getUnread"
+API_MESSAGES_UPDATE_READ_PATH = "/api/message/v1/message/inbox/inboxs/C/updateStatusToRead"
+DEFAULT_MESSAGES_PAGE_SIZE = 10
+# The inbox costs one extra request pair, so it is read at most this often even
+# when the vehicle itself is polled every minute.
+MESSAGES_POLL_INTERVAL = timedelta(minutes=30)
 API_THEFT_QUERY_PATH = "/act/theftAlarm/querySwitch"
 API_THEFT_SET_PATH = "/act/theftAlarm/setSwitch"
 TSP_CODE_OK = "000000"

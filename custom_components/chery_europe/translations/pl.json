@@ -220,6 +220,12 @@
       },
       "alerts_content": {
         "name": "Treść alarmów"
+      },
+      "messages": {
+        "name": "Wiadomości"
+      },
+      "messages_content": {
+        "name": "Treść wiadomości"
       }
     },
     "binary_sensor": {
