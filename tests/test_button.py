@@ -34,15 +34,15 @@ def _message_read_entry():
     raise AssertionError("message_read missing from ACTION_BUTTONS")
 
 
-def test_message_read_button_is_a_configuration_action():
-    """The read button sits in configuration and calls the read coordinator method."""
+def test_message_read_button_is_a_regular_action():
+    """The read button is a normal control and calls the read coordinator method."""
     key, name, translation_key, icon, category, action_attr = _message_read_entry()
 
     assert key == "message_read"
     assert name == "Message read"
     assert translation_key == "message_read"
     assert icon == "mdi:email-open-outline"
-    assert category is EntityCategory.CONFIG
+    assert category is None
     assert action_attr == "async_mark_messages_read"
 
 

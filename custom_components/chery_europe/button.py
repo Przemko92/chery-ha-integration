@@ -44,7 +44,7 @@ ACTION_BUTTONS: tuple[tuple[str, str, str, str, EntityCategory | None, str], ...
         "Message read",
         "message_read",
         "mdi:email-open-outline",
-        EntityCategory.CONFIG,
+        None,
         "async_mark_messages_read",
     ),
 )
