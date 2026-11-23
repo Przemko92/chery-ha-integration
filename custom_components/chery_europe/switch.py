@@ -524,7 +524,7 @@ class CheryEuropeScheduledChargeSwitch(CheryEuropeEntity, SwitchEntity, RestoreE
         self.async_write_ha_state()
 
 
-class CheryEuropeDepartureSwitch(CheryEuropeEntity, SwitchEntity):
+class CheryEuropeDepartureSwitch(CheryEuropeEntity, SwitchEntity, RestoreEntity):
     """Arm the managed preparation plan so the car leaves at that time."""
 
     def __init__(
@@ -537,6 +537,17 @@ class CheryEuropeDepartureSwitch(CheryEuropeEntity, SwitchEntity):
         self._attr_unique_id = stable_unique_id(
             entry, DEPARTURE_SWITCH_DESCRIPTION.key, coordinator
         )
+
+    async def async_added_to_hass(self) -> None:
+        """Restore the last commanded arm state; the car cannot be read back."""
+        await super().async_added_to_hass()
+        last = await self.async_get_last_state()
+        if (
+            self.coordinator.departure_armed is None
+            and last is not None
+            and last.state in ("on", "off")
+        ):
+            self.coordinator.departure_armed = last.state == "on"
 
     @property
     def is_on(self) -> bool:

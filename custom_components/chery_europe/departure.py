@@ -23,6 +23,7 @@ from .data import apply_travel_appointment
 from .exceptions import CheryEuropeCommandError, CheryEuropeException
 from .pin import resolve_pin
 from .prepare_plan import (
+    DEFAULT_DEPARTURE_DAYS,
     DEFAULT_DEPARTURE_TIME,
     DEPARTURE_PLAN_NAME,
     departure_plan_update,
@@ -42,16 +43,37 @@ def prepare_plans_of(data: Any) -> list[dict[str, Any]] | None:
 def departure_state(
     coordinator: CheryEuropeDataUpdateCoordinator,
 ) -> tuple[str, bool]:
-    """Return the managed departure time and whether the plan is armed."""
+    """Return the managed departure time and whether the plan is armed.
+
+    The TSP exposes no read for ``appointmentTravel`` plans (``prepareQuery``
+    answers ``preparePlans: []`` even right after an accepted write), so the
+    plan the car reports can only be used when it is actually there. Otherwise
+    the last state Home Assistant commanded — kept on the coordinator and
+    restored by the entities — is the truth.
+    """
     plans = prepare_plans_of(coordinator.data) or []
     plan = find_plan_by_name(plans, DEPARTURE_PLAN_NAME)
-    travel_time = coordinator.departure_draft or DEFAULT_DEPARTURE_TIME
+    travel_time = getattr(coordinator, "departure_draft", None) or DEFAULT_DEPARTURE_TIME
     if plan and plan.get("travel_time"):
         try:
             travel_time = normalize_travel_time(plan["travel_time"])
         except ValueError:
             pass
-    return travel_time, bool(plan and plan.get("enabled"))
+        return travel_time, bool(plan.get("enabled"))
+    return travel_time, bool(getattr(coordinator, "departure_armed", None))
+
+
+def departure_days(coordinator: CheryEuropeDataUpdateCoordinator) -> list[int]:
+    """Return the weekdays the managed departure plan repeats on."""
+    plans = prepare_plans_of(coordinator.data) or []
+    plan = find_plan_by_name(plans, DEPARTURE_PLAN_NAME)
+    if plan and plan.get("days"):
+        return [int(day) for day in plan["days"]]
+    stored_days = getattr(coordinator, "departure_days", None)
+    if stored_days:
+        return [int(day) for day in stored_days]
+    return list(DEFAULT_DEPARTURE_DAYS)
+
 
 
 async def async_set_departure(
@@ -86,10 +108,16 @@ async def async_set_departure(
 
     if not plan_exists and not new_enabled:
         coordinator.departure_draft = new_time
+        coordinator.departure_armed = False
         return
 
     try:
-        updated = departure_plan_update(plans, new_time, enabled=new_enabled)
+        updated = departure_plan_update(
+            plans,
+            new_time,
+            enabled=new_enabled,
+            days=departure_days(coordinator),
+        )
     except ValueError as exc:
         raise HomeAssistantError(f"Cannot schedule the departure: {exc}") from exc
 
@@ -120,6 +148,8 @@ async def async_set_departure(
         )
 
     coordinator.departure_draft = new_time
+    coordinator.departure_armed = new_enabled
+    coordinator.departure_days = departure_days(coordinator)
     coordinator.invalidate_prepare_cache()
     coordinator.async_set_updated_data(
         apply_travel_appointment(data, updated, polled_at=datetime.now(UTC).isoformat())
