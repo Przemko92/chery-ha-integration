@@ -11,6 +11,7 @@ shows what the vehicle actually stored.
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from datetime import UTC, datetime
 from typing import Any
 
@@ -74,6 +75,34 @@ def departure_days(coordinator: CheryEuropeDataUpdateCoordinator) -> list[int]:
         return [int(day) for day in stored_days]
     return list(DEFAULT_DEPARTURE_DAYS)
 
+
+async def async_set_departure_days(
+    coordinator: CheryEuropeDataUpdateCoordinator,
+    entry: ConfigEntry,
+    *,
+    add: Iterable[int] = (),
+    remove: Iterable[int] = (),
+) -> None:
+    """Toggle weekdays of the managed departure plan and push the result.
+
+    The car stores the weekday list with the plan, and Home Assistant cannot
+    read it back, so the list is kept on the coordinator and written through
+    on every change. Removing the last remaining day is refused: a plan with
+    no weekday means nothing to the vehicle.
+    """
+    current = departure_days(coordinator)
+    dropped = {int(day) for day in remove}
+    days = sorted({day for day in current if day not in dropped} | {int(day) for day in add})
+    if not days:
+        raise HomeAssistantError(
+            "Wybierz co najmniej jeden dzień tygodnia dla planu wyjazdu"
+        )
+    coordinator.departure_days = days
+    try:
+        await async_set_departure(coordinator, entry)
+    except Exception:
+        coordinator.departure_days = current
+        raise
 
 
 async def async_set_departure(

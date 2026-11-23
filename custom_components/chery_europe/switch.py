@@ -16,7 +16,12 @@ from .command_exec import async_send_vehicle_command
 from .const import SWITCH
 from .coordinator import CheryEuropeDataUpdateCoordinator
 from .data import SEAT_LEVEL_FIELDS, CheryData
-from .departure import async_set_departure, departure_state
+from .departure import (
+    async_set_departure,
+    async_set_departure_days,
+    departure_days,
+    departure_state,
+)
 from .entity import (
     CheryEuropeEntity,
     async_remove_unsupported,
@@ -36,6 +41,81 @@ DEPARTURE_SWITCH_DESCRIPTION = SwitchEntityDescription(
     icon="mdi:car-clock",
     entity_category=EntityCategory.CONFIG,
 )
+
+#: One switch per weekday, so the departure plan can be limited per day.
+DEPARTURE_DAY_DESCRIPTIONS: tuple[tuple[int, SwitchEntityDescription], ...] = (
+    (
+        1,
+        SwitchEntityDescription(
+            key="departure_monday",
+            name="Departure plan Monday",
+            translation_key="departure_monday",
+            icon="mdi:calendar-today",
+            entity_category=EntityCategory.CONFIG,
+        ),
+    ),
+    (
+        2,
+        SwitchEntityDescription(
+            key="departure_tuesday",
+            name="Departure plan Tuesday",
+            translation_key="departure_tuesday",
+            icon="mdi:calendar-today",
+            entity_category=EntityCategory.CONFIG,
+        ),
+    ),
+    (
+        3,
+        SwitchEntityDescription(
+            key="departure_wednesday",
+            name="Departure plan Wednesday",
+            translation_key="departure_wednesday",
+            icon="mdi:calendar-today",
+            entity_category=EntityCategory.CONFIG,
+        ),
+    ),
+    (
+        4,
+        SwitchEntityDescription(
+            key="departure_thursday",
+            name="Departure plan Thursday",
+            translation_key="departure_thursday",
+            icon="mdi:calendar-today",
+            entity_category=EntityCategory.CONFIG,
+        ),
+    ),
+    (
+        5,
+        SwitchEntityDescription(
+            key="departure_friday",
+            name="Departure plan Friday",
+            translation_key="departure_friday",
+            icon="mdi:calendar-today",
+            entity_category=EntityCategory.CONFIG,
+        ),
+    ),
+    (
+        6,
+        SwitchEntityDescription(
+            key="departure_saturday",
+            name="Departure plan Saturday",
+            translation_key="departure_saturday",
+            icon="mdi:calendar-weekend",
+            entity_category=EntityCategory.CONFIG,
+        ),
+    ),
+    (
+        7,
+        SwitchEntityDescription(
+            key="departure_sunday",
+            name="Departure plan Sunday",
+            translation_key="departure_sunday",
+            icon="mdi:calendar-weekend",
+            entity_category=EntityCategory.CONFIG,
+        ),
+    ),
+)
+
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -208,6 +288,11 @@ async def async_setup_entry(
             entities.append(CheryEuropeScheduledChargeSwitch(coordinator, entry))
         if keep_feature(perms, "departure", f"{vin}_departure", removed):
             entities.append(CheryEuropeDepartureSwitch(coordinator, entry))
+        entities.extend(
+            CheryEuropeDepartureDaySwitch(coordinator, description, entry, day)
+            for day, description in DEPARTURE_DAY_DESCRIPTIONS
+            if keep_feature(perms, description.key, f"{vin}_{description.key}", removed)
+        )
         entities.append(CheryEuropePollingSwitch(coordinator, entry))
     async_remove_unsupported(hass, SWITCH, removed)
     async_add_entities(entities)
@@ -562,4 +647,41 @@ class CheryEuropeDepartureSwitch(CheryEuropeEntity, SwitchEntity, RestoreEntity)
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Disarm the departure plan without deleting it."""
         await async_set_departure(self.coordinator, self._entry, enabled=False)
+        self.async_write_ha_state()
+
+
+class CheryEuropeDepartureDaySwitch(CheryEuropeEntity, SwitchEntity):
+    """One weekday of the managed departure plan.
+
+    The weekday list travels with the plan on every write, so toggling a day
+    re-sends the whole plan (time, armed state and the new day list) to the car
+    and is refused when it would leave the plan with no day at all.
+    """
+
+    def __init__(
+        self,
+        coordinator: CheryEuropeDataUpdateCoordinator,
+        description: SwitchEntityDescription,
+        entry: ConfigEntry,
+        day: int,
+    ) -> None:
+        """Initialize the weekday switch."""
+        super().__init__(coordinator, description, entry)
+        self._day = day
+        self._attr_translation_key = description.translation_key
+        self._attr_unique_id = stable_unique_id(entry, description.key, coordinator)
+
+    @property
+    def is_on(self) -> bool:
+        """Return whether the departure plan repeats on this weekday."""
+        return self._day in departure_days(self.coordinator)
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Add this weekday to the plan and write it to the car."""
+        await async_set_departure_days(self.coordinator, self._entry, add=[self._day])
+        self.async_write_ha_state()
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Drop this weekday from the plan and write it to the car."""
+        await async_set_departure_days(self.coordinator, self._entry, remove=[self._day])
         self.async_write_ha_state()

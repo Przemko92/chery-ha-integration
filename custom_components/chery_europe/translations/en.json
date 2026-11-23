@@ -338,6 +338,27 @@
       },
       "departure": {
         "name": "Departure plan"
+      },
+      "departure_monday": {
+        "name": "Departure plan Monday"
+      },
+      "departure_tuesday": {
+        "name": "Departure plan Tuesday"
+      },
+      "departure_wednesday": {
+        "name": "Departure plan Wednesday"
+      },
+      "departure_thursday": {
+        "name": "Departure plan Thursday"
+      },
+      "departure_friday": {
+        "name": "Departure plan Friday"
+      },
+      "departure_saturday": {
+        "name": "Departure plan Saturday"
+      },
+      "departure_sunday": {
+        "name": "Departure plan Sunday"
       }
     },
     "time": {

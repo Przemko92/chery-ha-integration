@@ -195,3 +195,62 @@ async def test_arming_keeps_the_stored_weekdays() -> None:
     assert plan["days"] == [1, 2, 3, 4, 5]
     assert plan["enabled"] is True
     assert coordinator.departure_armed is True
+
+
+@pytest.mark.asyncio
+async def test_weekday_switch_adds_a_day_and_writes_the_plan(monkeypatch):
+    from custom_components.chery_europe import departure as departure_module
+    from custom_components.chery_europe.switch import (
+        DEPARTURE_DAY_DESCRIPTIONS,
+        CheryEuropeDepartureDaySwitch,
+    )
+
+    coordinator = _coordinator(draft="06:05", armed=True, days=[1, 3, 4, 5])
+    entry = SimpleNamespace(entry_id="entry-1", runtime_data=coordinator)
+    writes: list[list[int]] = []
+
+    async def _fake_set(coord, ent):
+        writes.append(list(coord.departure_days))
+
+    monkeypatch.setattr(departure_module, "async_set_departure", _fake_set)
+
+    entity = CheryEuropeDepartureDaySwitch(
+        coordinator, DEPARTURE_DAY_DESCRIPTIONS[1][1], entry, 2
+    )
+    assert entity.is_on is False
+    entity.async_write_ha_state = lambda: None
+
+    await entity.async_turn_on()
+
+    assert coordinator.departure_days == [1, 2, 3, 4, 5]
+    assert writes == [[1, 2, 3, 4, 5]]
+
+
+@pytest.mark.asyncio
+async def test_weekday_switch_refuses_to_drop_the_last_day(monkeypatch):
+    from custom_components.chery_europe import departure as departure_module
+    from custom_components.chery_europe.switch import (
+        DEPARTURE_DAY_DESCRIPTIONS,
+        CheryEuropeDepartureDaySwitch,
+    )
+
+    coordinator = _coordinator(draft="06:05", armed=True, days=[6])
+    entry = SimpleNamespace(entry_id="entry-1", runtime_data=coordinator)
+    writes: list[list[int]] = []
+
+    async def _fake_set(coord, ent):
+        writes.append(list(coord.departure_days))
+
+    monkeypatch.setattr(departure_module, "async_set_departure", _fake_set)
+
+    entity = CheryEuropeDepartureDaySwitch(
+        coordinator, DEPARTURE_DAY_DESCRIPTIONS[5][1], entry, 6
+    )
+    assert entity.is_on is True
+    entity.async_write_ha_state = lambda: None
+
+    with pytest.raises(HomeAssistantError):
+        await entity.async_turn_off()
+
+    assert coordinator.departure_days == [6]
+    assert writes == []
