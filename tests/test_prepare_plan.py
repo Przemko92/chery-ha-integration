@@ -196,6 +196,24 @@ def test_parse_plans_returns_none_when_the_payload_is_empty() -> None:
     assert parse_plans({"data": {"preparePlans": []}}) == []
 
 
+def test_parse_plans_unwraps_the_tspconsole_body_envelope() -> None:
+    """prepareQuery answers {"code","sign","body":{...}} - see live probe."""
+    payload = {
+        "code": "000000",
+        "sign": "T70OYDCEF8GGFGQ1P/B0YDX9LSMSKNVWJ29IXSVCW7U=",
+        "body": {
+            "preparePlans": [
+                {"planName": "Work", "travelTime": "07:30", "switchStatus": "1"}
+            ],
+            "vin": "LVVDB21B0PD000042",
+        },
+    }
+    plans = parse_plans(payload)
+    assert plans is not None and [plan["name"] for plan in plans] == ["Work"]
+    # An empty list is a real answer (no plans stored in the car), not a failure.
+    assert parse_plans({"code": "000000", "body": {"preparePlans": []}}) == []
+
+
 def test_parse_plans_accepts_a_bare_list_and_a_single_plan() -> None:
     single = {"planName": "Work", "travelTime": "07:30", "switchStatus": "1"}
     wrapped = parse_plans({"data": single})

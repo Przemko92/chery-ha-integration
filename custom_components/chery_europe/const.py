@@ -145,11 +145,13 @@ API_CHARGE_APPOINT_QUERY_PATH = "/asd/chargeAppointManage/chargeAppointQuery"
 # Scheduled cabin/battery preparation. The query path is the one the app uses
 # (asd = appointment service); the control command goes through vehicleControl
 # like chargeAppointControl. Both are kept here so a wrong guess is one edit.
-API_TRAVEL_APPOINT_QUERY_PATH = "/asd/travelAppointManage/travelAppointQuery"
+# Verified live on 2026-11-23: prepareQuery answers 200 with
+# {"code":"000000","sign":...,"body":{"preparePlans":[...],"vin":...}}.
+API_TRAVEL_APPOINT_QUERY_PATH = "/asd/prepareManage/prepareQuery"
 API_TRAVEL_APPOINT_QUERY_FALLBACKS = (
+    "/asd/prepareManage/prepareQuery",
     "/asd/travelAppointManage/travelAppointQuery",
     "/asd/travelAppointManage/queryTravelAppoint",
-    "/asd/prepareManage/prepareQuery",
 )
 TRAVEL_APPOINT_ENDPOINT = "travelAppointControl"
 # Preparation plans are read at most this often, whatever the poll interval,
