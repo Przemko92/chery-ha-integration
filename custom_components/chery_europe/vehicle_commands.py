@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
 from .charge_schedule import local_minutes_to_utc
+from .prepare_plan import travel_minutes
+
+_LOGGER = logging.getLogger(__name__)
 
 DEFAULT_AIR_DURATION = "15"
 DEFAULT_AIR_TEMPERATURE = "22.0"
@@ -279,53 +283,56 @@ def build_prepare_plan_entry(plan: dict[str, Any]) -> dict[str, Any]:
     return entry
 
 
-def _clock_parts(travel_time: Any) -> tuple[str, str]:
-    """Split ``HH:MM`` into the hour/minute strings the app sends."""
-    text = str(travel_time or "").strip()
-    hour, _, minute = text.partition(":")
-    if not hour.isdigit():
-        return "", ""
-    return str(int(hour)), str(int(minute)) if minute.isdigit() else "0"
+ALL_WEEKDAYS = ("1", "2", "3", "4", "5", "6", "7")
 
 
 def build_travel_appoint_body(values: dict[str, Any]) -> dict[str, Any]:
     """Build the ``appointmentTravel`` body exactly as the app does.
 
-    The APK class ``CVAppointGoParam`` serialises ``vin``, ``mainSwitcher``,
-    the plan list under ``appointmentTravelSetVOS`` (each entry carrying
-    ``travelTime``, ``hour``, ``minute``, ``mainSwitcher`` and ``cycleData``),
-    a second list under ``appointmentTravelAOS`` (``mainSwitcher``,
-    ``travelTime``, ``vin``) plus ``swi`` and the two async timeouts.  The list
-    replaces whatever the car stored, so callers must pass every plan.
+    Decompiled from the APK: ``CVAppointGoParam.toJson`` emits ``vin``,
+    ``mainSwitcher``, ``appointmentTravelAOS`` (a list of ``CVAppointGoDetail``
+    ``CVAppointGoDetail.toJson`` as ``travelTime``, ``switcher``, ``id``,
+    ``planId``, ``travelWeekday``), ``swi`` and the two async timeouts;
+    ``taskId`` is added by the transport.  The list replaces whatever the car
+    stored, so callers must pass every plan.  Any other shape (``preparePlans``,
+    ``appointmentTravelSetVOS`` with ``cycleData``) is rejected by the car with
+    ``S0500`` / ``A05707``.
+
+    ``travelTime`` is the departure clock as **minutes from local midnight**
+    (06:05 -> ``"365"``), matching ``CommonUtils.dateTimeZone`` -> ``minutes``
+    in the APK and ``chargeAppointQuery`` -> ``startTime`` (375 = 06:15) from
+    the live API.  ``travelWeekday`` is a list of 1-based weekday numbers as
+    strings, the same convention ``chargeAppointQuery`` -> ``cycleData`` uses.
     """
     plans = values.get("plans") or []
     vin = str(values.get("vin") or "")
-    set_vos: list[dict[str, Any]] = []
-    aos: list[dict[str, Any]] = []
+    details: list[dict[str, Any]] = []
     armed = False
     for plan in plans:
-        travel_time = str(plan.get("travel_time") or "").strip()
-        hour, minute = _clock_parts(travel_time)
+        raw_time = str(plan.get("travel_time") or "").strip()
+        if not raw_time:
+            continue
+        try:
+            travel_time = str(travel_minutes(raw_time))
+        except ValueError:
+            _LOGGER.debug("Skipping travel plan with bad travel_time %r", raw_time)
+            continue
         enabled = bool(plan.get("enabled", True))
         armed = armed or enabled
-        set_vos.append(
+        days = [str(day).strip() for day in plan.get("days") or [] if str(day).strip()]
+        details.append(
             {
                 "travelTime": travel_time,
-                "hour": hour,
-                "minute": minute,
-                "mainSwitcher": "1" if enabled else "0",
-                "cycleData": [str(day) for day in plan.get("days") or []],
+                "switcher": "1" if enabled else "0",
+                "id": plan.get("plan_id"),
+                "planId": None,
+                "travelWeekday": days or list(ALL_WEEKDAYS),
             }
         )
-        if enabled:
-            aos.append(
-                {"mainSwitcher": "1", "travelTime": travel_time, "vin": vin}
-            )
     return {
         "vin": vin,
         "mainSwitcher": "1" if armed else "0",
-        "appointmentTravelSetVOS": set_vos,
-        "appointmentTravelAOS": aos,
+        "appointmentTravelAOS": details,
         "swi": "1",
         "firstAsyncTimeOut": "35",
         "secondAsyncTimeOut": "35",
