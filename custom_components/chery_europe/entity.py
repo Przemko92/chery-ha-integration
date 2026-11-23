@@ -46,6 +46,10 @@ class CheryEuropeEntity(CoordinatorEntity[CheryEuropeDataUpdateCoordinator]):
             name=vehicle_display_name(data),
             manufacturer="Chery",
             model=model,
+            # The VIN is the only stable identifier a user can read off the car
+            # itself, so it is surfaced as the device serial number. It stays out
+            # of entity names, unique ids and the recorder — device registry only.
+            serial_number=data.vin or None,
             configuration_url=data.vehicle_picture_url,
         )
 
@@ -297,8 +301,9 @@ def _rename_device(hass: HomeAssistant, entry: ConfigEntry, vin: str) -> None:
         updates["name"] = (
             vehicle_display_name(data) if data is not None else "Chery Vehicle"
         )
-    if isinstance(device.serial_number, str) and _contains_vin(device.serial_number, vin):
-        updates["serial_number"] = None
+    if device.serial_number != vin:
+        # The VIN belongs on the device page; older builds blanked it here.
+        updates["serial_number"] = vin
     registry.async_update_device(device.id, **updates)
 
 
