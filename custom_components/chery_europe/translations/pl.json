@@ -338,6 +338,27 @@
       },
       "departure": {
         "name": "Wyjazd plan"
+      },
+      "departure_monday": {
+        "name": "Wyjazd plan poniedziałek"
+      },
+      "departure_tuesday": {
+        "name": "Wyjazd plan wtorek"
+      },
+      "departure_wednesday": {
+        "name": "Wyjazd plan środa"
+      },
+      "departure_thursday": {
+        "name": "Wyjazd plan czwartek"
+      },
+      "departure_friday": {
+        "name": "Wyjazd plan piątek"
+      },
+      "departure_saturday": {
+        "name": "Wyjazd plan sobota"
+      },
+      "departure_sunday": {
+        "name": "Wyjazd plan niedziela"
       }
     },
     "time": {
