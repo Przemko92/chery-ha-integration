@@ -622,17 +622,41 @@ class CheryEuropeDepartureSwitch(CheryEuropeEntity, SwitchEntity, RestoreEntity)
         self._attr_unique_id = stable_unique_id(
             entry, DEPARTURE_SWITCH_DESCRIPTION.key, coordinator
         )
+        self._armed_commanded = False
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Expose that the state came from a command, so a reload keeps it."""
+        if not self._armed_commanded:
+            return None
+        return {"armed_commanded": True}
 
     async def async_added_to_hass(self) -> None:
-        """Restore the last commanded arm state; the car cannot be read back."""
+        """Restore the arm state; the car cannot be read back.
+
+        A restored ``off`` is only believed when it was commanded from here,
+        which the ``armed_commanded`` attribute records. Anything else is a
+        leftover of the days when this switch defaulted to off, and the plan in
+        the car is the one the owner armed in the app.
+        """
         await super().async_added_to_hass()
+        if self.coordinator.departure_armed is not None:
+            return
         last = await self.async_get_last_state()
-        if (
-            self.coordinator.departure_armed is None
-            and last is not None
-            and last.state in ("on", "off")
-        ):
-            self.coordinator.departure_armed = last.state == "on"
+        if last is None:
+            self.coordinator.departure_armed = True
+            self.async_write_ha_state()
+            return
+        commanded = bool((last.attributes or {}).get("armed_commanded"))
+        if last.state == "on":
+            self._armed_commanded = commanded
+            self.coordinator.departure_armed = True
+        elif commanded:
+            self._armed_commanded = True
+            self.coordinator.departure_armed = False
+        else:
+            self.coordinator.departure_armed = True
+        self.async_write_ha_state()
 
     @property
     def is_on(self) -> bool:
@@ -642,11 +666,13 @@ class CheryEuropeDepartureSwitch(CheryEuropeEntity, SwitchEntity, RestoreEntity)
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Arm the departure plan, creating it from the configured time."""
         await async_set_departure(self.coordinator, self._entry, enabled=True)
+        self._armed_commanded = True
         self.async_write_ha_state()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Disarm the departure plan without deleting it."""
         await async_set_departure(self.coordinator, self._entry, enabled=False)
+        self._armed_commanded = True
         self.async_write_ha_state()
 
 
