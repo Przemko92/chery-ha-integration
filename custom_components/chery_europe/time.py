@@ -136,7 +136,7 @@ class CheryEuropeChargeStartTime(CheryEuropeEntity, TimeEntity, RestoreEntity):
         self.async_write_ha_state()
 
 
-class CheryEuropeDepartureTime(CheryEuropeEntity, TimeEntity):
+class CheryEuropeDepartureTime(CheryEuropeEntity, TimeEntity, RestoreEntity):
     """Departure time of the preparation plan the departure switch arms."""
 
     def __init__(
@@ -150,6 +150,21 @@ class CheryEuropeDepartureTime(CheryEuropeEntity, TimeEntity):
             entry, DEPARTURE_TIME_DESCRIPTION.key, coordinator
         )
         self._value = _as_time(departure_state(coordinator)[0])
+
+    async def async_added_to_hass(self) -> None:
+        """Restore the last commanded time; the car cannot be read back."""
+        await super().async_added_to_hass()
+        last = await self.async_get_last_state()
+        if last is not None and last.state not in (None, "", "unknown", "unavailable"):
+            try:
+                hour, minute, *_ = (int(part) for part in last.state.split(":"))
+            except (TypeError, ValueError):
+                pass
+            else:
+                if self.coordinator.departure_draft is None:
+                    self.coordinator.departure_draft = f"{hour:02d}:{minute:02d}"
+        self._value = _as_time(departure_state(self.coordinator)[0])
+
 
     @callback
     def _handle_coordinator_update(self) -> None:

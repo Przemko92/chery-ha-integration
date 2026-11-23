@@ -47,7 +47,9 @@ REPEAT_MODES = (REPEAT_DAILY, REPEAT_WORKDAYS, REPEAT_WEEKEND, REPEAT_CUSTOM)
 #: Plan the integration manages for the single "departure" switch entity.
 DEPARTURE_PLAN_NAME = "Wyjazd"
 #: Time the departure entity reports while no plan exists yet.
-DEFAULT_DEPARTURE_TIME = "07:30"
+DEFAULT_DEPARTURE_TIME = "06:05"
+#: Weekdays the managed departure plan uses when it is created from scratch.
+DEFAULT_DEPARTURE_DAYS: tuple[int, ...] = (1, 2, 3, 4, 5)
 
 ALL_DAYS: tuple[int, ...] = (1, 2, 3, 4, 5, 6, 7)
 WORKDAYS: tuple[int, ...] = (1, 2, 3, 4, 5)
@@ -455,6 +457,7 @@ def departure_plan_update(
     travel_time: Any,
     *,
     enabled: bool,
+    days: Sequence[int] | None = None,
     name: str = DEPARTURE_PLAN_NAME,
 ) -> list[dict[str, Any]]:
     """Return the plan list with the departure plan set to ``travel_time``.
@@ -462,6 +465,9 @@ def departure_plan_update(
     Every other plan is passed through untouched because the car replaces the
     whole list on write. An existing departure plan keeps its comfort features,
     temperature and schedule; only the departure time and the switch change.
+    ``days`` is the fallback schedule when no plan exists yet, so a brand-new
+    plan keeps the weekdays Home Assistant had stored instead of silently
+    repeating every day.
     """
     entries = [dict(existing) for existing in plans or ()]
     existing = find_plan_by_name(entries, name) or {}
@@ -476,11 +482,12 @@ def departure_plan_update(
             and str(entry.get("name") or "").strip().casefold() != stale
         ]
     features = existing.get("features") or {}
+    schedule = existing.get("days") or days
     plan = build_plan(
         name=existing.get("name") or name,
         travel_time=travel_time,
-        repeat=repeat_for_days(existing.get("days")),
-        days=existing.get("days"),
+        repeat=repeat_for_days(schedule) if schedule else REPEAT_DAILY,
+        days=schedule,
         enabled=enabled,
         temperature=existing.get("temperature"),
         plan_id=existing.get("plan_id"),

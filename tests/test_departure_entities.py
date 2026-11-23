@@ -12,6 +12,7 @@ pytest.importorskip("homeassistant")
 from homeassistant.exceptions import HomeAssistantError
 
 from custom_components.chery_europe.data import CheryData
+from custom_components.chery_europe.departure import async_set_departure
 from custom_components.chery_europe.prepare_plan import (
     DEFAULT_DEPARTURE_TIME,
     DEPARTURE_PLAN_NAME,
@@ -24,12 +25,14 @@ from custom_components.chery_europe.time import CheryEuropeDepartureTime
 VIN = "VIN123456"
 
 
-def _coordinator(plans=None, *, draft=None):
+def _coordinator(plans=None, *, draft=None, armed=None, days=None):
     data = CheryData(vin=VIN, prepare_plans=plans)
     return SimpleNamespace(
         data=data,
         last_update_success=True,
         departure_draft=draft,
+        departure_armed=armed,
+        departure_days=days,
         permissions={},
         _permissions_loaded=False,
         api=SimpleNamespace(
@@ -55,8 +58,8 @@ def _departure_plan(travel_time="07:30", *, enabled=True) -> dict:
 
 def test_departure_time_falls_back_to_the_default_when_no_plan_is_stored() -> None:
     entity = CheryEuropeDepartureTime(_coordinator([]), _entry())
-    assert entity.native_value == time(7, 30)
-    assert DEFAULT_DEPARTURE_TIME == "07:30"
+    assert entity.native_value == time(6, 5)
+    assert DEFAULT_DEPARTURE_TIME == "06:05"
 
 
 def test_departure_time_reads_the_plan_the_car_reports() -> None:
@@ -167,3 +170,28 @@ async def test_unknown_plan_list_blocks_the_write() -> None:
         await entity.async_turn_on()
 
     coordinator.api.send_travel_appointment.assert_not_awaited()
+
+
+def test_switch_follows_the_commanded_state_when_the_car_reports_no_plan() -> None:
+    """The car cannot be read back, so the switch trusts what HA last commanded."""
+    armed = CheryEuropeDepartureSwitch(_coordinator([], armed=True), _entry())
+    assert armed.is_on is True
+
+    idle = CheryEuropeDepartureSwitch(_coordinator([], armed=False), _entry())
+    assert idle.is_on is False
+
+
+@pytest.mark.asyncio
+async def test_arming_keeps_the_stored_weekdays() -> None:
+    """A plan created from scratch repeats on the stored days, not every day."""
+    coordinator = _coordinator([], draft="06:05", armed=False, days=[1, 2, 3, 4, 5])
+
+    await async_set_departure(coordinator, _entry(), enabled=True)
+
+    plans = coordinator.api.send_travel_appointment.await_args.args[2]
+    plan = find_plan_by_name(plans, DEPARTURE_PLAN_NAME)
+    assert plan is not None
+    assert plan["travel_time"] == "06:05"
+    assert plan["days"] == [1, 2, 3, 4, 5]
+    assert plan["enabled"] is True
+    assert coordinator.departure_armed is True
