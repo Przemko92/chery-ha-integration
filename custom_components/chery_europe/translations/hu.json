@@ -226,9 +226,6 @@
       },
       "messages_unread": {
         "name": "Olvasatlan üzenetek"
-      },
-      "messages_history": {
-        "name": "Üzenetek tartalma"
       }
     },
     "binary_sensor": {

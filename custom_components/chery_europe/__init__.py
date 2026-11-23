@@ -140,8 +140,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         await coordinator.async_config_entry_first_refresh()
 
     entry.runtime_data = runtime
-    from .entity import async_drop_vin_from_names
+    from .entity import async_drop_vin_from_names, async_remove_legacy_entities
 
+    async_remove_legacy_entities(hass, entry)
     for coordinator in coordinators:
         vin = coordinator.data.vin if coordinator.data is not None else None
         async_drop_vin_from_names(hass, entry, vin)

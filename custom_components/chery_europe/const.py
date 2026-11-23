@@ -6,7 +6,7 @@ from datetime import timedelta
 NAME = "Chery Europe"
 DOMAIN = "chery_europe"
 DOMAIN_DATA = f"{DOMAIN}_data"
-VERSION = "0.6.0b8"
+VERSION = "0.6.0b9"
 ISSUE_URL = "https://github.com/Przemko92/chery-ha-integration/issues"
 
 # Platforms
@@ -187,7 +187,7 @@ MESSAGES_STORE_KEY = f"{DOMAIN}.messages.{{entry_id}}"
 # Full history on disk, for reading older messages outside the entity state.
 MESSAGES_EXPORT_FILENAME = "chery_messages.json"
 # Attributes must stay well under the 16 KiB recorder limit, hence the caps.
-MESSAGES_ATTRIBUTE_ITEMS = 20
+MESSAGES_ATTRIBUTE_ITEMS = 10
 MESSAGES_CONTENT_ITEMS = 10
 # The text sensor keeps the newest messages as one line each; the attribute payload must
 # stay well below the 16 KiB recorder limit for the whole state object.
