@@ -224,6 +224,12 @@
       "messages": {
         "name": "Üzenetek"
       },
+      "messages_unread": {
+        "name": "Olvasatlan üzenetek"
+      },
+      "last_message": {
+        "name": "Utolsó üzenet"
+      },
       "messages_content": {
         "name": "Üzenet részletei"
       }

@@ -6,7 +6,7 @@ from datetime import timedelta
 NAME = "Chery Europe"
 DOMAIN = "chery_europe"
 DOMAIN_DATA = f"{DOMAIN}_data"
-VERSION = "0.6.0b2"
+VERSION = "0.6.0b6"
 ISSUE_URL = "https://github.com/Przemko92/chery-ha-integration/issues"
 
 # Platforms
@@ -41,6 +41,10 @@ SERVICE_SET_SCHEDULED_CHARGING = "set_scheduled_charging"
 SERVICE_SET_PREPARE_PLAN = "set_prepare_plan"
 SERVICE_CANCEL_PREPARE_PLAN = "cancel_prepare_plan"
 SERVICE_LIST_PREPARE_PLANS = "list_prepare_plans"
+SERVICE_GET_MESSAGES = "get_messages"
+ATTR_PAGE = "page"
+ATTR_PAGE_SIZE = "page_size"
+ATTR_UNREAD_ONLY = "unread_only"
 ATTR_VIN = "vin"
 ATTR_COMMAND_ID = "command_id"
 ATTR_PIN = "pin"
@@ -167,6 +171,24 @@ DEFAULT_MESSAGES_PAGE_SIZE = 10
 # The inbox costs one extra request pair, so it is read at most this often even
 # when the vehicle itself is polled every minute.
 MESSAGES_POLL_INTERVAL = timedelta(minutes=30)
+# The first run imports the whole inbox once; the endpoint honours large pages,
+# so 563 messages cost three requests (page size 200) instead of 57.
+MESSAGES_BACKFILL_PAGE_SIZE = 200
+MESSAGES_BACKFILL_MAX_PAGES = 50
+# Later polls only read the newest page and merge it into the stored history.
+MESSAGES_POLL_PAGE_SIZE = 50
+MESSAGES_HISTORY_LIMIT = 2000
+# Reading a message in the phone app flips its flag in the cloud, so the
+# locally counted unread number drifts; a contradicting ``getUnread`` answer
+# triggers one full rescan, at most this often.
+MESSAGES_RESCAN_INTERVAL = timedelta(hours=1)
+MESSAGES_STORE_VERSION = 1
+MESSAGES_STORE_KEY = f"{DOMAIN}.messages.{{entry_id}}"
+# Full history on disk, for reading older messages outside the entity state.
+MESSAGES_EXPORT_FILENAME = "chery_messages.json"
+# Attributes must stay well under the 16 KiB recorder limit, hence the caps.
+MESSAGES_ATTRIBUTE_ITEMS = 20
+MESSAGES_CONTENT_ITEMS = 10
 API_THEFT_QUERY_PATH = "/act/theftAlarm/querySwitch"
 API_THEFT_SET_PATH = "/act/theftAlarm/setSwitch"
 TSP_CODE_OK = "000000"

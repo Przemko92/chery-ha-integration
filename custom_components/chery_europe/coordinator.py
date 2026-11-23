@@ -1,15 +1,15 @@
-from dataclasses import replace
-from datetime import datetime, timedelta, timezone
 import asyncio
 import logging
+from dataclasses import replace
+from datetime import datetime, timedelta, timezone
+from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.event import async_track_time_interval
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
-from homeassistant.helpers.update_coordinator import UpdateFailed
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import CheryEuropeApi
 from .const import (
@@ -25,7 +25,11 @@ from .const import (
     DEFAULT_SESSION_KEEPALIVE,
     DOMAIN,
     DRIVE_WATCH_INTERVAL,
+    MESSAGES_BACKFILL_MAX_PAGES,
+    MESSAGES_BACKFILL_PAGE_SIZE,
     MESSAGES_POLL_INTERVAL,
+    MESSAGES_POLL_PAGE_SIZE,
+    MESSAGES_RESCAN_INTERVAL,
     POST_COMMAND_REFRESH_DELAYS,
     PREPARE_POLL_INTERVAL,
     REFRESH_HV_WAIT_SECONDS,
@@ -42,8 +46,13 @@ from .data import (
     merge_chery_data,
     vehicle_display_name,
 )
-from .exceptions import CheryEuropeAuthError, CheryEuropeCommandError, CheryEuropeException
-from .messages import parse_messages
+from .exceptions import (
+    CheryEuropeAuthError,
+    CheryEuropeCommandError,
+    CheryEuropeException,
+)
+from .message_history import MessageHistory
+from .messages import parse_messages, unread_count, unread_messages
 from .mqtt import CheryEuropeMqttClient
 from .pin import resolve_pin
 
@@ -142,6 +151,9 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
         self.permissions: dict[int, int] = {}
         self._prepare_polled_at: datetime | None = None
         self._messages_polled_at: datetime | None = None
+        self._messages_rescanned_at: datetime | None = None
+        # Created on the first inbox poll so a failed setup costs nothing.
+        self._message_history: MessageHistory | None = None
         self._permissions_loaded = False
         self._mqtt_siblings: list = []
         self.charge_start_minutes = 480
@@ -401,13 +413,50 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
         """Force the next update to re-read the plans after we wrote them."""
         self._prepare_polled_at = None
 
-    async def _merge_messages(self, data: CheryData) -> CheryData:
-        """Read the vehicle message inbox.
+    async def _fetch_all_messages(self) -> tuple[list[dict], int | None, bool]:
+        """Read every inbox page once, newest first.
 
-        Two cheap requests per cycle (one page of messages plus the unread
-        flag), at most every ``MESSAGES_POLL_INTERVAL`` so a short vehicle poll
-        interval does not turn into a stream of inbox reads. A failed query
-        keeps the last list.
+        Returns the messages, the total the server reports and whether the read
+        completed.  Large pages are honoured by the endpoint, so a few hundred
+        messages cost three requests instead of one per ten entries.
+        """
+        fetch = getattr(self.api, "fetch_messages", None)
+        if fetch is None:
+            return [], None, False
+        messages: list[dict] = []
+        total: int | None = None
+        for page in range(1, MESSAGES_BACKFILL_MAX_PAGES + 1):
+            try:
+                payload = await fetch(page, MESSAGES_BACKFILL_PAGE_SIZE)
+            except Exception as exc:  # noqa: BLE001
+                _LOGGER.debug("Vehicle messages page %s failed: %s", page, exc)
+                return messages, total, False
+            if payload is None:
+                return messages, total, False
+            chunk, page_total = parse_messages(payload)
+            if page_total is not None:
+                total = page_total
+            if not chunk:
+                break
+            messages.extend(chunk)
+            if total is not None and len(messages) >= total:
+                break
+            if len(chunk) < MESSAGES_BACKFILL_PAGE_SIZE:
+                break
+            await asyncio.sleep(1)
+        return messages, total, True
+
+    async def _merge_messages(self, data: CheryData) -> CheryData:
+        """Read the message inbox into a stored history.
+
+        The first run imports the complete inbox (a few large pages) so the
+        whole conversation is available afterwards; later cycles only read the
+        newest page and merge it by message id, at most every
+        ``MESSAGES_POLL_INTERVAL``.  The cloud ``getUnread`` flag is compared
+        with the locally counted unread entries -- messages read in the phone
+        app flip their flag in the cloud, so a contradiction triggers one full
+        rescan, at most once per ``MESSAGES_RESCAN_INTERVAL``.  A failed read
+        keeps the stored history and the last state.
         """
         now = datetime.now(timezone.utc)
         last = self._messages_polled_at
@@ -417,14 +466,31 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
         if fetch is None:
             return data
         self._messages_polled_at = now
-        try:
-            payload = await fetch()
-        except Exception as exc:  # noqa: BLE001
-            _LOGGER.debug("Vehicle messages unavailable: %s", exc)
-            return data
-        if payload is None:
-            return data
-        messages, total = parse_messages(payload)
+        history = self._message_history or self._create_message_history()
+        await history.async_load()
+        history.set_vin(data.vin)
+
+        fetched = False
+        total: int | None = None
+        if history.is_empty:
+            messages, total, complete = await self._fetch_all_messages()
+            if messages:
+                fetched = True
+                history.merge(messages)
+                if complete:
+                    history.mark_backfilled(now.isoformat())
+        else:
+            try:
+                payload = await fetch(1, MESSAGES_POLL_PAGE_SIZE)
+            except Exception as exc:  # noqa: BLE001
+                _LOGGER.debug("Vehicle messages unavailable: %s", exc)
+                payload = None
+            if payload is not None:
+                chunk, page_total = parse_messages(payload)
+                total = page_total
+                fetched = True
+                history.merge(chunk)
+
         unread: bool | None = None
         fetch_unread = getattr(self.api, "fetch_messages_unread", None)
         if fetch_unread is not None:
@@ -432,13 +498,75 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
                 unread = await fetch_unread()
             except Exception as exc:  # noqa: BLE001
                 _LOGGER.debug("Unread messages flag unavailable: %s", exc)
+
+        local_unread = unread_count(history.messages)
+        if unread is not None and bool(local_unread) != unread and self._may_rescan(now):
+            _LOGGER.debug(
+                "Unread flag (%s) disagrees with the stored history (%s); "
+                "re-reading the inbox",
+                unread,
+                local_unread,
+            )
+            messages, rescan_total, _complete = await self._fetch_all_messages()
+            self._messages_rescanned_at = now
+            if messages:
+                fetched = True
+                total = rescan_total or total
+                history.merge(messages)
+                local_unread = unread_count(history.messages)
+
+        await history.async_save()
+        items = history.messages
+        if not items and not fetched:
+            return data
+        if total is not None:
+            total = max(total, len(items))
         return apply_messages(
             data,
-            messages,
+            items,
             total=total,
             unread=unread,
-            polled_at=now.isoformat(),
+            unread_count=local_unread,
+            polled_at=now.isoformat() if fetched else None,
+            backfilled_at=history.backfilled_at,
         )
+
+    async def async_messages_page(
+        self,
+        page: int = 1,
+        page_size: int = 50,
+        *,
+        unread_only: bool = False,
+    ) -> dict[str, Any]:
+        """Return one page of the stored history; never asks the cloud."""
+        history = self._message_history or self._create_message_history()
+        await history.async_load()
+        items = unread_messages(history.messages) if unread_only else history.messages
+        total = len(items)
+        page_size = max(1, page_size)
+        pages = max(1, -(-total // page_size))
+        page = min(max(1, page), pages)
+        start = (page - 1) * page_size
+        return {
+            "total": total,
+            "page": page,
+            "pages": pages,
+            "page_size": page_size,
+            "backfilled_at": history.backfilled_at,
+            "messages": items[start : start + page_size],
+        }
+
+    def _create_message_history(self) -> MessageHistory:
+        """Build the on-disk message history for this config entry."""
+        entry_id = str(getattr(self.entry, "entry_id", "") or "default")
+        history = MessageHistory(self.hass, entry_id)
+        self._message_history = history
+        return history
+
+    def _may_rescan(self, now: datetime) -> bool:
+        """Return whether a full inbox rescan is allowed by the throttle."""
+        last = self._messages_rescanned_at
+        return last is None or now - last >= MESSAGES_RESCAN_INTERVAL
 
     async def _merge_theft_alarm(self, data: CheryData) -> CheryData:
         """Read the theft-alarm switch. A failed query keeps the last state."""

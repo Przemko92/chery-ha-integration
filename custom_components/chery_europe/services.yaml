@@ -229,3 +229,40 @@ list_prepare_plans:
       required: false
       selector:
         text:
+
+get_messages:
+  name: Get messages
+  description: Return a page of the stored message history. Reads the local copy only, no request is sent to the Chery cloud.
+  fields:
+    vin:
+      name: VIN
+      description: Vehicle VIN. Required when more than one vehicle is configured on this account.
+      required: false
+      selector:
+        text:
+    page:
+      name: Page
+      description: Page number, starting at 1. Newest messages come first.
+      required: false
+      default: 1
+      selector:
+        number:
+          min: 1
+          mode: box
+    page_size:
+      name: Page size
+      description: Messages per page (1-500, default 50).
+      required: false
+      default: 50
+      selector:
+        number:
+          min: 1
+          max: 500
+          mode: box
+    unread_only:
+      name: Unread only
+      description: Return only the messages that are still unread.
+      required: false
+      default: false
+      selector:
+        boolean:

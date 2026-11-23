@@ -23,6 +23,8 @@ from .const import (
     ATTR_DURATION_HOURS,
     ATTR_ENABLED,
     ATTR_FRONT_DEFROST,
+    ATTR_PAGE,
+    ATTR_PAGE_SIZE,
     ATTR_PIN,
     ATTR_PLAN_ID,
     ATTR_PLAN_NAME,
@@ -32,9 +34,11 @@ from .const import (
     ATTR_STEERING_WHEEL_HEAT,
     ATTR_TEMPERATURE,
     ATTR_TRAVEL_TIME,
+    ATTR_UNREAD_ONLY,
     ATTR_VIN,
     DOMAIN,
     SERVICE_CANCEL_PREPARE_PLAN,
+    SERVICE_GET_MESSAGES,
     SERVICE_LIST_PREPARE_PLANS,
     SERVICE_SEND_COMMAND,
     SERVICE_SET_PREPARE_PLAN,
@@ -42,6 +46,8 @@ from .const import (
 )
 from .coordinator import CheryEuropeDataUpdateCoordinator
 from .data import apply_command_feedback, apply_travel_appointment
+from .exceptions import CheryEuropeCommandError, CheryEuropeException
+from .pin import resolve_pin
 from .prepare_plan import (
     REPEAT_MODES,
     build_plan,
@@ -49,8 +55,6 @@ from .prepare_plan import (
     merge_plan,
     validate_plans,
 )
-from .exceptions import CheryEuropeCommandError, CheryEuropeException
-from .pin import resolve_pin
 
 SEND_COMMAND_SCHEMA = vol.Schema(
     {
@@ -112,6 +116,19 @@ CANCEL_PREPARE_PLAN_SCHEMA = vol.Schema(
 LIST_PREPARE_PLANS_SCHEMA = vol.Schema(
     {
         vol.Optional(ATTR_VIN): vol.All(cv.string, vol.Length(min=1)),
+    }
+)
+
+GET_MESSAGES_SCHEMA = vol.Schema(
+    {
+        vol.Optional(ATTR_VIN): vol.All(cv.string, vol.Length(min=1)),
+        vol.Optional(ATTR_PAGE, default=1): vol.All(
+            vol.Coerce(int), vol.Range(min=1)
+        ),
+        vol.Optional(ATTR_PAGE_SIZE, default=50): vol.All(
+            vol.Coerce(int), vol.Range(min=1, max=500)
+        ),
+        vol.Optional(ATTR_UNREAD_ONLY, default=False): cv.boolean,
     }
 )
 
@@ -361,6 +378,15 @@ def async_setup_services(hass: HomeAssistant) -> None:
         coordinator.schedule_refresh_after_command()
         return response
 
+    async def handle_get_messages(call: ServiceCall) -> dict[str, Any]:
+        entry = _get_loaded_entry(hass)
+        coordinator = _coordinator_for_call(entry, call.data.get(ATTR_VIN))
+        return await coordinator.async_messages_page(
+            call.data[ATTR_PAGE],
+            call.data[ATTR_PAGE_SIZE],
+            unread_only=call.data[ATTR_UNREAD_ONLY],
+        )
+
     def _prepare_body(plans: list[dict[str, Any]]) -> dict[str, Any]:
         """Build the payload without sending it (dry-run helper)."""
         from .vehicle_commands import build_travel_appoint_body
@@ -401,6 +427,15 @@ def async_setup_services(hass: HomeAssistant) -> None:
             handle_cancel_prepare_plan,
             schema=CANCEL_PREPARE_PLAN_SCHEMA,
             supports_response=SupportsResponse.OPTIONAL,
+        )
+
+    if not hass.services.has_service(DOMAIN, SERVICE_GET_MESSAGES):
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_GET_MESSAGES,
+            handle_get_messages,
+            schema=GET_MESSAGES_SCHEMA,
+            supports_response=SupportsResponse.ONLY,
         )
 
     if not hass.services.has_service(DOMAIN, SERVICE_LIST_PREPARE_PLANS):
