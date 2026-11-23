@@ -132,6 +132,22 @@ def async_drop_vin_from_names(
         )
 
 
+LEGACY_ENTITY_KEYS = ("last_message", "messages_content", "messages_history")
+
+
+def async_remove_legacy_entities(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Drop registry entries of entities the integration no longer provides.
+
+    Renaming the ``key`` of an entity description changes its unique id, so the
+    old entry stays in the registry as an unavailable orphan and has to be
+    removed by hand in the UI.  Cleaning it up here keeps the device page tidy.
+    """
+    registry = er.async_get(hass)
+    for entity in er.async_entries_for_config_entry(registry, entry.entry_id):
+        if any(entity.unique_id.endswith(f"_{key}") for key in LEGACY_ENTITY_KEYS):
+            registry.async_remove(entity.entity_id)
+
+
 def _rename_device(hass: HomeAssistant, entry: ConfigEntry, vin: str) -> None:
     registry = dr.async_get(hass)
     device = registry.async_get_device(identifiers={(DOMAIN, vin)})

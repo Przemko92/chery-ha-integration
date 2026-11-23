@@ -240,6 +240,17 @@ def messages_attributes(
     """
     items = sort_messages(messages)
     unread_items = unread_messages(items)
+    # The user reads the inbox from this sensor, so the growing list of messages is
+    # exposed oldest first and always ends with the newest one.
+    history = list(
+        reversed(
+            messages_history(
+                items,
+                limit=MESSAGES_HISTORY_ITEMS,
+                char_budget=MESSAGES_HISTORY_CHARS,
+            )
+        )
+    )
     return {
         "last_updated": polled_at,
         "total": total,
@@ -254,6 +265,9 @@ def messages_attributes(
         "backfilled_at": backfilled_at,
         "messages_truncated": len(items) > limit,
         "messages": items[:limit],
+        "history_count": len(history),
+        "history_truncated": len(items) > len(history),
+        "history": history,
     }
 
 

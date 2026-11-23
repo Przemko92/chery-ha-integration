@@ -226,9 +226,6 @@
       },
       "messages_unread": {
         "name": "Unread messages"
-      },
-      "messages_history": {
-        "name": "Messages content"
       }
     },
     "binary_sensor": {

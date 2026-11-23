@@ -172,8 +172,13 @@ def test_messages_attributes_count_the_history_and_cap_the_list():
     assert attributes["newest"] > attributes["oldest"]
     assert attributes["backfilled_at"] == "2026-11-23T10:00:00+00:00"
     assert attributes["messages_truncated"] is True
-    assert len(attributes["messages"]) == 20
+    assert len(attributes["messages"]) == 10
     assert attributes["last_updated"] == "2026-11-23T10:30:00+00:00"
+    # The growing list runs oldest first and ends with the newest message.
+    assert attributes["history"]
+    assert attributes["history"][-1].startswith("2026-11-19")
+    assert attributes["history"][0] <= attributes["history"][-1]
+    assert attributes["history_count"] == len(attributes["history"])
 
 
 def test_last_message_attributes_describe_the_newest_entry():
@@ -396,11 +401,11 @@ def test_message_sensors_expose_count_unread_and_last_message():
         sensor.coordinator = coordinator
         sensors[description.key] = sensor
 
-    assert sensors["messages"].native_value == 563
+    assert sensors["messages"].native_value.startswith("2026-11-")
+    assert "Tyre temperature warning" in sensors["messages"].native_value
     assert sensors["messages_unread"].native_value == 1
-    assert "last_message" not in sensors
-    assert sensors["messages_history"].native_value.startswith("2026-11-")
-    assert "Tyre temperature warning" in sensors["messages_history"].native_value
+    # Only two sensors: the inbox itself and the unread counter.
+    assert set(sensors) == {"messages", "messages_unread"}
 
     attributes = sensors["messages"].extra_state_attributes
     assert attributes["total"] == 563
@@ -412,14 +417,17 @@ def test_message_sensors_expose_count_unread_and_last_message():
     assert attributes["backfilled_at"] == "2026-11-23T10:00:00+00:00"
     assert "messages" not in attributes or len(attributes["messages"]) == 2
 
+    history = attributes["history"]
+    assert len(history) == 2
+    # Oldest first, newest last: the list grows downwards as new mail arrives.
+    assert history[0].startswith("2023-11-14")
+    assert "Scheduled departure" in history[0]
+    assert history[-1].startswith("2026-11-19")
+    assert "Tyre temperature warning" in history[-1]
+
     unread = sensors["messages_unread"].extra_state_attributes
     assert unread["unread_count"] == 1
     assert unread["unread"][0].startswith("2026-11-19")
-    history = sensors["messages_history"].extra_state_attributes
-    assert history["stored"] == 2
-    assert history["count"] == 2
-    assert history["history"][0].startswith("2026-11-19")
-    assert "Tyre temperature warning" in history["history"][0]
 
 
 def test_messages_page_slices_the_stored_history():
