@@ -1,6 +1,7 @@
 # pyright: reportArgumentType=false, reportOptionalMemberAccess=false
 """Tests for the scheduled preparation services."""
 
+from datetime import datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
@@ -302,3 +303,55 @@ def test_apply_travel_appointment_replaces_the_list():
     assert [plan["name"] for plan in updated.prepare_plans] == ["Gym"]
     assert updated.prepare_next_departure is None
     assert updated.prepare_polled_at == "2026-11-23T08:00:00+00:00"
+
+
+def _prepare_sensor(key: str, data):
+    from custom_components.chery_europe.sensor import (
+        PREPARE_SENSOR_DESCRIPTIONS,
+        CheryEuropePrepareSensor,
+    )
+
+    description = next(
+        item for item in PREPARE_SENSOR_DESCRIPTIONS if item.key == key
+    )
+    sensor = object.__new__(CheryEuropePrepareSensor)
+    sensor.entity_description = description
+    sensor.coordinator = SimpleNamespace(data=data, last_update_success=True)
+    return sensor
+
+
+def test_prepare_plans_sensor_counts_only_enabled_plans():
+    plans = [
+        build_plan(
+            name="Work", travel_time="07:30", plan_id="1", battery_heat=True
+        ),
+        build_plan(name="Gym", travel_time="18:00", plan_id="2", enabled=False),
+    ]
+    data = apply_travel_appointment(CheryData(vin=VIN), plans)
+
+    sensor = _prepare_sensor("prepare_plans", data)
+
+    assert sensor.native_value == 1
+    attributes = sensor.extra_state_attributes
+    assert [plan["name"] for plan in attributes["plans"]] == ["Work", "Gym"]
+    # Only the features that are on are listed, to keep the attributes short.
+    assert attributes["plans"][0]["battery_heat"] is True
+    assert "front_defrost" not in attributes["plans"][0]
+
+
+def test_next_departure_sensor_returns_a_datetime():
+    from homeassistant.util import dt as dt_util
+
+    plan = build_plan(name="Work", travel_time="07:30", plan_id="1")
+    data = apply_travel_appointment(CheryData(vin=VIN), [plan])
+
+    sensor = _prepare_sensor("prepare_next_departure", data)
+
+    assert isinstance(sensor.native_value, datetime)
+    assert sensor.native_value == dt_util.parse_datetime(data.prepare_next_departure)
+
+
+def test_prepare_sensors_are_unknown_without_data():
+    data = CheryData(vin=VIN)
+    assert _prepare_sensor("prepare_plans", data).native_value is None
+    assert _prepare_sensor("prepare_next_departure", data).native_value is None
