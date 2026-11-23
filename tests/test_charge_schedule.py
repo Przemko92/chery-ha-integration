@@ -76,3 +76,20 @@ def test_plan_helpers_reject_invalid():
     assert plan_start_time({"startTime": 2000}) is None
     assert plan_duration_hours({"timeConsuming": 0}) is None
     assert plan_duration_hours({}) is None
+
+
+def test_duration_snaps_to_fifteen_minute_steps():
+    from custom_components.chery_europe.charge_schedule import snap_duration_minutes
+
+    assert snap_duration_minutes(780) == 780
+    assert snap_duration_minutes(787) == 780
+    assert snap_duration_minutes(788) == 795
+    assert snap_duration_minutes(0) == 15
+    assert snap_duration_minutes(2000) == 1440
+
+
+def test_plan_duration_reads_a_quarter_hour_window():
+    from custom_components.chery_europe.charge_schedule import plan_duration_minutes
+
+    assert plan_duration_minutes({"timeConsuming": 795}) == 795
+    assert plan_duration_hours({"timeConsuming": 795}) == 13.25

@@ -7,7 +7,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from .charge_schedule import local_minutes_to_utc
+from .charge_schedule import local_minutes_to_utc, snap_duration_minutes
 from .prepare_plan import travel_minutes
 
 _LOGGER = logging.getLogger(__name__)
@@ -117,7 +117,7 @@ def build_charge_plan(
     *,
     switch_status: int,
     start_minutes: int = DEFAULT_CHARGE_START_MINUTES,
-    duration_hours: int = DEFAULT_CHARGE_DURATION_HOURS,
+    duration_hours: float = DEFAULT_CHARGE_DURATION_HOURS,
 ) -> dict[str, Any]:
     """Build one chargeAppointPlans entry for chargeAppointControl.
 
@@ -126,7 +126,7 @@ def build_charge_plan(
     instead of ignoring ``timeConsuming`` and keeping the previous window.
     """
     utc_start = local_minutes_to_utc(start_minutes)
-    duration_minutes = int(duration_hours) * 60
+    duration_minutes = snap_duration_minutes(float(duration_hours) * 60)
     return {
         "cycleData": list(DEFAULT_CHARGE_CYCLE_DAYS),
         "startTime": utc_start,
@@ -141,7 +141,7 @@ def build_charge_appoint_body(values: dict[str, Any]) -> dict[str, Any]:
     """Build the nested body for scheduled charging."""
     enabled = values.get("enabled", True)
     start_minutes = int(values.get("start_minutes", DEFAULT_CHARGE_START_MINUTES))
-    duration_hours = int(values.get("duration_hours", DEFAULT_CHARGE_DURATION_HOURS))
+    duration_hours = float(values.get("duration_hours", DEFAULT_CHARGE_DURATION_HOURS))
     switch_status = 1 if enabled else 0
     return {
         "mainSwitch": 1 if enabled else 0,
