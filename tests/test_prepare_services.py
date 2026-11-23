@@ -181,13 +181,13 @@ async def test_set_prepare_plan_dry_run_does_not_touch_the_car():
     coordinator.api.send_travel_appointment.assert_not_awaited()
     assert result["dry_run"] is True
     body = result["body"]
-    plan = body["appointmentTravelSetVOS"][0]
-    assert plan["travelTime"] == "07:30"
-    assert plan["hour"] == "7"
-    assert plan["minute"] == "30"
-    assert plan["mainSwitcher"] == "1"
+    plan = body["appointmentTravelAOS"][0]
+    assert plan["travelTime"] == "450"
+    assert plan["switcher"] == "1"
+    assert plan["id"] is None
+    assert plan["planId"] is None
+    assert "appointmentTravelSetVOS" not in body
     assert body["mainSwitcher"] == "1"
-    assert body["appointmentTravelAOS"][0]["travelTime"] == "07:30"
 
 
 @pytest.mark.asyncio
