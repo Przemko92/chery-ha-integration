@@ -315,7 +315,10 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
         device_key = self.device_id or entry_id
         if not device_key:
             return
-        device = device_registry.async_get_device(identifiers={(DOMAIN, device_key)})
+        # Imported here: entity.py imports this module, so a top-level import cycles.
+        from .entity import async_device_by_identifier
+
+        device = async_device_by_identifier(device_registry, device_key, entry_id)
         if device is not None and device.name != name:
             device_registry.async_update_device(device.id, name=name)
 

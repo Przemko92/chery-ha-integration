@@ -626,6 +626,8 @@ def test_registry_names_lose_the_vin():
     entity_reg.async_generate_entity_id.return_value = "sensor.battery_level"
     device_reg = Mock()
     device_reg.async_get_device.return_value = device
+    # The scoped lookup is the current API; the deprecated one is only a fallback.
+    device_reg.async_get_device_by_identifier.return_value = device
     hass = Mock()
     entry = SimpleNamespace(
         entry_id="entry-1",
@@ -651,6 +653,10 @@ def test_registry_names_lose_the_vin():
     ):
         async_drop_vin_from_names(hass, entry, vin)
 
+    device_reg.async_get_device_by_identifier.assert_called_once_with(
+        vin, DOMAIN, config_entry_id="entry-1"
+    )
+    device_reg.async_get_device.assert_not_called()
     device_update = device_reg.async_update_device.call_args.kwargs
     assert (DOMAIN, "entry-1") in device_update["new_identifiers"]
     assert (DOMAIN, vin) not in device_update["new_identifiers"]
