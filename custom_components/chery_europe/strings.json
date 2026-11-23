@@ -110,10 +110,10 @@
         "name": "Traction battery current"
       },
       "fuel_level": {
-        "name": "Fuel — level"
+        "name": "Fuel level"
       },
       "range": {
-        "name": "Range — total"
+        "name": "Range total"
       },
       "tire_pressure_front_left": {
         "name": "Front left tire pressure"
@@ -128,25 +128,25 @@
         "name": "Rear right tire pressure"
       },
       "odometer": {
-        "name": "Odometer — total"
+        "name": "Odometer total"
       },
       "electric_range": {
-        "name": "Range — electric"
+        "name": "Range electric"
       },
       "electric_odometer": {
-        "name": "Odometer — electric"
+        "name": "Odometer electric"
       },
       "vehicle_speed": {
-        "name": "Vehicle — speed"
+        "name": "Vehicle speed"
       },
       "fuel_range": {
-        "name": "Range — fuel"
+        "name": "Range fuel"
       },
       "power_consumption": {
-        "name": "Energy — consumption"
+        "name": "Energy consumption"
       },
       "fuel_consumption": {
-        "name": "Fuel — consumption"
+        "name": "Fuel consumption"
       },
       "remain_charge_time": {
         "name": "Remaining charge time"
@@ -180,22 +180,22 @@
         "name": "Vehicle picture"
       },
       "climate_min_temperature": {
-        "name": "Climate — min. temperature"
+        "name": "Climate min. temperature"
       },
       "climate_max_temperature": {
-        "name": "Climate — max. temperature"
+        "name": "Climate max. temperature"
       },
       "last_data_update": {
-        "name": "Diagnostics — last update"
+        "name": "Diagnostics last update"
       },
       "command_status": {
-        "name": "Diagnostics — command result"
+        "name": "Diagnostics command result"
       },
       "wake_status": {
-        "name": "Diagnostics — wake result"
+        "name": "Diagnostics wake result"
       },
       "probe_status": {
-        "name": "Diagnostics — position result"
+        "name": "Diagnostics position result"
       },
       "tire_temperature_front_left": {
         "name": "Front left tire temperature"
@@ -210,10 +210,10 @@
         "name": "Rear right tire temperature"
       },
       "prepare_plans": {
-        "name": "Departure — plans"
+        "name": "Departure plans"
       },
       "prepare_next_departure": {
-        "name": "Departure — next"
+        "name": "Departure next"
       },
       "alerts": {
         "name": "Alerts"
@@ -230,52 +230,52 @@
     },
     "binary_sensor": {
       "online": {
-        "name": "Vehicle — online"
+        "name": "Vehicle online"
       },
       "charging": {
-        "name": "Charging — active"
+        "name": "Charging active"
       },
       "appointment_charging": {
-        "name": "Charging — plan"
+        "name": "Charging plan"
       },
       "charge_gun_connected": {
-        "name": "Charging — cable connected"
+        "name": "Charging cable connected"
       },
       "fast_charge_gun_connected": {
-        "name": "Charging — fast charger"
+        "name": "Charging fast charger"
       },
       "engine": {
-        "name": "Vehicle — engine"
+        "name": "Vehicle engine"
       },
       "high_voltage": {
-        "name": "Battery — high voltage"
+        "name": "Battery high voltage"
       },
       "air_purification": {
-        "name": "Climate — air purification"
+        "name": "Climate air purification"
       },
       "door_front_left": {
-        "name": "Door — front left"
+        "name": "Door front left"
       },
       "door_front_right": {
-        "name": "Door — front right"
+        "name": "Door front right"
       },
       "door_rear_left": {
-        "name": "Door — rear left"
+        "name": "Door rear left"
       },
       "door_rear_right": {
-        "name": "Door — rear right"
+        "name": "Door rear right"
       },
       "window_front_left": {
-        "name": "Window — front left"
+        "name": "Window front left"
       },
       "window_front_right": {
-        "name": "Window — front right"
+        "name": "Window front right"
       },
       "window_rear_left": {
-        "name": "Window — rear left"
+        "name": "Window rear left"
       },
       "window_rear_right": {
-        "name": "Window — rear right"
+        "name": "Window rear right"
       }
     },
     "switch": {
@@ -283,66 +283,66 @@
         "name": "Front windshield heating"
       },
       "front_windshield_defrost": {
-        "name": "Window front — defrost"
+        "name": "Window front defrost"
       },
       "air_purification": {
-        "name": "Climate — air purification"
+        "name": "Climate air purification"
       },
       "rear_window_defrost": {
         "name": "Rear window heating"
       },
       "steering_wheel_heating": {
-        "name": "Steering wheel — heating"
+        "name": "Steering wheel heating"
       },
       "driver_seat_heating": {
-        "name": "Driver seat — heating"
+        "name": "Driver seat heating"
       },
       "passenger_seat_heating": {
-        "name": "Passenger seat — heating"
+        "name": "Passenger seat heating"
       },
       "driver_seat_ventilation": {
-        "name": "Driver seat — ventilation"
+        "name": "Driver seat ventilation"
       },
       "passenger_seat_ventilation": {
-        "name": "Passenger seat — ventilation"
+        "name": "Passenger seat ventilation"
       },
       "rear_left_seat_heating": {
-        "name": "Rear left seat — heating"
+        "name": "Rear left seat heating"
       },
       "rear_right_seat_heating": {
-        "name": "Rear right seat — heating"
+        "name": "Rear right seat heating"
       },
       "rear_left_seat_ventilation": {
-        "name": "Rear left seat — ventilation"
+        "name": "Rear left seat ventilation"
       },
       "rear_right_seat_ventilation": {
-        "name": "Rear right seat — ventilation"
+        "name": "Rear right seat ventilation"
       },
       "charging": {
-        "name": "Charging — start"
+        "name": "Charging start"
       },
       "scheduled_charging": {
-        "name": "Charging — plan"
+        "name": "Charging plan"
       },
       "automatic_updates": {
-        "name": "Updates — automatic"
+        "name": "Updates automatic"
       },
       "heat_everything": {
-        "name": "Climate — heat everything"
+        "name": "Climate heat everything"
       },
       "cool_everything": {
-        "name": "Climate — cool everything"
+        "name": "Climate cool everything"
       },
       "theft_alarm": {
-        "name": "Alarms — anti-theft"
+        "name": "Alarms anti-theft"
       },
       "departure": {
-        "name": "Departure — start"
+        "name": "Departure start"
       }
     },
     "time": {
       "charge_start_time": {
-        "name": "Charging — start time"
+        "name": "Charging start time"
       },
       "departure_time": {
         "name": "Departure time"
@@ -350,12 +350,12 @@
     },
     "number": {
       "charge_duration_hours": {
-        "name": "Charging — duration"
+        "name": "Charging duration"
       }
     },
     "lock": {
       "doors": {
-        "name": "Doors — lock"
+        "name": "Doors lock"
       }
     },
     "climate": {
@@ -370,7 +370,7 @@
     },
     "select": {
       "windows": {
-        "name": "Windows — all",
+        "name": "Windows all",
         "state": {
           "closed": "Closed",
           "vent": "Ventilation",
@@ -378,7 +378,7 @@
         }
       },
       "sunroof": {
-        "name": "Sunroof — position",
+        "name": "Sunroof position",
         "state": {
           "closed": "Closed",
           "tilt": "Tilt",
@@ -388,19 +388,19 @@
     },
     "button": {
       "locate": {
-        "name": "Position — locate"
+        "name": "Position locate"
       },
       "find_car": {
-        "name": "Vehicle — find"
+        "name": "Vehicle find"
       },
       "wake": {
-        "name": "Vehicle — wake"
+        "name": "Vehicle wake"
       },
       "refresh_position": {
-        "name": "Position — refresh"
+        "name": "Position refresh"
       },
       "refresh_full_status": {
-        "name": "Diagnostics — refresh status"
+        "name": "Diagnostics refresh status"
       }
     },
     "device_tracker": {
