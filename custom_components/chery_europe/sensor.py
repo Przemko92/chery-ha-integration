@@ -768,6 +768,15 @@ class CheryEuropeMessageSensor(CheryEuropeEntity, SensorEntity):
         return messages_content(self._messages()[:1]) or None
 
     @property
+    def icon(self) -> str | None:
+        """Return an inbox icon that reflects the unread counter."""
+        if self.entity_description.key != "messages_unread":
+            return self.entity_description.icon
+        if self.coordinator.data is None:
+            return "mdi:email-outline"
+        return "mdi:email-alert" if self.chery_data.messages_unread_count else "mdi:email-outline"
+
+    @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return the history summary, the unread list or the last message."""
         data = self.chery_data

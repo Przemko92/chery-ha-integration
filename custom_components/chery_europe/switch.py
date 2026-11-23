@@ -31,9 +31,10 @@ PARALLEL_UPDATES = 0
 
 DEPARTURE_SWITCH_DESCRIPTION = SwitchEntityDescription(
     key="departure",
-    name="Departure",
+    name="Departure plan",
     translation_key="departure",
     icon="mdi:car-clock",
+    entity_category=EntityCategory.CONFIG,
 )
 
 
@@ -469,11 +470,6 @@ class CheryEuropeScheduledChargeSwitch(CheryEuropeEntity, SwitchEntity, RestoreE
         if self.chery_data.scheduled_charge_enabled is not None:
             return self.chery_data.scheduled_charge_enabled
         return self._restored
-
-    @property
-    def assumed_state(self) -> bool:  # type: ignore[reportIncompatibleVariableOverride]
-        """Return true when no reliable scheduled charging state is available."""
-        return self.is_on is None
 
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:

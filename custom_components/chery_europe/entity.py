@@ -210,6 +210,8 @@ ENTITY_ID_RENAMES = (
     # Departures.
     ("sensor", "prepare_plans", "zaplanowane_przygotowanie", "wyjazd_plany"),
     ("sensor", "prepare_next_departure", "nastepny_wyjazd", "wyjazd_nastepny"),
+    ("time", "departure_time", "godzina_wyjazdu", "wyjazd_godzina"),
+    ("switch", "departure", "wyjazd_start", "wyjazd_plan"),
     # Buttons.
     ("button", "locate", "zlokalizuj", "pozycja_zlokalizuj"),
     ("button", "refresh_position", "odswiez_pozycje", "pozycja_odswiez"),
