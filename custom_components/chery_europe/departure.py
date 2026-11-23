@@ -95,7 +95,7 @@ async def async_set_departure_days(
     days = sorted({day for day in current if day not in dropped} | {int(day) for day in add})
     if not days:
         raise HomeAssistantError(
-            "Wybierz co najmniej jeden dzień tygodnia dla planu wyjazdu"
+            "Select at least one weekday for the departure plan"
         )
     coordinator.departure_days = days
     try:
