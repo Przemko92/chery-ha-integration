@@ -36,6 +36,7 @@ from .const import (
 )
 from .coordinator import CheryEuropeDataUpdateCoordinator
 from .data import CheryData
+from .departure import departure_days, departure_state
 from .entity import CheryEuropeEntity, iter_entry_coordinators, stable_unique_id
 from .messages import (
     message_line,
@@ -43,6 +44,7 @@ from .messages import (
     messages_content,
     unread_messages,
 )
+from .prepare_plan import next_run
 
 PARALLEL_UPDATES = 0
 
@@ -576,19 +578,31 @@ class CheryEuropePrepareSensor(CheryEuropeEntity, SensorEntity):
 
     @property
     def native_value(self) -> StateType:
-        """Return the enabled plan count or the next departure timestamp."""
+        """Return the enabled plan count or the next departure timestamp.
+
+        The TSP answers ``preparePlans: []`` for this car — the newer
+        ``appointmentTravel`` plans are write-only — so when the poll reports
+        no plans the managed departure plan Home Assistant commanded is the
+        only real schedule there is.
+        """
         if self.coordinator.data is None:
             return None
         data = self.chery_data
+        travel_time, armed = departure_state(self.coordinator)
         if self.entity_description.key == "prepare_plans":
             plans = data.prepare_plans
             if plans is None:
                 return None
-            return sum(1 for plan in plans if plan.get("enabled", True))
+            if plans:
+                return sum(1 for plan in plans if plan.get("enabled", True))
+            return 1 if armed else 0
         raw = data.prepare_next_departure
-        if not raw:
+        if raw:
+            return dt_util.parse_datetime(raw)
+        if not armed:
             return None
-        return dt_util.parse_datetime(raw)
+        plan = {"travel_time": travel_time, "days": departure_days(self.coordinator)}
+        return next_run(plan, dt_util.now())
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
