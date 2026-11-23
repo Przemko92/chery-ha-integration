@@ -1054,7 +1054,15 @@ def parse_charge_appointment(
     """
     if not isinstance(payload, dict):
         return None
-    data = payload.get("data", payload)
+    # tspconsole wraps query results in "body" (chargeAppointQuery answers
+    # {"code": ..., "body": {"chargeAppointPlans": [...]}}); looking only at the
+    # top level left every plan unread. Unwrap first, like the travel parser.
+    data: Any = payload
+    for wrapper in ("body", "data"):
+        nested = data.get(wrapper)
+        if isinstance(nested, (dict, list)):
+            data = nested
+            break
     if isinstance(data, list):
         plan = _parse_charge_appoint_plan(data)
         enabled = _plan_switch_on(plan)
