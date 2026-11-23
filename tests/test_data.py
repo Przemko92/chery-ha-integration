@@ -1093,7 +1093,7 @@ def test_parse_charge_appointment_unwraps_the_tspconsole_body():
             "sign": "1TGBQ9PVC5JUTI5Z6MCEM0PLYBQ2DN/QQQ7+PSJELMI=",
             "body": {
                 "mainSwitch": 0,
-                "vin": "LNNBBDEE1SD407504",
+                "vin": "LVVDB21B0PD000042",
                 "id": 50056,
                 "chargeAppointPlans": [
                     {

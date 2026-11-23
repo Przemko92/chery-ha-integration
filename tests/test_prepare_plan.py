@@ -210,7 +210,7 @@ def test_parse_plans_unwraps_the_tspconsole_body_envelope() -> None:
             "preparePlans": [
                 {"planName": "Work", "travelTime": "07:30", "switchStatus": "1"}
             ],
-            "vin": "LNNBBDEE1SD407504",
+            "vin": "LVVDB21B0PD000042",
         },
     }
     plans = parse_plans(payload)
