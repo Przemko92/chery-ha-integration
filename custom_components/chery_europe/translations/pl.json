@@ -208,6 +208,12 @@
       },
       "tire_temperature_rear_right": {
         "name": "Temperatura tylnej prawej opony"
+      },
+      "prepare_plans": {
+        "name": "Zaplanowane przygotowanie"
+      },
+      "prepare_next_departure": {
+        "name": "Następny wyjazd"
       }
     },
     "binary_sensor": {
@@ -405,6 +411,104 @@
         "vin": {
           "name": "VIN",
           "description": "VIN pojazdu. Wymagany, gdy na tym koncie jest skonfigurowany więcej niż jeden pojazd."
+        }
+      }
+    },
+    "set_prepare_plan": {
+      "name": "Ustaw plan przygotowania kabiny",
+      "description": "Dodaj lub zmień zaplanowane przygotowanie kabiny/baterii (godzina wyjazdu, powtarzanie, temperatura, ogrzewanie).",
+      "fields": {
+        "plan_name": {
+          "name": "Nazwa planu",
+          "description": "Krótka nazwa planu, maks. 10 znaków, musi być unikalna."
+        },
+        "travel_time": {
+          "name": "Godzina wyjazdu",
+          "description": "Godzina, na którą auto ma być gotowe (HH:MM)."
+        },
+        "repeat": {
+          "name": "Powtarzanie",
+          "description": "daily (codziennie), workdays (dni robocze), weekend lub custom (własne dni)."
+        },
+        "days": {
+          "name": "Dni tygodnia",
+          "description": "Dni dla repeat=custom (1 = poniedziałek … 7 = niedziela)."
+        },
+        "enabled": {
+          "name": "Aktywny",
+          "description": "False wyłącza plan, ale go nie usuwa."
+        },
+        "temperature": {
+          "name": "Temperatura kabiny",
+          "description": "Docelowa temperatura kabiny w °C (16–32)."
+        },
+        "battery_heat": {
+          "name": "Podgrzewanie baterii",
+          "description": "Podgrzej baterię trakcyjną przed wyjazdem."
+        },
+        "steering_wheel_heat": {
+          "name": "Podgrzewanie kierownicy",
+          "description": "Podgrzej kierownicę przed wyjazdem."
+        },
+        "driver_seat_heat": {
+          "name": "Podgrzewanie fotela kierowcy",
+          "description": "Podgrzej fotel kierowcy przed wyjazdem."
+        },
+        "front_defrost": {
+          "name": "Odmrażanie przedniej szyby",
+          "description": "Odmroź przednią szybę przed wyjazdem."
+        },
+        "rear_defrost": {
+          "name": "Odmrażanie tylnej szyby",
+          "description": "Odmroź tylną szybę przed wyjazdem."
+        },
+        "plan_id": {
+          "name": "Identyfikator planu",
+          "description": "Plan do edycji; pomiń, aby dodać nowy."
+        },
+        "dry_run": {
+          "name": "Test",
+          "description": "Zbuduj i zwróć payload, ale nie wysyłaj go do auta."
+        },
+        "pin": {
+          "name": "PIN",
+          "description": "PIN zdalnego sterowania. Opcjonalny, gdy PIN jest zapisany w opcjach."
+        },
+        "vin": {
+          "name": "VIN",
+          "description": "VIN pojazdu. Wymagany, jeśli na koncie jest więcej niż jedno auto."
+        }
+      }
+    },
+    "cancel_prepare_plan": {
+      "name": "Wyłącz plan przygotowania",
+      "description": "Wyłącza plan przygotowania. Auto wymaga dezaktywacji zamiast usuwania.",
+      "fields": {
+        "plan_id": {
+          "name": "Identyfikator planu",
+          "description": "Plan do edycji; pomiń, aby dodać nowy."
+        },
+        "dry_run": {
+          "name": "Test",
+          "description": "Zbuduj i zwróć payload, ale nie wysyłaj go do auta."
+        },
+        "pin": {
+          "name": "PIN",
+          "description": "PIN zdalnego sterowania. Opcjonalny, gdy PIN jest zapisany w opcjach."
+        },
+        "vin": {
+          "name": "VIN",
+          "description": "VIN pojazdu. Wymagany, jeśli na koncie jest więcej niż jedno auto."
+        }
+      }
+    },
+    "list_prepare_plans": {
+      "name": "Odczytaj plany przygotowania",
+      "description": "Odczytuje z auta listę planów przygotowania i zwraca ją w odpowiedzi usługi.",
+      "fields": {
+        "vin": {
+          "name": "VIN",
+          "description": "VIN pojazdu. Wymagany, jeśli na koncie jest więcej niż jedno auto."
         }
       }
     }

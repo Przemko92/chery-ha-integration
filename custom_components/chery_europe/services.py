@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import time
+from datetime import datetime, time, timezone
 from typing import Any
 
 import voluptuous as vol
@@ -15,18 +15,40 @@ from homeassistant.helpers import config_validation as cv
 from .charge_schedule import local_time_to_minutes
 from .command_exec import async_send_vehicle_command
 from .const import (
+    ATTR_BATTERY_HEAT,
     ATTR_COMMAND_ID,
+    ATTR_DAYS,
+    ATTR_DRIVER_SEAT_HEAT,
+    ATTR_DRY_RUN,
     ATTR_DURATION_HOURS,
     ATTR_ENABLED,
+    ATTR_FRONT_DEFROST,
     ATTR_PIN,
+    ATTR_PLAN_ID,
+    ATTR_PLAN_NAME,
+    ATTR_REAR_DEFROST,
+    ATTR_REPEAT,
     ATTR_START_TIME,
+    ATTR_STEERING_WHEEL_HEAT,
+    ATTR_TEMPERATURE,
+    ATTR_TRAVEL_TIME,
     ATTR_VIN,
     DOMAIN,
+    SERVICE_CANCEL_PREPARE_PLAN,
+    SERVICE_LIST_PREPARE_PLANS,
     SERVICE_SEND_COMMAND,
+    SERVICE_SET_PREPARE_PLAN,
     SERVICE_SET_SCHEDULED_CHARGING,
 )
 from .coordinator import CheryEuropeDataUpdateCoordinator
-from .data import apply_command_feedback
+from .data import apply_command_feedback, apply_travel_appointment
+from .prepare_plan import (
+    REPEAT_MODES,
+    build_plan,
+    disable_plan,
+    merge_plan,
+    validate_plans,
+)
 from .exceptions import CheryEuropeCommandError, CheryEuropeException
 from .pin import resolve_pin
 
@@ -54,6 +76,41 @@ SET_SCHEDULED_CHARGING_SCHEMA = vol.Schema(
         ),
         vol.Optional(ATTR_ENABLED, default=True): cv.boolean,
         vol.Optional(ATTR_PIN): vol.All(cv.string, vol.Length(min=1)),
+        vol.Optional(ATTR_VIN): vol.All(cv.string, vol.Length(min=1)),
+    }
+)
+
+SET_PREPARE_PLAN_SCHEMA = vol.Schema(
+    {
+        vol.Required(ATTR_PLAN_NAME): vol.All(cv.string, vol.Length(min=1, max=10)),
+        vol.Required(ATTR_TRAVEL_TIME): cv.string,
+        vol.Optional(ATTR_REPEAT, default="daily"): vol.In(REPEAT_MODES),
+        vol.Optional(ATTR_DAYS): vol.All(cv.ensure_list, [vol.All(vol.Coerce(int), vol.Range(min=1, max=7))]),
+        vol.Optional(ATTR_ENABLED, default=True): cv.boolean,
+        vol.Optional(ATTR_TEMPERATURE): vol.All(vol.Coerce(float), vol.Range(min=16, max=32)),
+        vol.Optional(ATTR_BATTERY_HEAT, default=False): cv.boolean,
+        vol.Optional(ATTR_STEERING_WHEEL_HEAT, default=False): cv.boolean,
+        vol.Optional(ATTR_DRIVER_SEAT_HEAT, default=False): cv.boolean,
+        vol.Optional(ATTR_FRONT_DEFROST, default=False): cv.boolean,
+        vol.Optional(ATTR_REAR_DEFROST, default=False): cv.boolean,
+        vol.Optional(ATTR_PLAN_ID): vol.All(cv.string, vol.Length(min=1)),
+        vol.Optional(ATTR_DRY_RUN, default=False): cv.boolean,
+        vol.Optional(ATTR_PIN): vol.All(cv.string, vol.Length(min=1)),
+        vol.Optional(ATTR_VIN): vol.All(cv.string, vol.Length(min=1)),
+    }
+)
+
+CANCEL_PREPARE_PLAN_SCHEMA = vol.Schema(
+    {
+        vol.Required(ATTR_PLAN_ID): vol.All(cv.string, vol.Length(min=1)),
+        vol.Optional(ATTR_DRY_RUN, default=False): cv.boolean,
+        vol.Optional(ATTR_PIN): vol.All(cv.string, vol.Length(min=1)),
+        vol.Optional(ATTR_VIN): vol.All(cv.string, vol.Length(min=1)),
+    }
+)
+
+LIST_PREPARE_PLANS_SCHEMA = vol.Schema(
+    {
         vol.Optional(ATTR_VIN): vol.All(cv.string, vol.Length(min=1)),
     }
 )
@@ -159,6 +216,157 @@ def async_setup_services(hass: HomeAssistant) -> None:
             "enabled": enabled,
         }
 
+    async def handle_set_prepare_plan(call: ServiceCall) -> dict[str, Any]:
+        entry = _get_loaded_entry(hass)
+        coordinator = _coordinator_for_call(entry, call.data.get(ATTR_VIN))
+        vin = coordinator.data.vin if coordinator.data is not None else None
+        if not vin:
+            raise HomeAssistantError("Vehicle is unavailable")
+        current = list(
+            (coordinator.data.prepare_plans if coordinator.data is not None else None)
+            or []
+        )
+        plan_id = call.data.get(ATTR_PLAN_ID)
+        try:
+            if plan_id and not any(
+                str(plan.get("plan_id") or "") == str(plan_id) for plan in current
+            ):
+                raise ValueError(f"Unknown plan_id: {plan_id}")
+            plan = build_plan(
+                name=call.data[ATTR_PLAN_NAME],
+                travel_time=call.data[ATTR_TRAVEL_TIME],
+                repeat=call.data[ATTR_REPEAT],
+                days=call.data.get(ATTR_DAYS),
+                enabled=call.data[ATTR_ENABLED],
+                temperature=call.data.get(ATTR_TEMPERATURE),
+                battery_heat=call.data[ATTR_BATTERY_HEAT],
+                steering_wheel_heat=call.data[ATTR_STEERING_WHEEL_HEAT],
+                driver_seat_heat=call.data[ATTR_DRIVER_SEAT_HEAT],
+                front_defrost=call.data[ATTR_FRONT_DEFROST],
+                rear_defrost=call.data[ATTR_REAR_DEFROST],
+                plan_id=plan_id,
+            )
+            validate_plans(current, plan)
+            plans = merge_plan(current, plan)
+        except ValueError as err:
+            raise HomeAssistantError(f"Invalid preparation plan: {err}") from err
+
+        if call.data[ATTR_DRY_RUN]:
+            return {
+                "success": True,
+                "dry_run": True,
+                "plans": plans,
+                "body": _prepare_body(plans),
+            }
+        response = await _write_prepare_plans(coordinator, entry, vin, plans, call)
+        return {"success": True, "plans": plans, "response": response}
+
+    async def handle_cancel_prepare_plan(call: ServiceCall) -> dict[str, Any]:
+        entry = _get_loaded_entry(hass)
+        coordinator = _coordinator_for_call(entry, call.data.get(ATTR_VIN))
+        vin = coordinator.data.vin if coordinator.data is not None else None
+        if not vin:
+            raise HomeAssistantError("Vehicle is unavailable")
+        current = list(
+            (coordinator.data.prepare_plans if coordinator.data is not None else None)
+            or []
+        )
+        try:
+            plans = disable_plan(current, call.data[ATTR_PLAN_ID])
+        except ValueError as err:
+            raise HomeAssistantError(f"Invalid preparation plan: {err}") from err
+
+        if call.data[ATTR_DRY_RUN]:
+            return {
+                "success": True,
+                "dry_run": True,
+                "plans": plans,
+                "body": _prepare_body(plans),
+            }
+        response = await _write_prepare_plans(coordinator, entry, vin, plans, call)
+        return {"success": True, "plans": plans, "response": response}
+
+    async def handle_list_prepare_plans(call: ServiceCall) -> dict[str, Any]:
+        entry = _get_loaded_entry(hass)
+        coordinator = _coordinator_for_call(entry, call.data.get(ATTR_VIN))
+        vin = coordinator.data.vin if coordinator.data is not None else None
+        if not vin:
+            raise HomeAssistantError("Vehicle is unavailable")
+        plans = await coordinator.api.query_travel_appointment(vin)
+        if plans is None:
+            return {
+                "success": False,
+                "message": "The car did not return its preparation plans",
+                "plans": (
+                    coordinator.data.prepare_plans
+                    if coordinator.data is not None
+                    else None
+                ),
+            }
+        coordinator.invalidate_prepare_cache()
+        if coordinator.data is not None:
+            coordinator.async_set_updated_data(
+                apply_travel_appointment(
+                    coordinator.data,
+                    plans,
+                    polled_at=datetime.now(timezone.utc).isoformat(),
+                )
+            )
+        return {
+            "success": True,
+            "plans": plans,
+            "next_departure": (
+                coordinator.data.prepare_next_departure
+                if coordinator.data is not None
+                else None
+            ),
+        }
+
+    async def _write_prepare_plans(
+        coordinator: CheryEuropeDataUpdateCoordinator,
+        entry: ConfigEntry,
+        vin: str,
+        plans: list[dict[str, Any]],
+        call: ServiceCall,
+    ) -> dict[str, Any]:
+        """Send the complete plan list and mirror it into the coordinator."""
+        pin = resolve_pin(entry, call.data)
+        permissions = (
+            coordinator.permissions
+            if getattr(coordinator, "_permissions_loaded", False)
+            else None
+        )
+        try:
+            response = await coordinator.api.send_travel_appointment(
+                vin, pin, plans, permissions
+            )
+        except CheryEuropeException as exc:
+            raise HomeAssistantError(
+                f"Chery Europe preparation command failed: {exc}"
+            ) from exc
+        if not response.get("ok"):
+            message = response.get("message") or response.get("code")
+            raise CheryEuropeCommandError(
+                f"Chery Europe preparation command failed: {message}"
+            )
+        coordinator.invalidate_prepare_cache()
+        if coordinator.data is not None:
+            coordinator.async_set_updated_data(
+                apply_travel_appointment(
+                    coordinator.data,
+                    plans,
+                    polled_at=datetime.now(timezone.utc).isoformat(),
+                )
+            )
+        coordinator.schedule_refresh_after_command()
+        return response
+
+    def _prepare_body(plans: list[dict[str, Any]]) -> dict[str, Any]:
+        """Build the payload without sending it (dry-run helper)."""
+        from .vehicle_commands import build_travel_appoint_body
+
+        return build_travel_appoint_body({"plans": plans})
+
     if not hass.services.has_service(DOMAIN, SERVICE_SEND_COMMAND):
         hass.services.async_register(
             DOMAIN,
@@ -174,6 +382,33 @@ def async_setup_services(hass: HomeAssistant) -> None:
             SERVICE_SET_SCHEDULED_CHARGING,
             handle_set_scheduled_charging,
             schema=SET_SCHEDULED_CHARGING_SCHEMA,
+            supports_response=SupportsResponse.OPTIONAL,
+        )
+
+    if not hass.services.has_service(DOMAIN, SERVICE_SET_PREPARE_PLAN):
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_SET_PREPARE_PLAN,
+            handle_set_prepare_plan,
+            schema=SET_PREPARE_PLAN_SCHEMA,
+            supports_response=SupportsResponse.OPTIONAL,
+        )
+
+    if not hass.services.has_service(DOMAIN, SERVICE_CANCEL_PREPARE_PLAN):
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_CANCEL_PREPARE_PLAN,
+            handle_cancel_prepare_plan,
+            schema=CANCEL_PREPARE_PLAN_SCHEMA,
+            supports_response=SupportsResponse.OPTIONAL,
+        )
+
+    if not hass.services.has_service(DOMAIN, SERVICE_LIST_PREPARE_PLANS):
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_LIST_PREPARE_PLANS,
+            handle_list_prepare_plans,
+            schema=LIST_PREPARE_PLANS_SCHEMA,
             supports_response=SupportsResponse.OPTIONAL,
         )
 

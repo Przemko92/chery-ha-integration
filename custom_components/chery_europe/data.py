@@ -7,6 +7,8 @@ from datetime import datetime, timezone
 from typing import Any
 
 from .types.vehicle_models import VehicleStatus
+from .prepare_plan import next_departure as next_prepare_departure
+from .prepare_plan import parse_plans as parse_prepare_plans
 from .vehicle_commands import build_charge_plan
 
 CHARGE_STATUS_MAP = {
@@ -137,6 +139,11 @@ class CheryData:
     heat_everything: bool | None = None
     cool_everything: bool | None = None
     theft_alarm: bool | None = None
+    # Scheduled cabin/battery preparation (travelAppointQuery). ``None`` means
+    # "not read yet"; an empty list means the car really has no plans.
+    prepare_plans: list[dict[str, Any]] | None = None
+    prepare_next_departure: str | None = None
+    prepare_polled_at: str | None = None
 
     @classmethod
     def from_api_response(cls, response: dict[str, Any] | VehicleStatus | None) -> CheryData:
@@ -471,6 +478,9 @@ _FRESHNESS_IGNORE = frozenset(
         "min_temperature",
         "max_temperature",
         "charge_appoint_plan",
+        "prepare_plans",
+        "prepare_next_departure",
+        "prepare_polled_at",
     }
 )
 
@@ -936,6 +946,38 @@ def apply_charge_appointment(
         updates["charge_appoint_plan"] = plan
     if not updates:
         return data
+    return replace(data, **updates)
+
+
+def parse_travel_appointment(payload: Any) -> list[dict[str, Any]] | None:
+    """Return the preparation plans from a travelAppointQuery payload.
+
+    ``None`` means the payload carried no recognisable plan list, so the
+    coordinator keeps the last known plans instead of clearing them.
+    """
+    plans = parse_prepare_plans(payload)
+    if plans is None:
+        return None
+    return plans
+
+
+def apply_travel_appointment(
+    data: CheryData,
+    plans: list[dict[str, Any]] | None,
+    *,
+    polled_at: str | None = None,
+) -> CheryData:
+    """Overlay a travelAppointQuery result without clearing missing plans."""
+    if plans is None:
+        return data
+    now = datetime.now(timezone.utc)
+    upcoming = next_prepare_departure(plans, now)
+    updates: dict[str, Any] = {
+        "prepare_plans": plans,
+        "prepare_next_departure": upcoming.isoformat() if upcoming else None,
+    }
+    if polled_at is not None:
+        updates["prepare_polled_at"] = polled_at
     return replace(data, **updates)
 
 

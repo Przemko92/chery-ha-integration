@@ -1,5 +1,5 @@
 from dataclasses import replace
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 import asyncio
 import logging
 
@@ -26,6 +26,7 @@ from .const import (
     DOMAIN,
     DRIVE_WATCH_INTERVAL,
     POST_COMMAND_REFRESH_DELAYS,
+    PREPARE_POLL_INTERVAL,
     REFRESH_HV_WAIT_SECONDS,
     STATUS_MAX_LEN,
 )
@@ -34,6 +35,7 @@ from .data import (
     apply_charge_appointment,
     apply_data_freshness,
     apply_location,
+    apply_travel_appointment,
     is_command_ack,
     merge_chery_data,
     vehicle_display_name,
@@ -102,6 +104,8 @@ _CONTROL_STATE_FIELDS = (
     "heat_everything",
     "cool_everything",
     "theft_alarm",
+    "prepare_plans",
+    "prepare_next_departure",
 )
 
 
@@ -129,6 +133,7 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
         self.rename_entry = rename_entry
         self.owns_account_session = owns_account_session
         self.permissions: dict[int, int] = {}
+        self._prepare_polled_at: datetime | None = None
         self._permissions_loaded = False
         self._mqtt_siblings: list = []
         self.charge_start_minutes = 480
@@ -222,6 +227,7 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
                 self._apply_scan_interval(base)
                 merged = await self._merge_location(base)
                 merged = await self._merge_charge_appointment(merged)
+                merged = await self._merge_travel_appointment(merged)
                 merged = await self._merge_theft_alarm(merged)
                 return self._publish_data(merged)
             merged = merge_chery_data(
@@ -230,6 +236,7 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
             )
             merged = await self._merge_location(merged)
             merged = await self._merge_charge_appointment(merged)
+            merged = await self._merge_travel_appointment(merged)
             merged = await self._merge_theft_alarm(merged)
             self._sync_vehicle_identity(merged)
             self._apply_scan_interval(merged)
@@ -350,6 +357,38 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
             _LOGGER.debug("Charge appointment unavailable for %s: %s", data.vin, exc)
             return data
         return apply_charge_appointment(data, result)
+
+    async def _merge_travel_appointment(self, data: CheryData) -> CheryData:
+        """Read the scheduled cabin/battery preparation plans.
+
+        Polled at most every ``PREPARE_POLL_INTERVAL`` so a short HV poll
+        interval does not multiply the requests sent to the account. A failed
+        query keeps the last plan list.
+        """
+        if not data.vin:
+            return data
+        now = datetime.now(timezone.utc)
+        last = self._prepare_polled_at
+        if last is not None and now - last < PREPARE_POLL_INTERVAL:
+            return data
+        query = getattr(self.api, "query_travel_appointment", None)
+        if query is None:
+            return data
+        self._prepare_polled_at = now
+        try:
+            plans = await query(data.vin)
+        except Exception as exc:  # noqa: BLE001
+            _LOGGER.debug("Travel appointment unavailable for %s: %s", data.vin, exc)
+            return data
+        if plans is None:
+            return data
+        return apply_travel_appointment(
+            data, plans, polled_at=now.isoformat()
+        )
+
+    def invalidate_prepare_cache(self) -> None:
+        """Force the next update to re-read the plans after we wrote them."""
+        self._prepare_polled_at = None
 
     async def _merge_theft_alarm(self, data: CheryData) -> CheryData:
         """Read the theft-alarm switch. A failed query keeps the last state."""

@@ -69,3 +69,163 @@ set_scheduled_charging:
       required: false
       selector:
         text:
+
+set_prepare_plan:
+  name: Set preparation plan
+  description: Create or update a scheduled cabin/battery preparation plan. The car accepts at most 5 plans, names of 10 characters and departures at least 20 minutes apart.
+  fields:
+    plan_name:
+      name: Plan name
+      description: Short name of the plan, at most 10 characters and unique.
+      required: true
+      example: "Work"
+      selector:
+        text:
+    travel_time:
+      name: Departure time
+      description: Local time you want the car ready.
+      required: true
+      example: "07:30"
+      selector:
+        time:
+    repeat:
+      name: Repeat
+      description: How often the plan runs.
+      required: false
+      default: daily
+      selector:
+        select:
+          options:
+            - daily
+            - workdays
+            - weekend
+            - custom
+    days:
+      name: Days
+      description: Weekdays used when repeat is custom (1 = Monday, 7 = Sunday).
+      required: false
+      selector:
+        select:
+          multiple: true
+          options: ["1", "2", "3", "4", "5", "6", "7"]
+    enabled:
+      name: Enabled
+      description: Set to false to keep the plan but switch it off.
+      required: false
+      default: true
+      selector:
+        boolean:
+    temperature:
+      name: Cabin temperature
+      description: Target cabin temperature in °C.
+      required: false
+      example: 22
+      selector:
+        number:
+          min: 16
+          max: 32
+          step: 0.5
+          unit_of_measurement: "°C"
+    battery_heat:
+      name: Battery heating
+      description: Pre-heat the high-voltage battery before departure.
+      required: false
+      default: false
+      selector:
+        boolean:
+    steering_wheel_heat:
+      name: Steering wheel heating
+      description: Heat the steering wheel before departure.
+      required: false
+      default: false
+      selector:
+        boolean:
+    driver_seat_heat:
+      name: Driver seat heating
+      description: Heat the driver seat before departure.
+      required: false
+      default: false
+      selector:
+        boolean:
+    front_defrost:
+      name: Front defrost
+      description: Defrost the windscreen before departure.
+      required: false
+      default: false
+      selector:
+        boolean:
+    rear_defrost:
+      name: Rear defrost
+      description: Defrost the rear window before departure.
+      required: false
+      default: false
+      selector:
+        boolean:
+    plan_id:
+      name: Plan id
+      description: Existing plan to edit; omit to add a new plan.
+      required: false
+      selector:
+        text:
+    dry_run:
+      name: Dry run
+      description: Only build and return the payload, do not send it to the car.
+      required: false
+      default: false
+      selector:
+        boolean:
+    pin:
+      name: PIN
+      description: Vehicle remote-control PIN. Optional when a PIN is stored in integration options.
+      required: false
+      selector:
+        text:
+          type: password
+    vin:
+      name: VIN
+      description: Vehicle VIN. Required when more than one vehicle is configured on this account.
+      required: false
+      selector:
+        text:
+
+cancel_prepare_plan:
+  name: Cancel preparation plan
+  description: Switch a preparation plan off. The car requires deactivation instead of deletion.
+  fields:
+    plan_id:
+      name: Plan id
+      description: Identifier of the plan to switch off, as returned by list_prepare_plans.
+      required: true
+      selector:
+        text:
+    dry_run:
+      name: Dry run
+      description: Only build and return the payload, do not send it to the car.
+      required: false
+      default: false
+      selector:
+        boolean:
+    pin:
+      name: PIN
+      description: Vehicle remote-control PIN. Optional when a PIN is stored in integration options.
+      required: false
+      selector:
+        text:
+          type: password
+    vin:
+      name: VIN
+      description: Vehicle VIN. Required when more than one vehicle is configured on this account.
+      required: false
+      selector:
+        text:
+
+list_prepare_plans:
+  name: List preparation plans
+  description: Read the preparation plans stored in the car and return them in the service response.
+  fields:
+    vin:
+      name: VIN
+      description: Vehicle VIN. Required when more than one vehicle is configured on this account.
+      required: false
+      selector:
+        text:

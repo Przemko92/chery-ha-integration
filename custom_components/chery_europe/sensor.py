@@ -331,6 +331,31 @@ TIMESTAMP_SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = 
     ),
 )
 
+PREPARE_SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
+    CheryEuropeSensorEntityDescription(
+        key="prepare_plans",
+        name="Scheduled preparation",
+        translation_key="prepare_plans",
+        icon="mdi:car-clock",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda data: (
+            None
+            if data.prepare_plans is None
+            else sum(
+                1 for plan in data.prepare_plans if plan.get("enabled", True)
+            )
+        ),
+    ),
+    CheryEuropeSensorEntityDescription(
+        key="prepare_next_departure",
+        name="Next departure",
+        translation_key="prepare_next_departure",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        icon="mdi:clock-outline",
+        value_fn=lambda data: data.prepare_next_departure,
+    ),
+)
+
 STATUS_SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
     CheryEuropeSensorEntityDescription(
         key="command_status",
@@ -392,6 +417,10 @@ async def async_setup_entry(
         entities.extend(
             CheryEuropeTimestampSensor(coordinator, description, entry)
             for description in TIMESTAMP_SENSOR_DESCRIPTIONS
+        )
+        entities.extend(
+            CheryEuropePrepareSensor(coordinator, description, entry)
+            for description in PREPARE_SENSOR_DESCRIPTIONS
         )
     async_add_entities(entities)
 
@@ -473,6 +502,67 @@ class CheryEuropeSensor(_CheryEuropeRestoreSensor):
     def available(self) -> bool:
         """Return if entity data is available."""
         return self.coordinator.data is not None and super().available
+
+
+class CheryEuropePrepareSensor(CheryEuropeEntity, SensorEntity):
+    """Scheduled cabin/battery preparation: plan count and next departure."""
+
+    entity_description: CheryEuropeSensorEntityDescription
+
+    def __init__(
+        self,
+        coordinator: CheryEuropeDataUpdateCoordinator,
+        description: CheryEuropeSensorEntityDescription,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the preparation sensor."""
+        super().__init__(coordinator, description, entry)
+        self._attr_translation_key = description.translation_key
+        self._attr_unique_id = stable_unique_id(entry, description.key, coordinator)
+
+    @property
+    def native_value(self) -> StateType:
+        """Return the enabled plan count or the next departure timestamp."""
+        if self.coordinator.data is None:
+            return None
+        data = self.chery_data
+        if self.entity_description.key == "prepare_plans":
+            plans = data.prepare_plans
+            if plans is None:
+                return None
+            return sum(1 for plan in plans if plan.get("enabled", True))
+        raw = data.prepare_next_departure
+        if not raw:
+            return None
+        return dt_util.parse_datetime(raw)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return the plan details so automations can read them."""
+        data = self.chery_data
+        if self.entity_description.key != "prepare_plans":
+            return {"last_updated": data.last_updated}
+        plans = data.prepare_plans
+        return {
+            "last_updated": data.last_updated,
+            "polled_at": data.prepare_polled_at,
+            "plans": [
+                {
+                    "plan_id": plan.get("plan_id"),
+                    "name": plan.get("name"),
+                    "travel_time": plan.get("travel_time"),
+                    "days": plan.get("days"),
+                    "enabled": plan.get("enabled"),
+                    "temperature": plan.get("temperature"),
+                    **{
+                        key: value
+                        for key, value in (plan.get("features") or {}).items()
+                        if value
+                    },
+                }
+                for plan in plans or []
+            ],
+        }
 
 
 class CheryEuropeStatusSensor(_CheryEuropeRestoreSensor):
