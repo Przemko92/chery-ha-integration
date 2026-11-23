@@ -134,6 +134,26 @@ def async_drop_vin_from_names(
 
 LEGACY_ENTITY_KEYS = ("last_message", "messages_content", "messages_history")
 
+# Entity ids are generated from the translated name only once, when the entity is
+# first registered, so a renamed translation leaves the old slug behind forever.
+# (unique_id suffix, old slug, new slug)
+ENTITY_ID_RENAMES = (("alerts_content", "tresc_alarmow", "alarmy_tresc"),)
+
+
+def async_rename_entity_ids(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Move entity ids still carrying an old translated slug to the current one."""
+    registry = er.async_get(hass)
+    for key, old_slug, new_slug in ENTITY_ID_RENAMES:
+        for entity in er.async_entries_for_config_entry(registry, entry.entry_id):
+            if not entity.unique_id.endswith(f"_{key}"):
+                continue
+            domain, _, object_id = entity.entity_id.partition(".")
+            if not object_id.endswith(old_slug) or object_id.endswith(new_slug):
+                continue
+            new_id = f"{domain}.{object_id[: -len(old_slug)]}{new_slug}"
+            if registry.async_get(new_id) is None:
+                registry.async_update_entity(entity.entity_id, new_entity_id=new_id)
+
 
 def async_remove_legacy_entities(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Drop registry entries of entities the integration no longer provides.

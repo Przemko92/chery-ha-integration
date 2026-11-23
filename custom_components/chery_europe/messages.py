@@ -120,29 +120,38 @@ def parse_unread_messages(payload: Any) -> bool | None:
     return _as_bool(payload.get("data"))
 
 
-def message_line(message: dict[str, Any]) -> str:
-    """Render ``date -- title: text`` for one message on a single line."""
-    parts: list[str] = []
-    received = message.get("received")
-    if isinstance(received, str) and received:
-        try:
-            parts.append(
-                datetime.fromisoformat(received).strftime(MESSAGE_DATE_FORMAT)
-            )
-        except ValueError:
-            parts.append(received)
+def message_text(message: dict[str, Any]) -> str:
+    """Render ``title: text`` for one message, without the timestamp."""
     title = str(message.get("title") or "").strip()
     text = " ".join(str(message.get("text") or "").split())
     if title and text and title not in text:
-        parts.append(f"{title}: {text}")
-    elif title or text:
-        parts.append(text or title)
-    return " — ".join(parts)
+        return f"{title}: {text}"
+    return text or title
+
+
+def message_time(message: dict[str, Any]) -> str | None:
+    """Render the ``received`` timestamp as ``YYYY-MM-DD HH:MM`` (UTC)."""
+    received = message.get("received")
+    if not isinstance(received, str) or not received:
+        return None
+    try:
+        return datetime.fromisoformat(received).strftime(MESSAGE_DATE_FORMAT)
+    except ValueError:
+        return received
+
+
+def message_line(message: dict[str, Any]) -> str:
+    """Render ``date — title: text`` for one message on a single line."""
+    return " — ".join(part for part in (message_time(message), message_text(message)) if part)
 
 
 def messages_content(messages: Iterable[dict[str, Any]]) -> str:
-    """Render the fetched messages as one line each."""
-    return "\n".join(line for line in (message_line(m) for m in messages) if line)
+    """Render the fetched messages as one line each, without timestamps.
+
+    The state of the sensor is what the user sees first, so it carries the message
+    only; the date and time live in the ``*_at``/``history`` attributes.
+    """
+    return "\n".join(line for line in (message_text(m) for m in messages) if line)
 
 
 def messages_history(
@@ -262,6 +271,8 @@ def messages_attributes(
         "latest": items[0] if items else None,
         "last_message": items[0] if items else None,
         "last_message_text": items[0]["text"] if items else None,
+        "last_message_at": items[0]["received"] if items else None,
+        "last_message_time": message_time(items[0]) if items else None,
         "backfilled_at": backfilled_at,
         "messages_truncated": len(items) > limit,
         "messages": items[:limit],
