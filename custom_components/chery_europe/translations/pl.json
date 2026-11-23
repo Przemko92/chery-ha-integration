@@ -337,7 +337,7 @@
         "name": "Alarmy antykradzieżowy"
       },
       "departure": {
-        "name": "Wyjazd start"
+        "name": "Wyjazd plan"
       }
     },
     "time": {
@@ -345,7 +345,7 @@
         "name": "Ładowanie godzina startu"
       },
       "departure_time": {
-        "name": "Godzina wyjazdu"
+        "name": "Wyjazd godzina"
       }
     },
     "number": {
