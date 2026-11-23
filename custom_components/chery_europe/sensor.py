@@ -31,6 +31,7 @@ from homeassistant.helpers.typing import StateType
 from homeassistant.util import dt as dt_util
 
 from .alerts import alerts_content, collect_alerts
+from .messages import messages_attributes, messages_content
 from .coordinator import CheryEuropeDataUpdateCoordinator
 from .data import CheryData
 from .entity import CheryEuropeEntity, iter_entry_coordinators, stable_unique_id
@@ -375,6 +376,24 @@ ALERT_SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
     ),
 )
 
+MESSAGE_SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
+    CheryEuropeSensorEntityDescription(
+        key="messages",
+        name="Messages",
+        translation_key="messages",
+        icon="mdi:message-text-outline",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda data: data.messages_total or len(data.messages or []),
+    ),
+    CheryEuropeSensorEntityDescription(
+        key="messages_content",
+        name="Message details",
+        translation_key="messages_content",
+        icon="mdi:message-badge-outline",
+        value_fn=lambda data: messages_content(data.messages or []),
+    ),
+)
+
 STATUS_SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
     CheryEuropeSensorEntityDescription(
         key="command_status",
@@ -444,6 +463,10 @@ async def async_setup_entry(
         entities.extend(
             CheryEuropeAlertSensor(coordinator, description, entry)
             for description in ALERT_SENSOR_DESCRIPTIONS
+        )
+        entities.extend(
+            CheryEuropeMessageSensor(coordinator, description, entry)
+            for description in MESSAGE_SENSOR_DESCRIPTIONS
         )
     async_add_entities(entities)
 
@@ -699,6 +722,50 @@ class CheryEuropeAlertSensor(CheryEuropeEntity, SensorEntity):
             "categories": sorted({alert.category for alert in alerts}),
             "alerts": [alert.as_dict() for alert in alerts],
         }
+
+
+class CheryEuropeMessageSensor(CheryEuropeEntity, SensorEntity):
+    """Vehicle message inbox: the message count plus the message texts."""
+
+    entity_description: CheryEuropeSensorEntityDescription
+
+    def __init__(
+        self,
+        coordinator: CheryEuropeDataUpdateCoordinator,
+        description: CheryEuropeSensorEntityDescription,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the message sensor."""
+        super().__init__(coordinator, description, entry)
+        self._attr_translation_key = description.translation_key
+        self._attr_unique_id = stable_unique_id(entry, description.key, coordinator)
+
+    def _messages(self) -> list[dict[str, Any]]:
+        """Return the fetched message page (empty until the first poll)."""
+        if self.coordinator.data is None:
+            return []
+        return list(self.chery_data.messages or [])
+
+    @property
+    def native_value(self) -> StateType:
+        """Return the inbox size or the rendered messages."""
+        if self.coordinator.data is None:
+            return None
+        data = self.chery_data
+        if self.entity_description.key == "messages":
+            return data.messages_total or len(self._messages())
+        return messages_content(self._messages())
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return the unread flag and every fetched message."""
+        data = self.chery_data
+        return messages_attributes(
+            self._messages(),
+            total=data.messages_total,
+            unread=data.messages_unread,
+            polled_at=data.messages_polled_at,
+        )
 
 
 # Backwards compatibility alias for tests and external consumers

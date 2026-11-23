@@ -152,6 +152,11 @@ class CheryData:
     prepare_plans: list[dict[str, Any]] | None = None
     prepare_next_departure: str | None = None
     prepare_polled_at: str | None = None
+    # Vehicle message inbox (message centre). ``None`` means "not read yet".
+    messages: list[dict[str, Any]] | None = None
+    messages_total: int | None = None
+    messages_unread: bool | None = None
+    messages_polled_at: str | None = None
 
     @classmethod
     def from_api_response(cls, response: dict[str, Any] | VehicleStatus | None) -> CheryData:
@@ -496,6 +501,10 @@ _FRESHNESS_IGNORE = frozenset(
         "prepare_plans",
         "prepare_next_departure",
         "prepare_polled_at",
+        "messages",
+        "messages_total",
+        "messages_unread",
+        "messages_polled_at",
     }
 )
 
@@ -1000,6 +1009,27 @@ def apply_travel_appointment(
     }
     if polled_at is not None:
         updates["prepare_polled_at"] = polled_at
+    return replace(data, **updates)
+
+
+def apply_messages(
+    data: CheryData,
+    messages: list[dict[str, Any]] | None,
+    *,
+    total: int | None = None,
+    unread: bool | None = None,
+    polled_at: str | None = None,
+) -> CheryData:
+    """Overlay a message-inbox page; ``None`` keeps what is already known."""
+    if messages is None:
+        return data
+    updates: dict[str, Any] = {"messages": messages}
+    if total is not None:
+        updates["messages_total"] = total
+    if unread is not None:
+        updates["messages_unread"] = unread
+    if polled_at is not None:
+        updates["messages_polled_at"] = polled_at
     return replace(data, **updates)
 
 

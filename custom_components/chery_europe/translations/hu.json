@@ -220,6 +220,12 @@
       },
       "alerts_content": {
         "name": "Riasztás részletei"
+      },
+      "messages": {
+        "name": "Üzenetek"
+      },
+      "messages_content": {
+        "name": "Üzenet részletei"
       }
     },
     "binary_sensor": {

@@ -25,6 +25,7 @@ from .const import (
     DEFAULT_SESSION_KEEPALIVE,
     DOMAIN,
     DRIVE_WATCH_INTERVAL,
+    MESSAGES_POLL_INTERVAL,
     POST_COMMAND_REFRESH_DELAYS,
     PREPARE_POLL_INTERVAL,
     REFRESH_HV_WAIT_SECONDS,
@@ -35,12 +36,14 @@ from .data import (
     apply_charge_appointment,
     apply_data_freshness,
     apply_location,
+    apply_messages,
     apply_travel_appointment,
     is_command_ack,
     merge_chery_data,
     vehicle_display_name,
 )
 from .exceptions import CheryEuropeAuthError, CheryEuropeCommandError, CheryEuropeException
+from .messages import parse_messages
 from .mqtt import CheryEuropeMqttClient
 from .pin import resolve_pin
 
@@ -106,6 +109,10 @@ _CONTROL_STATE_FIELDS = (
     "theft_alarm",
     "prepare_plans",
     "prepare_next_departure",
+    "messages",
+    "messages_total",
+    "messages_unread",
+    "messages_polled_at",
 )
 
 
@@ -134,6 +141,7 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
         self.owns_account_session = owns_account_session
         self.permissions: dict[int, int] = {}
         self._prepare_polled_at: datetime | None = None
+        self._messages_polled_at: datetime | None = None
         self._permissions_loaded = False
         self._mqtt_siblings: list = []
         self.charge_start_minutes = 480
@@ -221,6 +229,7 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
                 self._apply_scan_interval(base)
                 base = await self._merge_charge_appointment(base)
                 base = await self._merge_theft_alarm(base)
+                base = await self._merge_messages(base)
                 return self._publish_data(base)
             if not realtime:
                 self._sync_vehicle_identity(base)
@@ -229,6 +238,7 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
                 merged = await self._merge_charge_appointment(merged)
                 merged = await self._merge_travel_appointment(merged)
                 merged = await self._merge_theft_alarm(merged)
+                merged = await self._merge_messages(merged)
                 return self._publish_data(merged)
             merged = merge_chery_data(
                 base,
@@ -238,6 +248,7 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
             merged = await self._merge_charge_appointment(merged)
             merged = await self._merge_travel_appointment(merged)
             merged = await self._merge_theft_alarm(merged)
+            merged = await self._merge_messages(merged)
             self._sync_vehicle_identity(merged)
             self._apply_scan_interval(merged)
             return self._publish_data(merged)
@@ -389,6 +400,45 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
     def invalidate_prepare_cache(self) -> None:
         """Force the next update to re-read the plans after we wrote them."""
         self._prepare_polled_at = None
+
+    async def _merge_messages(self, data: CheryData) -> CheryData:
+        """Read the vehicle message inbox.
+
+        Two cheap requests per cycle (one page of messages plus the unread
+        flag), at most every ``MESSAGES_POLL_INTERVAL`` so a short vehicle poll
+        interval does not turn into a stream of inbox reads. A failed query
+        keeps the last list.
+        """
+        now = datetime.now(timezone.utc)
+        last = self._messages_polled_at
+        if last is not None and now - last < MESSAGES_POLL_INTERVAL:
+            return data
+        fetch = getattr(self.api, "fetch_messages", None)
+        if fetch is None:
+            return data
+        self._messages_polled_at = now
+        try:
+            payload = await fetch()
+        except Exception as exc:  # noqa: BLE001
+            _LOGGER.debug("Vehicle messages unavailable: %s", exc)
+            return data
+        if payload is None:
+            return data
+        messages, total = parse_messages(payload)
+        unread: bool | None = None
+        fetch_unread = getattr(self.api, "fetch_messages_unread", None)
+        if fetch_unread is not None:
+            try:
+                unread = await fetch_unread()
+            except Exception as exc:  # noqa: BLE001
+                _LOGGER.debug("Unread messages flag unavailable: %s", exc)
+        return apply_messages(
+            data,
+            messages,
+            total=total,
+            unread=unread,
+            polled_at=now.isoformat(),
+        )
 
     async def _merge_theft_alarm(self, data: CheryData) -> CheryData:
         """Read the theft-alarm switch. A failed query keeps the last state."""

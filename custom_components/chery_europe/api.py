@@ -11,6 +11,8 @@ import aiohttp
 from .auth import CheryEuropeAuth
 from .const import (
     API_CPM_CHECK_PASSWORD_PATH,
+    API_MESSAGES_PAGING_PATH,
+    API_MESSAGES_UNREAD_PATH,
     API_QUERY_LOCATION_PATH,
     API_CHARGE_APPOINT_QUERY_PATH,
     API_REALTIME_PATH,
@@ -23,6 +25,7 @@ from .const import (
     API_VMC_SET_VEC_DEFAULT_PATH,
     DEFAULT_BASE_URL,
     DEFAULT_CHANNEL_ID,
+    DEFAULT_MESSAGES_PAGE_SIZE,
     DEFAULT_TSP_HOST,
     TOKEN_REFRESH_QUOTA,
     TRAVEL_APPOINT_ENDPOINT,
@@ -43,6 +46,7 @@ from .data import (
     parse_theft_alarm,
     parse_travel_appointment,
 )
+from .messages import parse_unread_messages
 from .request_queue import ApiRequestQueue, command_interval_key
 from .exceptions import (
     CheryEuropeAuthError,
@@ -278,6 +282,48 @@ class CheryEuropeApi:
             _LOGGER.debug("Theft alarm query for %s returned code %s", vin, code)
             return None
         return parse_theft_alarm(response)
+
+    async def fetch_messages(
+        self, page: int = 1, page_size: int = DEFAULT_MESSAGES_PAGE_SIZE
+    ) -> dict[str, Any] | None:
+        """Return one page of the vehicle message inbox.
+
+        The message service lives under ``/api/message/...`` (its own routing
+        prefix, not ``tsp``) and wants the paging values in a JSON body; a GET
+        with query parameters ends in a 500 from the Spring gateway.  ``None``
+        means the request failed, so callers keep the last known list.
+        """
+        await self._ensure_tsp_session()
+        try:
+            response = await self._request(
+                "POST",
+                API_MESSAGES_PAGING_PATH,
+                json={"pageNo": page, "pageSize": page_size},
+            )
+        except Exception as exc:  # noqa: BLE001
+            _LOGGER.debug("Vehicle messages query failed: %s", exc)
+            return None
+        if not isinstance(response, dict):
+            return None
+        if response.get("code") not in (TSP_CODE_OK, 0, "0", None):
+            _LOGGER.debug(
+                "Vehicle messages query returned code %s", response.get("code")
+            )
+            return None
+        return response
+
+    async def fetch_messages_unread(self) -> bool | None:
+        """Return whether the inbox has unread messages (``None`` on failure).
+
+        The endpoint only answers GET; a POST body is rejected with a 500.
+        """
+        await self._ensure_tsp_session()
+        try:
+            response = await self._request("GET", API_MESSAGES_UNREAD_PATH)
+        except Exception as exc:  # noqa: BLE001
+            _LOGGER.debug("Unread messages query failed: %s", exc)
+            return None
+        return parse_unread_messages(response)
 
     async def _tsp_query_payload(self, path: str, vin: str) -> dict[str, Any] | None:
         """Return a tspconsole dict payload, or None when the vehicle is asleep."""

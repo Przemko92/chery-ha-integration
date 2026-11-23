@@ -220,6 +220,12 @@
       },
       "alerts_content": {
         "name": "Alert details"
+      },
+      "messages": {
+        "name": "Messages"
+      },
+      "messages_content": {
+        "name": "Message details"
       }
     },
     "binary_sensor": {
