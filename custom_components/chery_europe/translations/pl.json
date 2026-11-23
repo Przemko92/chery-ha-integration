@@ -225,7 +225,7 @@
         "name": "Wiadomości"
       },
       "messages_unread": {
-        "name": "Nieprzeczytane wiadomości"
+        "name": "Wiadomości — nieprzeczytane"
       }
     },
     "binary_sensor": {
