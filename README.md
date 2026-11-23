@@ -238,10 +238,11 @@ multiply the requests sent to your account.
 Two entities drive the plan the integration manages itself, so a daily
 departure needs no service call:
 
-- **Departure time** (`time`, configuration) — reads the time of the plan named
-  `Wyjazd`, or the default `07:30` when that plan does not exist yet.
-- **Departure start** (`switch`) — `on` while the plan is armed, `off` when it is
-  deactivated.
+- **Departure time** (`time`, configuration, `time.godzina_wyjazdu`) — reads the
+  time of the plan named `Wyjazd`, or the default `07:30` when that plan does not
+  exist yet.
+- **Departure start** (`switch`, `switch.wyjazd_start`) — `on` while the plan is
+  armed, `off` when it is deactivated.
 
 Changing the time only keeps a local draft until the switch is turned on; that
 is deliberate, because a `time` value has to exist before a plan can be created.

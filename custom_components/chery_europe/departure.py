@@ -1,7 +1,7 @@
 """Departure-plan helpers shared by the ``time`` and ``switch`` platforms.
 
 Two entities drive the same thing: the ``time`` entity "Godzina wyjazdu" holds
-the departure time, and the ``switch`` entity "Wyjazd - start" arms it. Both
+the departure time, and the ``switch`` entity "Wyjazd start" arms it. Both
 write one managed plan
 (:data:`~.prepare_plan.DEPARTURE_PLAN_NAME`) through the same call, and both
 read their state back from the plan the car reports, so Home Assistant always
