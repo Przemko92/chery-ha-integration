@@ -208,6 +208,12 @@
       },
       "tire_temperature_rear_right": {
         "name": "Rear right tire temperature"
+      },
+      "prepare_plans": {
+        "name": "Scheduled preparation"
+      },
+      "prepare_next_departure": {
+        "name": "Next departure"
       }
     },
     "binary_sensor": {
@@ -405,6 +411,104 @@
         "vin": {
           "name": "VIN",
           "description": "Vehicle VIN. Required when more than one vehicle is configured on this account."
+        }
+      }
+    },
+    "set_prepare_plan": {
+      "name": "Set preparation plan",
+      "description": "Create or update a scheduled cabin/battery preparation plan (departure time, repeat, temperature, heating options).",
+      "fields": {
+        "plan_name": {
+          "name": "Plan name",
+          "description": "Short name of the plan, at most 10 characters and unique."
+        },
+        "travel_time": {
+          "name": "Departure time",
+          "description": "Local time you want the car ready (HH:MM)."
+        },
+        "repeat": {
+          "name": "Repeat",
+          "description": "daily, workdays, weekend or custom."
+        },
+        "days": {
+          "name": "Days",
+          "description": "Weekdays for repeat=custom (1 = Monday … 7 = Sunday)."
+        },
+        "enabled": {
+          "name": "Enabled",
+          "description": "Set to false to keep the plan but switch it off."
+        },
+        "temperature": {
+          "name": "Cabin temperature",
+          "description": "Target cabin temperature in °C (16–32)."
+        },
+        "battery_heat": {
+          "name": "Battery heating",
+          "description": "Pre-heat the high-voltage battery before departure."
+        },
+        "steering_wheel_heat": {
+          "name": "Steering wheel heating",
+          "description": "Heat the steering wheel before departure."
+        },
+        "driver_seat_heat": {
+          "name": "Driver seat heating",
+          "description": "Heat the driver seat before departure."
+        },
+        "front_defrost": {
+          "name": "Front defrost",
+          "description": "Defrost the windscreen before departure."
+        },
+        "rear_defrost": {
+          "name": "Rear defrost",
+          "description": "Defrost the rear window before departure."
+        },
+        "plan_id": {
+          "name": "Plan id",
+          "description": "Existing plan to edit; omit to add a new plan."
+        },
+        "dry_run": {
+          "name": "Dry run",
+          "description": "Only build and return the payload, do not send it to the car."
+        },
+        "pin": {
+          "name": "PIN",
+          "description": "Vehicle remote-control PIN. Optional when a PIN is stored in options."
+        },
+        "vin": {
+          "name": "VIN",
+          "description": "Vehicle VIN. Required when more than one vehicle is configured."
+        }
+      }
+    },
+    "cancel_prepare_plan": {
+      "name": "Cancel preparation plan",
+      "description": "Switch a preparation plan off. The car requires deactivation instead of deletion.",
+      "fields": {
+        "plan_id": {
+          "name": "Plan id",
+          "description": "Existing plan to edit; omit to add a new plan."
+        },
+        "dry_run": {
+          "name": "Dry run",
+          "description": "Only build and return the payload, do not send it to the car."
+        },
+        "pin": {
+          "name": "PIN",
+          "description": "Vehicle remote-control PIN. Optional when a PIN is stored in options."
+        },
+        "vin": {
+          "name": "VIN",
+          "description": "Vehicle VIN. Required when more than one vehicle is configured."
+        }
+      }
+    },
+    "list_prepare_plans": {
+      "name": "List preparation plans",
+      "description": "Read the preparation plans stored in the car and return them in the response.",
+      "fields": {
+        "vin": {
+          "name": "VIN",
+          "description": "Vehicle VIN. Required when more than one vehicle is configured."
         }
       }
     }

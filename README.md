@@ -57,6 +57,7 @@ or diagnostics.
 - Covers: trunk
 - Selects: windows (closed / vent / open), sunroof (closed / tilt / open)
 - Charging: start/stop, scheduled charging (time + duration entities)
+- Scheduled **cabin/battery preparation** (departure time, repeat, temperature, battery/steering wheel/seat heating, defrost)
 - Buttons: locate, find car, **wake vehicle**, **refresh position**, **refresh full status**
 
 **Operations**
@@ -159,6 +160,74 @@ data:
   duration_hours: 6
   enabled: true  # optional; false disables the schedule
 ```
+
+#### `chery_europe.set_prepare_plan`
+
+Create or update a scheduled **cabin/battery preparation** plan — the same
+feature as *Zaplanowane wstępne przygotowanie kabiny* in the official app. The
+car pre-conditions the cabin (and optionally the traction battery) so it is
+ready at your departure time.
+
+```yaml
+action: chery_europe.set_prepare_plan
+data:
+  plan_name: "Work"          # max 10 characters, must be unique
+  travel_time: "07:30"       # departure time, HH:MM
+  repeat: workdays           # daily | workdays | weekend | custom
+  # days: [1, 2, 3, 4, 5]    # only for repeat: custom (1 = Monday)
+  temperature: 22            # optional, 16–32 °C
+  battery_heat: true         # optional; pre-heat the HV battery
+  steering_wheel_heat: true  # optional
+  driver_seat_heat: false    # optional
+  front_defrost: true        # optional
+  rear_defrost: false        # optional
+```
+
+Add `plan_id: "<id>"` to edit an existing plan instead of creating a new one.
+The car accepts **at most 5 plans**, names of **10 characters**, and departures
+**at least 20 minutes apart**; the service rejects anything else before talking
+to the car.
+
+Add `dry_run: true` to only build and return the payload:
+
+```yaml
+action: chery_europe.set_prepare_plan
+data:
+  plan_name: "Test"
+  travel_time: "06:45"
+  battery_heat: true
+  dry_run: true
+response_variable: preview
+# {{ preview.body.preparePlans }}
+```
+
+#### `chery_europe.cancel_prepare_plan`
+
+Switch a plan off. The car insists a plan is **deactivated before it can be
+deleted**, so the integration clears `enabled` and every heating flag instead of
+removing the entry.
+
+```yaml
+action: chery_europe.cancel_prepare_plan
+data:
+  plan_id: "1234567890"
+```
+
+#### `chery_europe.list_prepare_plans`
+
+Read the plans stored in the car and return them (single query, no full
+refresh):
+
+```yaml
+action: chery_europe.list_prepare_plans
+response_variable: plans
+# {{ plans.plans }}, {{ plans.next_departure }}
+```
+
+The same data is exposed as two read-only sensors: **Scheduled preparation**
+(enabled plan count, full plan list in the attributes) and **Next departure**.
+Plans are re-read at most once an hour, so a short polling interval does not
+multiply the requests sent to your account.
 
 #### `chery_europe.send_command`
 

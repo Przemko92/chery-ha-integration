@@ -14,6 +14,8 @@ from .const import (
     API_QUERY_LOCATION_PATH,
     API_CHARGE_APPOINT_QUERY_PATH,
     API_REALTIME_PATH,
+    API_TRAVEL_APPOINT_QUERY_FALLBACKS,
+    API_TRAVEL_APPOINT_QUERY_PATH,
     API_THEFT_QUERY_PATH,
     API_TSP_LOGIN_PATH,
     API_VMC_QUERY_AUTHORITY_PATH,
@@ -23,15 +25,24 @@ from .const import (
     DEFAULT_CHANNEL_ID,
     DEFAULT_TSP_HOST,
     TOKEN_REFRESH_QUOTA,
+    TRAVEL_APPOINT_ENDPOINT,
     TSP_CODE_ASLEEP,
     TSP_CODE_OK,
 )
 from .crypto import encrypt_command_pin
 from .signing import SIGN_SECRET, get_identity_headers
 from .tsp_sign import auth_headers, sign_body
-from .vehicle_commands import COMMAND_SPECS, command_result
+from .vehicle_commands import (
+    COMMAND_SPECS,
+    build_travel_appoint_body,
+    command_result,
+)
 from .permissions import UNKNOWN, adapt_command, normalize_permissions
-from .data import parse_charge_appointment, parse_theft_alarm
+from .data import (
+    parse_charge_appointment,
+    parse_theft_alarm,
+    parse_travel_appointment,
+)
 from .request_queue import ApiRequestQueue, command_interval_key
 from .exceptions import (
     CheryEuropeAuthError,
@@ -176,6 +187,77 @@ class CheryEuropeApi:
             _LOGGER.debug("Charge appointment query for %s returned code %s", vin, code)
             return None
         return parse_charge_appointment(response)
+
+    async def query_travel_appointment(
+        self, vin: str
+    ) -> list[dict[str, Any]] | None:
+        """Return the scheduled cabin/battery preparation plans.
+
+        ``None`` means the query failed or the car did not answer, so callers
+        keep the last known plan list instead of clearing it. The working path
+        is remembered, so the fallbacks are only tried once per session.
+        """
+        await self._ensure_tsp_session()
+        if not self._user_token:
+            return None
+        for path in self._travel_query_paths():
+            try:
+                response = await self._tsp_signed_post(path, {"vin": vin})
+            except Exception as exc:  # noqa: BLE001
+                _LOGGER.debug(
+                    "Travel appointment query %s failed for %s: %s", path, vin, exc
+                )
+                continue
+            if not isinstance(response, dict):
+                continue
+            code = response.get("code")
+            if code == TSP_CODE_ASLEEP:
+                return None
+            if code not in (TSP_CODE_OK, 0, "0", None):
+                _LOGGER.debug(
+                    "Travel appointment query %s for %s returned code %s",
+                    path,
+                    vin,
+                    code,
+                )
+                continue
+            plans = parse_travel_appointment(response)
+            if plans is None:
+                continue
+            if getattr(self, "_travel_query_path", None) != path:
+                _LOGGER.debug("Travel appointment query path is %s", path)
+                self._travel_query_path = path
+            return plans
+        return None
+
+    def _travel_query_paths(self) -> list[str]:
+        """Return the query paths to try, cheapest first."""
+        cached = getattr(self, "_travel_query_path", None)
+        paths = [path for path in API_TRAVEL_APPOINT_QUERY_FALLBACKS]
+        if cached and cached in paths:
+            paths.remove(cached)
+            paths.insert(0, cached)
+        return paths
+
+    async def send_travel_appointment(
+        self,
+        vin: str,
+        pin: str,
+        plans: list[dict[str, Any]],
+        permissions: Any = None,
+    ) -> dict[str, Any]:
+        """Write the complete preparation plan list to the car.
+
+        The body is the whole list — the car replaces what is stored — so the
+        caller must pass every plan that should survive, disabled ones too.
+        """
+        body = build_travel_appoint_body({"plans": plans})
+        perms = self._permissions if permissions is None else permissions
+        endpoint, body = adapt_command(TRAVEL_APPOINT_ENDPOINT, body, perms)
+        response = await self._send_vehicle_control(
+            vin=vin, pin=pin, endpoint=endpoint, body=body
+        )
+        return command_result(response)
 
     async def query_theft_alarm(self, vin: str) -> bool | None:
         """Return the theft-alarm switch, or None when the car did not answer."""

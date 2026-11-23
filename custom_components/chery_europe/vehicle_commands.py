@@ -251,6 +251,44 @@ def build_theft_alarm_body(values: dict[str, Any]) -> dict[str, str]:
     return {"theftAlarmSwitch": "1" if enabled else "0"}
 
 
+def build_prepare_plan_entry(plan: dict[str, Any]) -> dict[str, Any]:
+    """Build one ``preparePlans`` entry from a normalised prepare plan.
+
+    ``travelTime`` is the local departure clock time, ``cycleData`` the ISO
+    weekday list. Features are sent only when switched on; the car treats a
+    missing key as off for that plan.
+    """
+    from .prepare_plan import PREPARE_FEATURE_FIELDS, PREPARE_FEATURE_VALUES
+
+    entry: dict[str, Any] = {
+        "planName": plan.get("name"),
+        "travelTime": plan.get("travel_time"),
+        "cycleData": list(plan.get("days") or []),
+        "switchStatus": 1 if plan.get("enabled", True) else 0,
+    }
+    plan_id = plan.get("plan_id")
+    if plan_id not in (None, ""):
+        entry["planId"] = plan_id
+    temperature = plan.get("temperature")
+    if temperature not in (None, ""):
+        entry["temperature"] = str(temperature)
+    features = plan.get("features") or {}
+    for feature, key in PREPARE_FEATURE_FIELDS.items():
+        if features.get(feature):
+            entry[key] = PREPARE_FEATURE_VALUES[feature]
+    return entry
+
+
+def build_travel_appoint_body(values: dict[str, Any]) -> dict[str, Any]:
+    """Build the nested body for the scheduled cabin/battery preparation.
+
+    ``values["plans"]`` is the complete plan list: the car replaces the stored
+    plans with what is sent, so callers must pass every plan they want to keep.
+    """
+    plans = values.get("plans") or []
+    return {"preparePlans": [build_prepare_plan_entry(plan) for plan in plans]}
+
+
 COMMAND_SPECS: dict[str, VehicleCommandSpec] = {
     "ve_1104": VehicleCommandSpec("airControl", build_air_control_body),
     "ve_1105": VehicleCommandSpec("lockControl", build_lock_control_body),

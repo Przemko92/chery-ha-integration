@@ -38,12 +38,27 @@ PLATFORMS = [
 # Services
 SERVICE_SEND_COMMAND = "send_command"
 SERVICE_SET_SCHEDULED_CHARGING = "set_scheduled_charging"
+SERVICE_SET_PREPARE_PLAN = "set_prepare_plan"
+SERVICE_CANCEL_PREPARE_PLAN = "cancel_prepare_plan"
+SERVICE_LIST_PREPARE_PLANS = "list_prepare_plans"
 ATTR_VIN = "vin"
 ATTR_COMMAND_ID = "command_id"
 ATTR_PIN = "pin"
 ATTR_START_TIME = "start_time"
 ATTR_DURATION_HOURS = "duration_hours"
 ATTR_ENABLED = "enabled"
+ATTR_PLAN_ID = "plan_id"
+ATTR_PLAN_NAME = "plan_name"
+ATTR_TRAVEL_TIME = "travel_time"
+ATTR_REPEAT = "repeat"
+ATTR_DAYS = "days"
+ATTR_TEMPERATURE = "temperature"
+ATTR_BATTERY_HEAT = "battery_heat"
+ATTR_STEERING_WHEEL_HEAT = "steering_wheel_heat"
+ATTR_DRIVER_SEAT_HEAT = "driver_seat_heat"
+ATTR_FRONT_DEFROST = "front_defrost"
+ATTR_REAR_DEFROST = "rear_defrost"
+ATTR_DRY_RUN = "dry_run"
 
 # Configuration and options
 CONF_LOGIN = "login"
@@ -127,6 +142,19 @@ DEFAULT_TSP_HOST = "https://tspconsole-eu.cheryinternational.com"
 API_REALTIME_PATH = "/asr/manager/realtime"
 API_QUERY_LOCATION_PATH = "/asc/vehicleControl/queryVehicleLocation"
 API_CHARGE_APPOINT_QUERY_PATH = "/asd/chargeAppointManage/chargeAppointQuery"
+# Scheduled cabin/battery preparation. The query path is the one the app uses
+# (asd = appointment service); the control command goes through vehicleControl
+# like chargeAppointControl. Both are kept here so a wrong guess is one edit.
+API_TRAVEL_APPOINT_QUERY_PATH = "/asd/travelAppointManage/travelAppointQuery"
+API_TRAVEL_APPOINT_QUERY_FALLBACKS = (
+    "/asd/travelAppointManage/travelAppointQuery",
+    "/asd/travelAppointManage/queryTravelAppoint",
+    "/asd/prepareManage/prepareQuery",
+)
+TRAVEL_APPOINT_ENDPOINT = "travelAppointControl"
+# Preparation plans are read at most this often, whatever the poll interval,
+# so a 1-minute HV poll does not multiply the API calls.
+PREPARE_POLL_INTERVAL = timedelta(minutes=60)
 API_THEFT_QUERY_PATH = "/act/theftAlarm/querySwitch"
 API_THEFT_SET_PATH = "/act/theftAlarm/setSwitch"
 TSP_CODE_OK = "000000"
