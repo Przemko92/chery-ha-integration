@@ -551,16 +551,16 @@ async def test_mark_messages_read_reports_a_missing_data_flag():
 async def test_travel_appointment_control_falls_back_past_404(monkeypatch):
     """A 404 on the first control path must not fail the switch.
 
-    The appointment service answers prepareQuery under /asd, so the write is
-    tried there before the /asc/vehicleControl prefix that the rest of the
-    command set uses. The path that worked is cached for later calls.
+    The write handler lives at /asc/vehicleControl/appointmentTravel, so the
+    /asd fallback is only reached when that prefix is unavailable. The path that
+    worked is cached for later calls.
     """
     api = _api(_auth(), _Session())
     tried: list[str] = []
 
     async def _fake_send(vin, pin, endpoint, body, *, path=None, **kwargs):
         tried.append(path)
-        if path == "/asd/prepareManage/travelAppointControl":
+        if path == "/asc/vehicleControl/appointmentTravel":
             raise CheryEuropeConnectionError(
                 "Chery Europe request failed with status 404"
             )
@@ -571,7 +571,7 @@ async def test_travel_appointment_control_falls_back_past_404(monkeypatch):
     result = await api.send_travel_appointment("VIN", "1234", [])
 
     assert result["ok"] is True
-    assert tried[0] == "/asd/prepareManage/travelAppointControl"
+    assert tried[0] == "/asc/vehicleControl/appointmentTravel"
     assert tried[1].startswith("/asd/")
     assert api._travel_control_path == tried[1]
 

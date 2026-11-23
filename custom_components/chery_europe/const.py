@@ -146,26 +146,23 @@ DEFAULT_TSP_HOST = "https://tspconsole-eu.cheryinternational.com"
 API_REALTIME_PATH = "/asr/manager/realtime"
 API_QUERY_LOCATION_PATH = "/asc/vehicleControl/queryVehicleLocation"
 API_CHARGE_APPOINT_QUERY_PATH = "/asd/chargeAppointManage/chargeAppointQuery"
-# Scheduled cabin/battery preparation. The query path is the one the app uses
-# (asd = appointment service); the control command goes through vehicleControl
-# like chargeAppointControl. Both are kept here so a wrong guess is one edit.
+# Scheduled cabin/battery preparation (the app's "travel appointment").
 # Verified live on 2026-11-23: prepareQuery answers 200 with
-# {"code":"000000","sign":...,"body":{"preparePlans":[...],"vin":...}}.
+# {"code":"000000","sign":...,"body":{"preparePlans":[...],"vin":...}} and the
+# write handler is /asc/vehicleControl/appointmentTravel - a POST sweep of the
+# neighbouring names (travelAppointControl, setTravelAppointControl,
+# prepareControl, prepareControlSetSingle, ...) all came back 404 while
+# appointmentTravel answered 200 like chargeAppointControl does.
 API_TRAVEL_APPOINT_QUERY_PATH = "/asd/prepareManage/prepareQuery"
 API_TRAVEL_APPOINT_QUERY_FALLBACKS = (
     "/asd/prepareManage/prepareQuery",
     "/asd/travelAppointManage/travelAppointQuery",
     "/asd/travelAppointManage/queryTravelAppoint",
 )
-TRAVEL_APPOINT_ENDPOINT = "travelAppointControl"
-# The control command does not live under /asc/vehicleControl like the rest of
-# the command set: the appointment service ("asd") owns the write as well as the
-# read, so the module that answered prepareQuery is tried first. A wrong path
-# comes back as HTTP 404, which is what the switch used to report.
+TRAVEL_APPOINT_ENDPOINT = "appointmentTravel"
 API_TRAVEL_APPOINT_CONTROL_PATHS: tuple[str, ...] = (
-    "/asd/prepareManage/travelAppointControl",
-    "/asd/prepareManage/prepareControl",
-    "/asc/vehicleControl/travelAppointControl",
+    "/asc/vehicleControl/appointmentTravel",
+    "/asd/prepareManage/appointmentTravel",
 )
 # Preparation plans are read at most this often, whatever the poll interval,
 # so a 1-minute HV poll does not multiply the API calls.
