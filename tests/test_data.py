@@ -2,12 +2,16 @@
 
 """Tests for CheryData.from_api_response normalization of HVAC/lock feedback fields."""
 
-from datetime import datetime, timezone
+import inspect
+from datetime import UTC, datetime
 
 import pytest
 
 pytest.importorskip("homeassistant")
 
+from homeassistant.helpers.device_registry import DeviceRegistry
+
+from custom_components.chery_europe.const import DOMAIN
 from custom_components.chery_europe.data import (
     CheryData,
     apply_charge_appointment,
@@ -21,7 +25,6 @@ from custom_components.chery_europe.data import (
     vehicle_display_name,
 )
 from custom_components.chery_europe.types.vehicle_models import VehicleStatus
-
 
 # ---------------------------------------------------------------------------
 # Dict input — camelCase key variants
@@ -437,9 +440,9 @@ def test_freshness_advances_when_telemetry_changes_and_never_backwards():
         battery_level=79,
         last_updated="2026-11-16T18:15:00+00:00",
     )
-    before = datetime.now(timezone.utc)
+    before = datetime.now(UTC)
     updated = apply_data_freshness(previous, changed)
-    after = datetime.now(timezone.utc)
+    after = datetime.now(UTC)
 
     stamped = datetime.fromisoformat(updated.last_updated)
     assert before <= stamped <= after
@@ -602,6 +605,17 @@ def test_vehicle_display_name_never_returns_the_vin():
     assert "LVVDB21B0PD123456" not in vehicle_display_name(data)
 
 
+def test_scoped_device_lookup_matches_ha_signature():
+    """The scoped registry call must match what HA declares, not what we assume.
+
+    ``async_get_device_by_identifier`` takes the full ``(domain, identifier)``
+    tuple plus the entry id; a mock registry happily accepts any shape, so bind
+    the real signature here instead.
+    """
+    sig = inspect.signature(DeviceRegistry.async_get_device_by_identifier)
+    sig.bind(None, (DOMAIN, "vin"), "entry-1")
+
+
 def test_registry_names_lose_the_vin():
     from types import SimpleNamespace
     from unittest.mock import Mock, patch
@@ -654,7 +668,7 @@ def test_registry_names_lose_the_vin():
         async_drop_vin_from_names(hass, entry, vin)
 
     device_reg.async_get_device_by_identifier.assert_called_once_with(
-        vin, DOMAIN, config_entry_id="entry-1"
+        (DOMAIN, vin), "entry-1"
     )
     device_reg.async_get_device.assert_not_called()
     device_update = device_reg.async_update_device.call_args.kwargs

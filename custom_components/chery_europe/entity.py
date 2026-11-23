@@ -154,12 +154,13 @@ def async_device_by_identifier(
     """Look a device up by its identifier, scoped to the config entry.
 
     ``async_get_device(identifiers=...)`` is deprecated because identifiers are
-    no longer unique across config entries.  Keep the old call only as a
-    fallback for Home Assistant versions without the scoped lookup.
+    no longer unique across config entries.  The scoped lookup takes the whole
+    ``(domain, identifier)`` tuple plus the entry id; keep the old call only as a
+    fallback for Home Assistant versions without it.
     """
     lookup = getattr(registry, "async_get_device_by_identifier", None)
-    if lookup is not None:
-        return lookup(identifier, DOMAIN, config_entry_id=entry_id)
+    if lookup is not None and entry_id is not None:
+        return lookup((DOMAIN, identifier), entry_id)
     return registry.async_get_device(identifiers={(DOMAIN, identifier)})
 
 
