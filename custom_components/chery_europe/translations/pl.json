@@ -226,6 +226,9 @@
       },
       "messages_unread": {
         "name": "Wiadomości nieprzeczytane"
+      },
+      "exterior_temperature": {
+        "name": "Temperatura zewnętrzna"
       }
     },
     "binary_sensor": {
@@ -276,6 +279,27 @@
       },
       "window_rear_right": {
         "name": "Szyba tylna prawa"
+      },
+      "alert_tire_front_left": {
+        "name": "Koło przednie lewe"
+      },
+      "alert_tire_front_right": {
+        "name": "Koło przednie prawe"
+      },
+      "alert_tire_rear_left": {
+        "name": "Koło tylne lewe"
+      },
+      "alert_tire_rear_right": {
+        "name": "Koło tylne prawe"
+      },
+      "alert_soc_low": {
+        "name": "Niski stan naładowania baterii"
+      },
+      "alert_oil_service": {
+        "name": "Serwis oleju"
+      },
+      "alert_electricity": {
+        "name": "Ostrzeżenie instalacji elektrycznej"
       }
     },
     "switch": {
@@ -293,30 +317,6 @@
       },
       "steering_wheel_heating": {
         "name": "Kierownica ogrzewanie"
-      },
-      "driver_seat_heating": {
-        "name": "Fotel kierowcy ogrzewanie"
-      },
-      "passenger_seat_heating": {
-        "name": "Fotel pasażera ogrzewanie"
-      },
-      "driver_seat_ventilation": {
-        "name": "Fotel kierowcy wentylacja"
-      },
-      "passenger_seat_ventilation": {
-        "name": "Fotel pasażera wentylacja"
-      },
-      "rear_left_seat_heating": {
-        "name": "Fotel tylny lewy ogrzewanie"
-      },
-      "rear_right_seat_heating": {
-        "name": "Fotel tylny prawy ogrzewanie"
-      },
-      "rear_left_seat_ventilation": {
-        "name": "Fotel tylny lewy wentylacja"
-      },
-      "rear_right_seat_ventilation": {
-        "name": "Fotel tylny prawy wentylacja"
       },
       "charging": {
         "name": "Ładowanie start"
@@ -404,6 +404,78 @@
           "closed": "Zamknięty",
           "tilt": "Uchylony",
           "open": "Otwarty"
+        }
+      },
+      "driver_seat_heating": {
+        "name": "Fotel kierowcy ogrzewanie",
+        "state": {
+          "off": "Wyłączony",
+          "low": "Niski",
+          "medium": "Średni",
+          "high": "Wysoki"
+        }
+      },
+      "passenger_seat_heating": {
+        "name": "Fotel pasażera ogrzewanie",
+        "state": {
+          "off": "Wyłączony",
+          "low": "Niski",
+          "medium": "Średni",
+          "high": "Wysoki"
+        }
+      },
+      "driver_seat_ventilation": {
+        "name": "Fotel kierowcy wentylacja",
+        "state": {
+          "off": "Wyłączony",
+          "low": "Niski",
+          "medium": "Średni",
+          "high": "Wysoki"
+        }
+      },
+      "passenger_seat_ventilation": {
+        "name": "Fotel pasażera wentylacja",
+        "state": {
+          "off": "Wyłączony",
+          "low": "Niski",
+          "medium": "Średni",
+          "high": "Wysoki"
+        }
+      },
+      "rear_left_seat_heating": {
+        "name": "Fotel tylny lewy ogrzewanie",
+        "state": {
+          "off": "Wyłączony",
+          "low": "Niski",
+          "medium": "Średni",
+          "high": "Wysoki"
+        }
+      },
+      "rear_right_seat_heating": {
+        "name": "Fotel tylny prawy ogrzewanie",
+        "state": {
+          "off": "Wyłączony",
+          "low": "Niski",
+          "medium": "Średni",
+          "high": "Wysoki"
+        }
+      },
+      "rear_left_seat_ventilation": {
+        "name": "Fotel tylny lewy wentylacja",
+        "state": {
+          "off": "Wyłączony",
+          "low": "Niski",
+          "medium": "Średni",
+          "high": "Wysoki"
+        }
+      },
+      "rear_right_seat_ventilation": {
+        "name": "Fotel tylny prawy wentylacja",
+        "state": {
+          "off": "Wyłączony",
+          "low": "Niski",
+          "medium": "Średni",
+          "high": "Wysoki"
         }
       }
     },

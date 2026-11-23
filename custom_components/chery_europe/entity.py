@@ -201,14 +201,14 @@ ENTITY_ID_RENAMES = (
     # Doors, seats and steering wheel.
     ("lock", "doors", "drzwi", "drzwi_zamek"),
     ("switch", "steering_wheel_heating", "ogrzewanie_kierownicy", "kierownica_ogrzewanie"),
-    ("switch", "driver_seat_heating", "ogrzewanie_fotela_kierowcy", "fotel_kierowcy_ogrzewanie"),
-    ("switch", "passenger_seat_heating", "ogrzewanie_fotela_pasazera", "fotel_pasazera_ogrzewanie"),
-    ("switch", "driver_seat_ventilation", "wentylacja_fotela_kierowcy", "fotel_kierowcy_wentylacja"),
-    ("switch", "passenger_seat_ventilation", "wentylacja_fotela_pasazera", "fotel_pasazera_wentylacja"),
-    ("switch", "rear_left_seat_heating", "ogrzewanie_fotela_tylnego_lewego", "fotel_tylny_lewy_ogrzewanie"),
-    ("switch", "rear_right_seat_heating", "ogrzewanie_fotela_tylnego_prawego", "fotel_tylny_prawy_ogrzewanie"),
-    ("switch", "rear_left_seat_ventilation", "wentylacja_fotela_tylnego_lewego", "fotel_tylny_lewy_wentylacja"),
-    ("switch", "rear_right_seat_ventilation", "wentylacja_fotela_tylnego_prawego", "fotel_tylny_prawy_wentylacja"),
+    ("select", "driver_seat_heating", "ogrzewanie_fotela_kierowcy", "fotel_kierowcy_ogrzewanie"),
+    ("select", "passenger_seat_heating", "ogrzewanie_fotela_pasazera", "fotel_pasazera_ogrzewanie"),
+    ("select", "driver_seat_ventilation", "wentylacja_fotela_kierowcy", "fotel_kierowcy_wentylacja"),
+    ("select", "passenger_seat_ventilation", "wentylacja_fotela_pasazera", "fotel_pasazera_wentylacja"),
+    ("select", "rear_left_seat_heating", "ogrzewanie_fotela_tylnego_lewego", "fotel_tylny_lewy_ogrzewanie"),
+    ("select", "rear_right_seat_heating", "ogrzewanie_fotela_tylnego_prawego", "fotel_tylny_prawy_ogrzewanie"),
+    ("select", "rear_left_seat_ventilation", "wentylacja_fotela_tylnego_lewego", "fotel_tylny_lewy_wentylacja"),
+    ("select", "rear_right_seat_ventilation", "wentylacja_fotela_tylnego_prawego", "fotel_tylny_prawy_wentylacja"),
     # Alarms.
     ("switch", "theft_alarm", "alarm_antykradziezowy", "alarmy_antykradziezowy"),
     # Departures.
@@ -353,6 +353,25 @@ def async_remove_unsupported(
         entity_id = registry.async_get_entity_id(domain, DOMAIN, unique_id)
         if entity_id is not None:
             registry.async_remove(entity_id)
+
+
+def async_remove_moved_entities(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    domain: str,
+    keys: tuple[str, ...],
+) -> None:
+    """Drop registry entries of entities that moved to another domain.
+
+    Changing the platform of an entity leaves the old registry entry behind as
+    an unavailable orphan on the device page, so it has to be removed here.
+    """
+    registry = er.async_get(hass)
+    for entity in er.async_entries_for_config_entry(registry, entry.entry_id):
+        if entity.domain == domain and any(
+            entity.unique_id.endswith(f"_{key}") for key in keys
+        ):
+            registry.async_remove(entity.entity_id)
 
 
 def keep_feature(

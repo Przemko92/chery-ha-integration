@@ -15,7 +15,7 @@ from .charge_schedule import plan_duration_hours, plan_start_time
 from .command_exec import async_send_vehicle_command
 from .const import SWITCH
 from .coordinator import CheryEuropeDataUpdateCoordinator
-from .data import SEAT_LEVEL_FIELDS, CheryData
+from .data import CheryData
 from .departure import (
     async_set_departure,
     async_set_departure_days,
@@ -168,78 +168,9 @@ SWITCH_DESCRIPTIONS: tuple[CheryEuropeSwitchEntityDescription, ...] = (
         command_id="ve_1203",
         state_fn=lambda data: data.steering_wheel_heating,
     ),
-    CheryEuropeSwitchEntityDescription(
-        key="driver_seat_heating",
-        name="Driver seat heating",
-        translation_key="driver_seat_heating",
-        icon="mdi:car-seat-heater",
-        command_id="ve_1204",
-        command_values={"seat_field": "mSeatHeating"},
-        state_fn=lambda data: data.driver_seat_heating,
-    ),
-    CheryEuropeSwitchEntityDescription(
-        key="passenger_seat_heating",
-        name="Passenger seat heating",
-        translation_key="passenger_seat_heating",
-        icon="mdi:car-seat-heater",
-        command_id="ve_1204",
-        command_values={"seat_field": "pSeatHeating"},
-        state_fn=lambda data: data.passenger_seat_heating,
-    ),
-    CheryEuropeSwitchEntityDescription(
-        key="driver_seat_ventilation",
-        name="Driver seat ventilation",
-        translation_key="driver_seat_ventilation",
-        icon="mdi:car-seat-cooler",
-        command_id="ve_1204",
-        command_values={"seat_field": "mSeatAiry"},
-        state_fn=lambda data: data.driver_seat_ventilation,
-    ),
-    CheryEuropeSwitchEntityDescription(
-        key="passenger_seat_ventilation",
-        name="Passenger seat ventilation",
-        translation_key="passenger_seat_ventilation",
-        icon="mdi:car-seat-cooler",
-        command_id="ve_1204",
-        command_values={"seat_field": "pSeatAiry"},
-        state_fn=lambda data: data.passenger_seat_ventilation,
-    ),
-    CheryEuropeSwitchEntityDescription(
-        key="rear_left_seat_heating",
-        name="Rear left seat heating",
-        translation_key="rear_left_seat_heating",
-        icon="mdi:car-seat-heater",
-        command_id="ve_1204",
-        command_values={"seat_field": "blSeatHeating"},
-        state_fn=lambda data: data.rear_left_seat_heating,
-    ),
-    CheryEuropeSwitchEntityDescription(
-        key="rear_right_seat_heating",
-        name="Rear right seat heating",
-        translation_key="rear_right_seat_heating",
-        icon="mdi:car-seat-heater",
-        command_id="ve_1204",
-        command_values={"seat_field": "brSeatHeating"},
-        state_fn=lambda data: data.rear_right_seat_heating,
-    ),
-    CheryEuropeSwitchEntityDescription(
-        key="rear_left_seat_ventilation",
-        name="Rear left seat ventilation",
-        translation_key="rear_left_seat_ventilation",
-        icon="mdi:car-seat-cooler",
-        command_id="ve_1204",
-        command_values={"seat_field": "blSeatAiry"},
-        state_fn=lambda data: data.rear_left_seat_ventilation,
-    ),
-    CheryEuropeSwitchEntityDescription(
-        key="rear_right_seat_ventilation",
-        name="Rear right seat ventilation",
-        translation_key="rear_right_seat_ventilation",
-        icon="mdi:car-seat-cooler",
-        command_id="ve_1204",
-        command_values={"seat_field": "brSeatAiry"},
-        state_fn=lambda data: data.rear_right_seat_ventilation,
-    ),
+    # Seat heating/ventilation are three-level functions, so they live in the
+    # select platform (see select.py, SEAT_SELECT_DESCRIPTIONS) instead of a
+    # plain switch that could only send on/off at level 3.
     CheryEuropeSwitchEntityDescription(
         key="heat_everything",
         name="Heat everything",
@@ -323,14 +254,6 @@ class CheryEuropeCommandSwitch(CheryEuropeEntity, SwitchEntity):
     def assumed_state(self) -> bool:  # type: ignore[reportIncompatibleVariableOverride]
         """Return true when the API does not provide reliable command feedback."""
         return self.is_on is None
-
-    @property
-    def extra_state_attributes(self) -> dict[str, Any] | None:
-        """Expose the reported level of seat heating/ventilation switches."""
-        levels = self.chery_data.seat_levels
-        if self.entity_description.key not in SEAT_LEVEL_FIELDS or levels is None:
-            return None
-        return {"level": levels.get(self.entity_description.key)}
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Send the safe remote command using the PIN from the service call."""

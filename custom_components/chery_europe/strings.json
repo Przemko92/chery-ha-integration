@@ -226,6 +226,9 @@
       },
       "messages_unread": {
         "name": "Unread messages"
+      },
+      "exterior_temperature": {
+        "name": "Outside temperature"
       }
     },
     "binary_sensor": {
@@ -276,6 +279,27 @@
       },
       "window_rear_right": {
         "name": "Window rear right"
+      },
+      "alert_tire_front_left": {
+        "name": "Front left tire"
+      },
+      "alert_tire_front_right": {
+        "name": "Front right tire"
+      },
+      "alert_tire_rear_left": {
+        "name": "Rear left tire"
+      },
+      "alert_tire_rear_right": {
+        "name": "Rear right tire"
+      },
+      "alert_soc_low": {
+        "name": "Low state of charge"
+      },
+      "alert_oil_service": {
+        "name": "Oil service due"
+      },
+      "alert_electricity": {
+        "name": "Electrical system warning"
       }
     },
     "switch": {
@@ -293,30 +317,6 @@
       },
       "steering_wheel_heating": {
         "name": "Steering wheel heating"
-      },
-      "driver_seat_heating": {
-        "name": "Driver seat heating"
-      },
-      "passenger_seat_heating": {
-        "name": "Passenger seat heating"
-      },
-      "driver_seat_ventilation": {
-        "name": "Driver seat ventilation"
-      },
-      "passenger_seat_ventilation": {
-        "name": "Passenger seat ventilation"
-      },
-      "rear_left_seat_heating": {
-        "name": "Rear left seat heating"
-      },
-      "rear_right_seat_heating": {
-        "name": "Rear right seat heating"
-      },
-      "rear_left_seat_ventilation": {
-        "name": "Rear left seat ventilation"
-      },
-      "rear_right_seat_ventilation": {
-        "name": "Rear right seat ventilation"
       },
       "charging": {
         "name": "Charging start"
@@ -404,6 +404,78 @@
           "closed": "Closed",
           "tilt": "Tilt",
           "open": "Open"
+        }
+      },
+      "driver_seat_heating": {
+        "name": "Driver seat heating",
+        "state": {
+          "off": "Off",
+          "low": "Low",
+          "medium": "Medium",
+          "high": "High"
+        }
+      },
+      "passenger_seat_heating": {
+        "name": "Passenger seat heating",
+        "state": {
+          "off": "Off",
+          "low": "Low",
+          "medium": "Medium",
+          "high": "High"
+        }
+      },
+      "driver_seat_ventilation": {
+        "name": "Driver seat ventilation",
+        "state": {
+          "off": "Off",
+          "low": "Low",
+          "medium": "Medium",
+          "high": "High"
+        }
+      },
+      "passenger_seat_ventilation": {
+        "name": "Passenger seat ventilation",
+        "state": {
+          "off": "Off",
+          "low": "Low",
+          "medium": "Medium",
+          "high": "High"
+        }
+      },
+      "rear_left_seat_heating": {
+        "name": "Rear left seat heating",
+        "state": {
+          "off": "Off",
+          "low": "Low",
+          "medium": "Medium",
+          "high": "High"
+        }
+      },
+      "rear_right_seat_heating": {
+        "name": "Rear right seat heating",
+        "state": {
+          "off": "Off",
+          "low": "Low",
+          "medium": "Medium",
+          "high": "High"
+        }
+      },
+      "rear_left_seat_ventilation": {
+        "name": "Rear left seat ventilation",
+        "state": {
+          "off": "Off",
+          "low": "Low",
+          "medium": "Medium",
+          "high": "High"
+        }
+      },
+      "rear_right_seat_ventilation": {
+        "name": "Rear right seat ventilation",
+        "state": {
+          "off": "Off",
+          "low": "Low",
+          "medium": "Medium",
+          "high": "High"
         }
       }
     },

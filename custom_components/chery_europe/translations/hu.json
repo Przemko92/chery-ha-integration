@@ -226,6 +226,9 @@
       },
       "messages_unread": {
         "name": "Olvasatlan üzenetek"
+      },
+      "exterior_temperature": {
+        "name": "Külső hőmérséklet"
       }
     },
     "binary_sensor": {
@@ -276,6 +279,27 @@
       },
       "window_rear_right": {
         "name": "Jobb hátsó ablak"
+      },
+      "alert_tire_front_left": {
+        "name": "Bal első gumiabroncs"
+      },
+      "alert_tire_front_right": {
+        "name": "Jobb első gumiabroncs"
+      },
+      "alert_tire_rear_left": {
+        "name": "Bal hátsó gumiabroncs"
+      },
+      "alert_tire_rear_right": {
+        "name": "Jobb hátsó gumiabroncs"
+      },
+      "alert_soc_low": {
+        "name": "Alacsony akkumulátor-töltöttség"
+      },
+      "alert_oil_service": {
+        "name": "Olajcsere esedékes"
+      },
+      "alert_electricity": {
+        "name": "Elektromos rendszer figyelmeztetés"
       }
     },
     "switch": {
@@ -290,30 +314,6 @@
       },
       "steering_wheel_heating": {
         "name": "Kormányfűtés"
-      },
-      "driver_seat_heating": {
-        "name": "Vezetőülés fűtése"
-      },
-      "passenger_seat_heating": {
-        "name": "Utasülés fűtése"
-      },
-      "driver_seat_ventilation": {
-        "name": "Vezetőülés szellőztetése"
-      },
-      "passenger_seat_ventilation": {
-        "name": "Utasülés szellőztetése"
-      },
-      "rear_left_seat_heating": {
-        "name": "Bal hátsó ülés fűtése"
-      },
-      "rear_right_seat_heating": {
-        "name": "Jobb hátsó ülés fűtése"
-      },
-      "rear_left_seat_ventilation": {
-        "name": "Bal hátsó ülés szellőztetése"
-      },
-      "rear_right_seat_ventilation": {
-        "name": "Jobb hátsó ülés szellőztetése"
       },
       "charging": {
         "name": "Töltés"
@@ -374,6 +374,78 @@
           "closed": "Zárva",
           "tilt": "Billentve",
           "open": "Nyitva"
+        }
+      },
+      "driver_seat_heating": {
+        "name": "Vezetőülés fűtése",
+        "state": {
+          "off": "Kikapcsolva",
+          "low": "Alacsony",
+          "medium": "Közepes",
+          "high": "Magas"
+        }
+      },
+      "passenger_seat_heating": {
+        "name": "Utasülés fűtése",
+        "state": {
+          "off": "Kikapcsolva",
+          "low": "Alacsony",
+          "medium": "Közepes",
+          "high": "Magas"
+        }
+      },
+      "driver_seat_ventilation": {
+        "name": "Vezetőülés szellőztetése",
+        "state": {
+          "off": "Kikapcsolva",
+          "low": "Alacsony",
+          "medium": "Közepes",
+          "high": "Magas"
+        }
+      },
+      "passenger_seat_ventilation": {
+        "name": "Utasülés szellőztetése",
+        "state": {
+          "off": "Kikapcsolva",
+          "low": "Alacsony",
+          "medium": "Közepes",
+          "high": "Magas"
+        }
+      },
+      "rear_left_seat_heating": {
+        "name": "Bal hátsó ülés fűtése",
+        "state": {
+          "off": "Kikapcsolva",
+          "low": "Alacsony",
+          "medium": "Közepes",
+          "high": "Magas"
+        }
+      },
+      "rear_right_seat_heating": {
+        "name": "Jobb hátsó ülés fűtése",
+        "state": {
+          "off": "Kikapcsolva",
+          "low": "Alacsony",
+          "medium": "Közepes",
+          "high": "Magas"
+        }
+      },
+      "rear_left_seat_ventilation": {
+        "name": "Bal hátsó ülés szellőztetése",
+        "state": {
+          "off": "Kikapcsolva",
+          "low": "Alacsony",
+          "medium": "Közepes",
+          "high": "Magas"
+        }
+      },
+      "rear_right_seat_ventilation": {
+        "name": "Jobb hátsó ülés szellőztetése",
+        "state": {
+          "off": "Kikapcsolva",
+          "low": "Alacsony",
+          "medium": "Közepes",
+          "high": "Magas"
         }
       }
     },

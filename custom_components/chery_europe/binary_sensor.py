@@ -140,6 +140,58 @@ BINARY_SENSOR_DESCRIPTIONS: tuple[CheryEuropeBinarySensorEntityDescription, ...]
         device_class=BinarySensorDeviceClass.WINDOW,
         value_fn=lambda data: data.window_rear_right_open,
     ),
+    # The car's own warning flags (the ``*Call`` fields of the status payload).
+    # They only say "something is wrong", the measured value stays in the
+    # matching sensor (tire pressure, battery level, ...).
+    CheryEuropeBinarySensorEntityDescription(
+        key="alert_tire_front_left",
+        name="Front left tire",
+        translation_key="alert_tire_front_left",
+        device_class=BinarySensorDeviceClass.PROBLEM,
+        value_fn=lambda data: data.alert_tire_front_left,
+    ),
+    CheryEuropeBinarySensorEntityDescription(
+        key="alert_tire_front_right",
+        name="Front right tire",
+        translation_key="alert_tire_front_right",
+        device_class=BinarySensorDeviceClass.PROBLEM,
+        value_fn=lambda data: data.alert_tire_front_right,
+    ),
+    CheryEuropeBinarySensorEntityDescription(
+        key="alert_tire_rear_left",
+        name="Rear left tire",
+        translation_key="alert_tire_rear_left",
+        device_class=BinarySensorDeviceClass.PROBLEM,
+        value_fn=lambda data: data.alert_tire_rear_left,
+    ),
+    CheryEuropeBinarySensorEntityDescription(
+        key="alert_tire_rear_right",
+        name="Rear right tire",
+        translation_key="alert_tire_rear_right",
+        device_class=BinarySensorDeviceClass.PROBLEM,
+        value_fn=lambda data: data.alert_tire_rear_right,
+    ),
+    CheryEuropeBinarySensorEntityDescription(
+        key="alert_soc_low",
+        name="Low state of charge",
+        translation_key="alert_soc_low",
+        device_class=BinarySensorDeviceClass.PROBLEM,
+        value_fn=lambda data: data.alert_soc_low,
+    ),
+    CheryEuropeBinarySensorEntityDescription(
+        key="alert_oil_service",
+        name="Oil service due",
+        translation_key="alert_oil_service",
+        device_class=BinarySensorDeviceClass.PROBLEM,
+        value_fn=lambda data: data.alert_oil_service,
+    ),
+    CheryEuropeBinarySensorEntityDescription(
+        key="alert_electricity",
+        name="Electrical system warning",
+        translation_key="alert_electricity",
+        device_class=BinarySensorDeviceClass.PROBLEM,
+        value_fn=lambda data: data.alert_electricity,
+    ),
 )
 
 

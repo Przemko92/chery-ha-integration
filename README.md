@@ -46,6 +46,9 @@ or diagnostics.
 - Battery, fuel, range, odometer, tyre pressure/temperature, charge status
 - Charging power, traction battery voltage and current
 - Door/window/trunk/engine/HV binary sensors
+- Outside temperature
+- **Warning flags** — tyre pressure on each wheel, low state of charge,
+  oil service due, vehicle electrical system
 - Diagnostic vehicle metadata (nickname, model, colour, picture)
 - **Restore last-known values** after a Home Assistant restart
 - **Alerts** — a count plus the alert texts (tyre pressure, low traction battery, oil service, open doors/windows/trunk/sunroof)
@@ -55,7 +58,7 @@ or diagnostics.
 - Lock/unlock, climate (16–30 °C), front/rear glass heating
 - **Heat everything** and **Cool everything** (the app's one-shot HI / LO macros)
 - Theft alarm arm/disarm
-- Seat heating/ventilation, steering wheel heating
+- Seat heating/ventilation with three levels (off / low / medium / high), steering wheel heating
 - Covers: trunk
 - Selects: windows (closed / vent / open), sunroof (closed / tilt / open)
 - Charging: start/stop, scheduled charging (time + duration entities)
@@ -357,6 +360,9 @@ PIN **nie** trafia do logów ani diagnostyki.
 - Bateria, paliwo, zasięg, przebieg, ciśnienie/temperatura opon, stan ładowania
 - Moc ładowania, napięcie i prąd baterii trakcyjnej
 - Binary sensory: drzwi, okna, silnik, HV itd.
+- Temperatura zewnętrzna
+- **Flagi alarmów** — ciśnienie w każdym kole, niski poziom baterii
+  trakcyjnej, serwis oleju, instalacja elektryczna pojazdu
 - Metadane diagnostyczne pojazdu (nick, model, kolor, zdjęcie)
 - **Przywracanie ostatnich wartości** po restarcie Home Assistant
 - **Alarmy** — licznik i treść aktywnych alarmów (ciśnienie w oponach, niski poziom baterii trakcyjnej, serwis oleju, otwarte drzwi/okna/klapa bagażnika/szyberdach)

@@ -295,6 +295,16 @@ SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
         value_fn=lambda data: data.max_temperature,
     ),
     CheryEuropeSensorEntityDescription(
+        key="exterior_temperature",
+        name="Outside temperature",
+        translation_key="exterior_temperature",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=1,
+        value_fn=lambda data: data.exterior_temperature,
+    ),
+    CheryEuropeSensorEntityDescription(
         key="tire_temperature_front_left",
         name="Front left tire temperature",
         translation_key="tire_temperature_front_left",
