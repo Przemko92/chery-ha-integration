@@ -11,6 +11,7 @@ from custom_components.chery_europe.messages import (
     last_message_attributes,
     merge_messages,
     message_line,
+    message_text,
     messages_attributes,
     messages_content,
     messages_history,
@@ -86,7 +87,7 @@ def test_parse_unread_messages_reads_the_flag():
 
 
 def test_message_line_and_content_render_date_title_text():
-    """Each message becomes one line: date — title: text."""
+    """The history line keeps the date; the state line does not."""
     messages, _ = parse_messages(PAGE)
 
     line = message_line(messages[1])
@@ -94,8 +95,25 @@ def test_message_line_and_content_render_date_title_text():
         "2023-11-14 22:13 — Scheduled departure: Charging will start at 06:40 "
         "before the departure."
     )
-    assert messages_content(messages).count("\n") == 1
+    content = messages_content(messages)
+    assert content.count("\n") == 1
+    assert content == (
+        message_text(messages[0])
+        + "\nScheduled departure: Charging will start at 06:40 before the departure."
+    )
+    assert "2023-11-14" not in content
     assert unread_count(messages) == 1
+
+
+def test_messages_attributes_expose_the_timestamp_separately():
+    """Date and time move out of the state and into their own attributes."""
+    messages, _ = parse_messages(PAGE)
+
+    attributes = messages_attributes(messages, total=2, unread=None, polled_at=None)
+
+    assert attributes["last_message_at"] == messages[0]["received"]
+    assert attributes["last_message_time"] == "2026-11-19 09:20"
+    assert attributes["history"][-1] == message_line(messages[0])
 
 
 def test_messages_history_keeps_newest_first_within_the_budget():
@@ -401,8 +419,9 @@ def test_message_sensors_expose_count_unread_and_last_message():
         sensor.coordinator = coordinator
         sensors[description.key] = sensor
 
-    assert sensors["messages"].native_value.startswith("2026-11-")
-    assert "Tyre temperature warning" in sensors["messages"].native_value
+    # The state carries the message itself; its timestamp is an attribute.
+    assert sensors["messages"].native_value.startswith("Tyre temperature warning")
+    assert "2026-11-" not in sensors["messages"].native_value
     assert sensors["messages_unread"].native_value == 1
     # Only two sensors: the inbox itself and the unread counter.
     assert set(sensors) == {"messages", "messages_unread"}
@@ -414,6 +433,8 @@ def test_message_sensors_expose_count_unread_and_last_message():
     assert attributes["last_message"]["id"] == "1001"
     assert attributes["last_message_text"].startswith("The temperature")
     assert attributes["last_message"]["read"] is False
+    assert attributes["last_message_at"] == "2026-11-19T09:20:01.988000+00:00"
+    assert attributes["last_message_time"] == "2026-11-19 09:20"
     assert attributes["backfilled_at"] == "2026-11-23T10:00:00+00:00"
     assert "messages" not in attributes or len(attributes["messages"]) == 2
 
