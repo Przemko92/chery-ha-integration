@@ -619,14 +619,20 @@ def test_scoped_device_lookup_matches_ha_signature():
 def test_alarm_content_entity_id_follows_the_new_translation():
     """A renamed translation must move the stale entity id, not leave it behind."""
     from types import SimpleNamespace
-    from unittest.mock import Mock, patch
+    from unittest.mock import Mock, call, patch
 
     from custom_components.chery_europe.entity import async_rename_entity_ids
 
-    entity = SimpleNamespace(
-        entity_id="sensor.wspolne_tiggo_tresc_alarmow",
-        unique_id="wspolne_tiggo_alerts_content",
-    )
+    entities = [
+        SimpleNamespace(
+            entity_id="sensor.wspolne_tiggo_tresc_alarmow",
+            unique_id="wspolne_tiggo_alerts_content",
+        ),
+        SimpleNamespace(
+            entity_id="sensor.wspolne_tiggo_nieprzeczytane_wiadomosci",
+            unique_id="wspolne_tiggo_messages_unread",
+        ),
+    ]
     registry = Mock()
     registry.async_get.return_value = None
     hass = Mock()
@@ -636,15 +642,21 @@ def test_alarm_content_entity_id_follows_the_new_translation():
         patch("custom_components.chery_europe.entity.er.async_get", return_value=registry),
         patch(
             "custom_components.chery_europe.entity.er.async_entries_for_config_entry",
-            return_value=[entity],
+            return_value=entities,
         ),
     ):
         async_rename_entity_ids(hass, entry)
 
-    registry.async_update_entity.assert_called_once_with(
-        "sensor.wspolne_tiggo_tresc_alarmow",
-        new_entity_id="sensor.wspolne_tiggo_alarmy_tresc",
-    )
+    assert registry.async_update_entity.call_args_list == [
+        call(
+            "sensor.wspolne_tiggo_tresc_alarmow",
+            new_entity_id="sensor.wspolne_tiggo_alarmy_tresc",
+        ),
+        call(
+            "sensor.wspolne_tiggo_nieprzeczytane_wiadomosci",
+            new_entity_id="sensor.wspolne_tiggo_wiadomosci_nieprzeczytane",
+        ),
+    ]
 
 
 def test_registry_names_lose_the_vin():

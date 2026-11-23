@@ -137,7 +137,10 @@ LEGACY_ENTITY_KEYS = ("last_message", "messages_content", "messages_history")
 # Entity ids are generated from the translated name only once, when the entity is
 # first registered, so a renamed translation leaves the old slug behind forever.
 # (unique_id suffix, old slug, new slug)
-ENTITY_ID_RENAMES = (("alerts_content", "tresc_alarmow", "alarmy_tresc"),)
+ENTITY_ID_RENAMES = (
+    ("alerts_content", "tresc_alarmow", "alarmy_tresc"),
+    ("messages_unread", "nieprzeczytane_wiadomosci", "wiadomosci_nieprzeczytane"),
+)
 
 
 def async_rename_entity_ids(hass: HomeAssistant, entry: ConfigEntry) -> None:
