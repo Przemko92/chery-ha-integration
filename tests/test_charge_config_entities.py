@@ -100,7 +100,7 @@ def test_duration_offers_the_whole_day_in_quarter_hours():
     desc = entity.entity_description
 
     assert desc.native_max_value == 24
-    assert desc.native_min_value == 0.25
+    assert desc.native_min_value == 1.5
     assert desc.native_step == 0.25
 
 
@@ -135,3 +135,15 @@ async def test_duration_beyond_24_hours_is_clamped():
 
     assert duration.native_value == 24.0
     assert coordinator.api.send_command.await_args.kwargs["duration_hours"] == 24.0
+
+
+@pytest.mark.asyncio
+async def test_duration_below_ninety_minutes_is_clamped_to_one_and_a_half_hours():
+    coordinator = _coordinator(_vehicle_plan(duration_min=780))
+    duration = CheryEuropeChargeDurationNumber(coordinator, _entry())
+    duration.async_write_ha_state = lambda: None
+
+    await duration.async_set_native_value(0.5)
+
+    assert duration.native_value == 1.5
+    assert coordinator.api.send_command.await_args.kwargs["duration_hours"] == 1.5
