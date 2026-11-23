@@ -1,5 +1,9 @@
 """Tests for the active-alert aggregation."""
 
+from types import SimpleNamespace
+
+import pytest
+
 from custom_components.chery_europe.alerts import (
     SEVERITY_INFO,
     SEVERITY_WARNING,
@@ -67,6 +71,46 @@ def test_collect_alerts_ignores_inactive_flags():
     )
 
     assert collect_alerts(data, "pl") == []
+
+
+def test_alert_sensors_expose_count_and_texts():
+    """The two alert sensors report the count and the texts with the alert list."""
+    pytest.importorskip("homeassistant")
+    from custom_components.chery_europe.sensor import (
+        ALERT_SENSOR_DESCRIPTIONS,
+        CheryEuropeAlertSensor,
+    )
+
+    data = CheryData(vin="VIN", door_front_left_open=True, alert_soc_low=True)
+    coordinator = SimpleNamespace(data=data, last_update_success=True)
+    sensors = {}
+    for description in ALERT_SENSOR_DESCRIPTIONS:
+        sensor = object.__new__(CheryEuropeAlertSensor)
+        sensor.entity_description = description
+        sensor.coordinator = coordinator
+        sensor.hass = SimpleNamespace(config=SimpleNamespace(language="pl"))
+        sensors[description.key] = sensor
+
+    assert sensors["alerts"].native_value == 2
+    assert sensors["alerts_content"].native_value == (
+        "Niski poziom naładowania baterii trakcyjnej\nOtwarte drzwi przednie lewe"
+    )
+    attributes = sensors["alerts"].extra_state_attributes
+    assert attributes["count"] == 2
+    assert attributes["warnings"] == 1
+    assert attributes["categories"] == ["battery", "door"]
+    assert [alert["key"] for alert in attributes["alerts"]] == [
+        "soc_low",
+        "door_front_left",
+    ]
+
+    coordinator.data = CheryData(vin="VIN")
+    assert sensors["alerts"].native_value == 0
+    assert sensors["alerts_content"].native_value == ""
+    assert sensors["alerts"].extra_state_attributes["alerts"] == []
+
+    coordinator.data = None
+    assert sensors["alerts"].native_value is None
 
 
 def test_alerts_content_joins_texts():
