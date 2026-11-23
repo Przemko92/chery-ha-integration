@@ -365,7 +365,14 @@ def parse_plans(payload: Any) -> list[dict[str, Any]] | None:
     """
     if not isinstance(payload, dict):
         return None
-    data = payload.get("data", payload)
+    # tspconsole wraps query results in "body" (prepareQuery), some endpoints
+    # in "data" - unwrap whichever is present before looking for the list.
+    data: Any = payload
+    for wrapper in ("body", "data"):
+        nested = data.get(wrapper)
+        if isinstance(nested, (dict, list)):
+            data = nested
+            break
     if isinstance(data, dict):
         for key in PREPARE_LIST_KEYS:
             if key in data:
