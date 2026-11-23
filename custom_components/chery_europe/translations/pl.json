@@ -98,16 +98,16 @@
   "entity": {
     "sensor": {
       "battery_level": {
-        "name": "Poziom baterii"
+        "name": "Bateria — poziom"
       },
       "charging_power_kw": {
-        "name": "Moc ładowania"
+        "name": "Ładowanie — moc"
       },
       "battery_voltage_v": {
-        "name": "Napięcie baterii trakcyjnej"
+        "name": "Bateria — napięcie"
       },
       "battery_current_a": {
-        "name": "Prąd baterii trakcyjnej"
+        "name": "Bateria — prąd"
       },
       "fuel_level": {
         "name": "Pozostałe paliwo"
@@ -116,16 +116,16 @@
         "name": "Zasięg"
       },
       "tire_pressure_front_left": {
-        "name": "Ciśnienie przedniej lewej opony"
+        "name": "Koło przednie lewe — ciśnienie"
       },
       "tire_pressure_front_right": {
-        "name": "Ciśnienie przedniej prawej opony"
+        "name": "Koło przednie prawe — ciśnienie"
       },
       "tire_pressure_rear_left": {
-        "name": "Ciśnienie tylnej lewej opony"
+        "name": "Koło tylne lewe — ciśnienie"
       },
       "tire_pressure_rear_right": {
-        "name": "Ciśnienie tylnej prawej opony"
+        "name": "Koło tylne prawe — ciśnienie"
       },
       "odometer": {
         "name": "Przebieg"
@@ -149,10 +149,10 @@
         "name": "Spalanie"
       },
       "remain_charge_time": {
-        "name": "Pozostały czas ładowania"
+        "name": "Ładowanie — pozostały czas"
       },
       "charge_status": {
-        "name": "Stan ładowania",
+        "name": "Ładowanie — stan",
         "state": {
           "not_charging": "Nie ładuje",
           "charging": "Ładowanie",
@@ -160,7 +160,7 @@
         }
       },
       "appointment_charge_status": {
-        "name": "Stan zaplanowanego ładowania",
+        "name": "Ładowanie — stan zaplanowany",
         "state": {
           "off": "Wyłączone",
           "enabled": "Włączone",
@@ -168,16 +168,16 @@
         }
       },
       "vehicle_nickname": {
-        "name": "Nazwa pojazdu"
+        "name": "Pojazd — nazwa"
       },
       "vehicle_full_name": {
-        "name": "Model pojazdu"
+        "name": "Pojazd — model"
       },
       "vehicle_color": {
-        "name": "Kolor pojazdu"
+        "name": "Pojazd — kolor"
       },
       "vehicle_picture": {
-        "name": "Zdjęcie pojazdu"
+        "name": "Pojazd — zdjęcie"
       },
       "climate_min_temperature": {
         "name": "Minimalna temperatura klimatyzacji"
@@ -198,16 +198,16 @@
         "name": "Wynik odczytu pozycji"
       },
       "tire_temperature_front_left": {
-        "name": "Temperatura przedniej lewej opony"
+        "name": "Koło przednie lewe — temperatura"
       },
       "tire_temperature_front_right": {
-        "name": "Temperatura przedniej prawej opony"
+        "name": "Koło przednie prawe — temperatura"
       },
       "tire_temperature_rear_left": {
-        "name": "Temperatura tylnej lewej opony"
+        "name": "Koło tylne lewe — temperatura"
       },
       "tire_temperature_rear_right": {
-        "name": "Temperatura tylnej prawej opony"
+        "name": "Koło tylne prawe — temperatura"
       },
       "prepare_plans": {
         "name": "Zaplanowane przygotowanie"
@@ -236,7 +236,7 @@
         "name": "Ładowanie"
       },
       "appointment_charging": {
-        "name": "Zaplanowane ładowanie"
+        "name": "Ładowanie — zaplanowane"
       },
       "charge_gun_connected": {
         "name": "Kabel ładowania podłączony"
@@ -280,16 +280,16 @@
     },
     "switch": {
       "front_windshield_heating": {
-        "name": "Ogrzewanie przedniej szyby"
+        "name": "Szyba przednia — ogrzewanie"
       },
       "front_windshield_defrost": {
-        "name": "Odmrażanie przedniej szyby (nawiew)"
+        "name": "Szyba przednia — odmrażanie (nawiew)"
       },
       "air_purification": {
         "name": "Oczyszczanie powietrza"
       },
       "rear_window_defrost": {
-        "name": "Ogrzewanie tylnej szyby"
+        "name": "Szyba tylna — ogrzewanie"
       },
       "steering_wheel_heating": {
         "name": "Ogrzewanie kierownicy"
@@ -322,7 +322,7 @@
         "name": "Ładowanie"
       },
       "scheduled_charging": {
-        "name": "Zaplanowane ładowanie"
+        "name": "Ładowanie — zaplanowane"
       },
       "automatic_updates": {
         "name": "Aktualizacje automatyczne"
