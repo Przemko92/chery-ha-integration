@@ -71,12 +71,12 @@ def plan_start_time(plan: dict[str, Any] | None) -> time | None:
 
 
 CHARGE_DURATION_STEP_MINUTES = 15
-CHARGE_DURATION_MIN_MINUTES = 15
+CHARGE_DURATION_MIN_MINUTES = 90
 CHARGE_DURATION_MAX_MINUTES = 24 * 60
 
 
 def snap_duration_minutes(minutes: Any) -> int:
-    """Clamp a duration to the 15 minute grid the app offers, 15 min .. 24 h."""
+    """Clamp a duration to the 15 minute grid the car accepts, 1.5 h .. 24 h."""
     try:
         value = int(round(float(minutes) / CHARGE_DURATION_STEP_MINUTES))
     except (TypeError, ValueError):

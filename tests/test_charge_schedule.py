@@ -84,7 +84,9 @@ def test_duration_snaps_to_fifteen_minute_steps():
     assert snap_duration_minutes(780) == 780
     assert snap_duration_minutes(787) == 780
     assert snap_duration_minutes(788) == 795
-    assert snap_duration_minutes(0) == 15
+    assert snap_duration_minutes(0) == 90
+    assert snap_duration_minutes(60) == 90
+    assert snap_duration_minutes(95) == 90
     assert snap_duration_minutes(2000) == 1440
 
 
