@@ -49,7 +49,7 @@ or diagnostics.
 - Diagnostic vehicle metadata (nickname, model, colour, picture)
 - **Restore last-known values** after a Home Assistant restart
 - **Alerts** — a count plus the alert texts (tyre pressure, low traction battery, oil service, open doors/windows/trunk/sunroof)
-- **Messages** — the vehicle message inbox: total count, unread count and the newest texts; the newest message itself is exposed in the attributes of the *Messages* sensor (`last_message` with the full `text`, `last_message_text`, title, date and read flag). The first run imports the whole inbox (all pages, a few requests), later polls only read the newest page every 30 minutes; the full history (up to 2000 entries) is stored in `.storage` and mirrored to `config/chery_messages.json`
+- **Messages** — the vehicle message inbox: total count, unread count and the newest texts; **Messages content** exposes the newest text plus a `history` attribute that accumulates them one by one; the newest message itself is exposed in the attributes of the *Messages* sensor (`last_message` with the full `text`, `last_message_text`, title, date and read flag). The first run imports the whole inbox (all pages, a few requests), later polls only read the newest page every 30 minutes; the full history (up to 2000 entries) is stored in `.storage` and mirrored to `config/chery_messages.json`
 
 **Remote control**
 - Lock/unlock, climate (16–30 °C), front/rear glass heating
@@ -247,9 +247,11 @@ response_variable: inbox
 ```
 
 Newest messages come first. The entities stay small on purpose: **Messages**
-carries the counts and the last 20 entries, **Message details** the last ten
-texts, while the whole history lives in `config/chery_messages.json` (keyed by
-VIN) and in the integration `.storage` file.
+carries the counts and the last 20 entries, **Messages content** shows the newest
+message as its state and keeps the growing list in the `history` attribute (newest
+first, capped so the payload stays inside the recorder limit), while the whole
+history lives in `config/chery_messages.json` (keyed by VIN) and in the integration
+`.storage` file.
 
 #### `chery_europe.send_command`
 
@@ -332,7 +334,7 @@ PIN **nie** trafia do logów ani diagnostyki.
 - Metadane diagnostyczne pojazdu (nick, model, kolor, zdjęcie)
 - **Przywracanie ostatnich wartości** po restarcie Home Assistant
 - **Alarmy** — licznik i treść aktywnych alarmów (ciśnienie w oponach, niski poziom baterii trakcyjnej, serwis oleju, otwarte drzwi/okna/klapa bagażnika/szyberdach)
-- **Wiadomości** — skrzynka wiadomości z serwisu: łączna liczba, liczba nieprzeczytanych i treść najnowszych; sama ostatnia wiadomość jest w atrybutach sensora *Wiadomości* (`last_message` z pełnym `text`, `last_message_text`, tytuł, data i flaga przeczytania). Pierwsze uruchomienie pobiera całą skrzynkę (wszystkie strony, kilka zapytań), później odczytywana jest tylko najnowsza strona co 30 minut; pełna historia (do 2000 wpisów) leży w `.storage` i w kopii `config/chery_messages.json`
+- **Wiadomości** — skrzynka wiadomości z serwisu: łączna liczba, liczba nieprzeczytanych i treść najnowszych; **Wiadomości – treść** pokazuje najnowszy tekst i atrybut `history`, do którego wiadomości dopisują się po kolei; sama ostatnia wiadomość jest w atrybutach sensora *Wiadomości* (`last_message` z pełnym `text`, `last_message_text`, tytuł, data i flaga przeczytania). Pierwsze uruchomienie pobiera całą skrzynkę (wszystkie strony, kilka zapytań), później odczytywana jest tylko najnowsza strona co 30 minut; pełna historia (do 2000 wpisów) leży w `.storage` i w kopii `config/chery_messages.json`
 
 **Sterowanie zdalne**
 - Zamek, klimatyzacja (16–30 °C), ogrzewanie szyb
@@ -446,9 +448,10 @@ response_variable: inbox
 ```
 
 Najnowsze wiadomości są pierwsze. Encje celowo pozostają małe: **Wiadomości**
-niosą liczniki i ostatnie 20 wpisów, **Treść wiadomości** ostatnie dziesięć
-tekstów, a cała historia leży w `config/chery_messages.json` (klucz: VIN) oraz
-w pliku `.storage` integracji.
+niosą liczniki i ostatnie 20 wpisów, **Wiadomości – treść** pokazuje najnowszą
+wiadomość jako stan i trzyma narastającą listę w atrybucie `history` (najnowsze
+pierwsze, przycinana do limitu recordera), a cała historia leży
+w `config/chery_messages.json` (klucz: VIN) oraz w pliku `.storage` integracji.
 
 #### `chery_europe.set_scheduled_charging`
 

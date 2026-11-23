@@ -227,8 +227,8 @@
       "messages_unread": {
         "name": "Nieprzeczytane wiadomości"
       },
-      "messages_content": {
-        "name": "Treść wiadomości"
+      "messages_history": {
+        "name": "Wiadomości – treść"
       }
     },
     "binary_sensor": {

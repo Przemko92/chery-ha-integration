@@ -31,7 +31,11 @@ from homeassistant.helpers.typing import StateType
 from homeassistant.util import dt as dt_util
 
 from .alerts import alerts_content, collect_alerts
-from .const import MESSAGES_CONTENT_ITEMS
+from .const import (
+    MESSAGES_CONTENT_ITEMS,
+    MESSAGES_HISTORY_CHARS,
+    MESSAGES_HISTORY_ITEMS,
+)
 from .coordinator import CheryEuropeDataUpdateCoordinator
 from .data import CheryData
 from .entity import CheryEuropeEntity, iter_entry_coordinators, stable_unique_id
@@ -39,6 +43,7 @@ from .messages import (
     message_line,
     messages_attributes,
     messages_content,
+    messages_history,
     unread_messages,
 )
 
@@ -400,13 +405,11 @@ MESSAGE_SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
         value_fn=lambda data: data.messages_unread_count or 0,
     ),
     CheryEuropeSensorEntityDescription(
-        key="messages_content",
-        name="Message details",
-        translation_key="messages_content",
+        key="messages_history",
+        name="Messages content",
+        translation_key="messages_history",
         icon="mdi:message-badge-outline",
-        value_fn=lambda data: messages_content(
-            (data.messages or [])[:MESSAGES_CONTENT_ITEMS]
-        ),
+        value_fn=lambda data: messages_content((data.messages or [])[:1]),
     ),
 )
 
@@ -773,7 +776,9 @@ class CheryEuropeMessageSensor(CheryEuropeEntity, SensorEntity):
             return data.messages_total or len(self._messages())
         if key == "messages_unread":
             return data.messages_unread_count or 0
-        return messages_content(self._messages()[:MESSAGES_CONTENT_ITEMS])
+        # The text sensor shows the newest message; HA truncates any state at 255 chars,
+        # so the readable history lives in the ``history`` attribute.
+        return messages_content(self._messages()[:1])
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
@@ -795,6 +800,19 @@ class CheryEuropeMessageSensor(CheryEuropeEntity, SensorEntity):
                     )
                     if line
                 ][:MESSAGES_CONTENT_ITEMS],
+            }
+        if key == "messages_history":
+            lines = messages_history(
+                items,
+                limit=MESSAGES_HISTORY_ITEMS,
+                char_budget=MESSAGES_HISTORY_CHARS,
+            )
+            return {
+                "count": len(lines),
+                "stored": len(items),
+                "newest": items[0]["received"] if items else None,
+                "oldest": items[-1]["received"] if items else None,
+                "history": lines,
             }
         if key != "messages":
             return {}

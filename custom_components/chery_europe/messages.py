@@ -17,7 +17,11 @@ from collections.abc import Iterable
 from datetime import UTC, datetime
 from typing import Any
 
-from .const import MESSAGES_ATTRIBUTE_ITEMS
+from .const import (
+    MESSAGES_ATTRIBUTE_ITEMS,
+    MESSAGES_HISTORY_CHARS,
+    MESSAGES_HISTORY_ITEMS,
+)
 
 # ``status`` is 0 for an unread message and 1 once the app has opened it.
 STATUS_UNREAD = 0
@@ -139,6 +143,29 @@ def message_line(message: dict[str, Any]) -> str:
 def messages_content(messages: Iterable[dict[str, Any]]) -> str:
     """Render the fetched messages as one line each."""
     return "\n".join(line for line in (message_line(m) for m in messages) if line)
+
+
+def messages_history(
+    messages: Iterable[dict[str, Any]],
+    limit: int = MESSAGES_HISTORY_ITEMS,
+    char_budget: int = MESSAGES_HISTORY_CHARS,
+) -> list[str]:
+    """Render the newest messages as one line each, newest first, within a size budget.
+
+    The attribute payload has to fit the recorder's 16 KiB per state, so the list stops
+    at ``limit`` entries or ``char_budget`` characters, whichever comes first.
+    """
+    lines: list[str] = []
+    used = 0
+    for message in messages:
+        line = message_line(message)
+        if not line:
+            continue
+        if len(lines) >= limit or used + len(line) > char_budget:
+            break
+        lines.append(line)
+        used += len(line)
+    return lines
 
 
 def unread_count(messages: Iterable[dict[str, Any]]) -> int:
