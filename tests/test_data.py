@@ -623,19 +623,23 @@ def test_entity_id_renames_match_the_polish_names() -> None:
 
     from homeassistant.util import slugify
 
-    from custom_components.chery_europe.entity import ENTITY_ID_RENAMES
+    from custom_components.chery_europe.entity import ENTITY_ID_RENAMES, UID_TRANSLATION_KEYS
 
     path = Path(__file__).parent.parent / "custom_components/chery_europe/translations/pl.json"
     translations = json.loads(path.read_text(encoding="utf-8"))["entity"]
-    names = {
-        key: value["name"]
-        for domain in translations.values()
-        for key, value in domain.items()
-        if "name" in value
-    }
-    for key, _old_slug, new_slug in ENTITY_ID_RENAMES:
-        assert key in names, f"{key} has no Polish name"
-        assert slugify(names[key]) == new_slug, (key, names[key], new_slug)
+    for domain, key, _old_slug, new_slug in ENTITY_ID_RENAMES:
+        translation_key = UID_TRANSLATION_KEYS.get(key, key)
+        entry = translations.get(domain, {}).get(translation_key)
+        assert entry is not None and "name" in entry, (
+            f"{domain}.{translation_key} has no Polish name"
+        )
+        assert entry["name"] != "", f"{domain}.{translation_key} has an empty Polish name"
+        assert slugify(entry["name"]) == new_slug, (
+            domain,
+            translation_key,
+            entry["name"],
+            new_slug,
+        )
 
 
 def test_tire_entity_ids_group_by_wheel() -> None:
@@ -648,6 +652,7 @@ def test_tire_entity_ids_group_by_wheel() -> None:
     entity = SimpleNamespace(
         entity_id="sensor.wspolne_tiggo_cisnienie_przedniej_lewej_opony",
         unique_id="wspolne_tiggo_tire_pressure_front_left",
+        domain="sensor",
     )
     registry = Mock()
     registry.async_get.return_value = None
@@ -680,10 +685,12 @@ def test_alarm_content_entity_id_follows_the_new_translation() -> None:
         SimpleNamespace(
             entity_id="sensor.wspolne_tiggo_tresc_alarmow",
             unique_id="wspolne_tiggo_alerts_content",
+            domain="sensor",
         ),
         SimpleNamespace(
             entity_id="sensor.wspolne_tiggo_nieprzeczytane_wiadomosci",
             unique_id="wspolne_tiggo_messages_unread",
+            domain="sensor",
         ),
     ]
     registry = Mock()

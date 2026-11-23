@@ -44,6 +44,11 @@ REPEAT_WEEKEND = "weekend"
 REPEAT_CUSTOM = "custom"
 REPEAT_MODES = (REPEAT_DAILY, REPEAT_WORKDAYS, REPEAT_WEEKEND, REPEAT_CUSTOM)
 
+#: Plan the integration manages for the single "departure" switch entity.
+DEPARTURE_PLAN_NAME = "Wyjazd"
+#: Time the departure entity reports while no plan exists yet.
+DEFAULT_DEPARTURE_TIME = "07:30"
+
 ALL_DAYS: tuple[int, ...] = (1, 2, 3, 4, 5, 6, 7)
 WORKDAYS: tuple[int, ...] = (1, 2, 3, 4, 5)
 WEEKEND: tuple[int, ...] = (6, 7)
@@ -227,7 +232,7 @@ def validate_plans(
         for existing in entries
         if not (replacing and str(existing.get("plan_id") or "") == target_id)
     ]
-    active = [existing for existing in plans if _is_enabled(existing)]
+    active = [existing for existing in entries if _is_enabled(existing)]
     if plan.get("enabled") and not replacing and len(active) >= MAX_PLANS:
         raise ValueError(f"The car accepts at most {MAX_PLANS} plans")
 
@@ -420,3 +425,66 @@ def _flag(value: Any) -> bool:
     if isinstance(value, bool):
         return value
     return str(value) not in {"0", "false", "False", "None"}
+
+
+def find_plan_by_name(
+    plans: Iterable[dict[str, Any]], name: str = DEPARTURE_PLAN_NAME
+) -> dict[str, Any] | None:
+    """Return the plan whose name matches ``name``, ignoring case."""
+    target = str(name or "").strip().casefold()
+    for plan in plans or ():
+        if str(plan.get("name") or "").strip().casefold() == target:
+            return plan
+    return None
+
+
+def repeat_for_days(days: Sequence[int] | None) -> str:
+    """Return the repeat mode that reproduces an explicit day list."""
+    picked = sorted({int(day) for day in days or ()})
+    if picked == list(ALL_DAYS):
+        return REPEAT_DAILY
+    if picked == list(WORKDAYS):
+        return REPEAT_WORKDAYS
+    if picked == list(WEEKEND):
+        return REPEAT_WEEKEND
+    return REPEAT_CUSTOM if picked else REPEAT_DAILY
+
+
+def departure_plan_update(
+    plans: Iterable[dict[str, Any]],
+    travel_time: Any,
+    *,
+    enabled: bool,
+    name: str = DEPARTURE_PLAN_NAME,
+) -> list[dict[str, Any]]:
+    """Return the plan list with the departure plan set to ``travel_time``.
+
+    Every other plan is passed through untouched because the car replaces the
+    whole list on write. An existing departure plan keeps its comfort features,
+    temperature and schedule; only the departure time and the switch change.
+    """
+    entries = [dict(existing) for existing in plans or ()]
+    existing = find_plan_by_name(entries, name) or {}
+    if existing and not existing.get("plan_id"):
+        # A plan that was never saved to the car has no id, so it cannot be
+        # merged by id; drop it first or the name check would reject the update.
+        stale = str(existing.get("name") or "").strip().casefold()
+        entries = [
+            entry
+            for entry in entries
+            if entry is not existing
+            and str(entry.get("name") or "").strip().casefold() != stale
+        ]
+    features = existing.get("features") or {}
+    plan = build_plan(
+        name=existing.get("name") or name,
+        travel_time=travel_time,
+        repeat=repeat_for_days(existing.get("days")),
+        days=existing.get("days"),
+        enabled=enabled,
+        temperature=existing.get("temperature"),
+        plan_id=existing.get("plan_id"),
+        **{key: _flag(features.get(key)) for key in FEATURE_KEYS},
+    )
+    validate_plans(entries, plan)
+    return merge_plan(entries, plan)

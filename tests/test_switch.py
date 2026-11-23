@@ -188,4 +188,5 @@ async def test_setup_keeps_every_switch_when_permissions_are_unknown():
 
     keys = {entity.entity_description.key for entity in added}
     assert "rear_left_seat_ventilation" in keys
-    assert len(added) == len(SWITCH_DESCRIPTIONS) + 3
+    assert "departure" in keys
+    assert len(added) == len(SWITCH_DESCRIPTIONS) + 4
