@@ -386,7 +386,7 @@ def test_message_sensors_expose_count_unread_and_last_message():
 
     assert sensors["messages"].native_value == 563
     assert sensors["messages_unread"].native_value == 1
-    assert sensors["last_message"].native_value == "Tyre temperature warning"
+    assert "last_message" not in sensors
     assert sensors["messages_content"].native_value.startswith("2026-11-")
     assert "Tyre temperature warning" in sensors["messages_content"].native_value
 
@@ -394,13 +394,15 @@ def test_message_sensors_expose_count_unread_and_last_message():
     assert attributes["total"] == 563
     assert attributes["unread_count"] == 1
     assert attributes["latest"]["id"] == "1001"
+    assert attributes["last_message"]["id"] == "1001"
+    assert attributes["last_message_text"].startswith("The temperature")
+    assert attributes["last_message"]["read"] is False
     assert attributes["backfilled_at"] == "2026-11-23T10:00:00+00:00"
     assert "messages" not in attributes or len(attributes["messages"]) == 2
 
     unread = sensors["messages_unread"].extra_state_attributes
     assert unread["unread_count"] == 1
     assert unread["unread"][0].startswith("2026-11-19")
-    assert sensors["last_message"].extra_state_attributes["read"] is False
     assert sensors["messages_content"].extra_state_attributes == {}
 
 

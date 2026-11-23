@@ -222,6 +222,8 @@ def messages_attributes(
         "oldest": items[-1]["received"] if items else None,
         "newest": items[0]["received"] if items else None,
         "latest": items[0] if items else None,
+        "last_message": items[0] if items else None,
+        "last_message_text": items[0]["text"] if items else None,
         "backfilled_at": backfilled_at,
         "messages_truncated": len(items) > limit,
         "messages": items[:limit],

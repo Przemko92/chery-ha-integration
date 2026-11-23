@@ -36,7 +36,6 @@ from .coordinator import CheryEuropeDataUpdateCoordinator
 from .data import CheryData
 from .entity import CheryEuropeEntity, iter_entry_coordinators, stable_unique_id
 from .messages import (
-    last_message_attributes,
     message_line,
     messages_attributes,
     messages_content,
@@ -399,13 +398,6 @@ MESSAGE_SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
         icon="mdi:email-badge",
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda data: data.messages_unread_count or 0,
-    ),
-    CheryEuropeSensorEntityDescription(
-        key="last_message",
-        name="Last message",
-        translation_key="last_message",
-        icon="mdi:message-text-clock-outline",
-        value_fn=lambda data: (data.messages[0].get("title") if data.messages else None),
     ),
     CheryEuropeSensorEntityDescription(
         key="messages_content",
@@ -781,9 +773,6 @@ class CheryEuropeMessageSensor(CheryEuropeEntity, SensorEntity):
             return data.messages_total or len(self._messages())
         if key == "messages_unread":
             return data.messages_unread_count or 0
-        if key == "last_message":
-            items = self._messages()
-            return items[0].get("title") if items else None
         return messages_content(self._messages()[:MESSAGES_CONTENT_ITEMS])
 
     @property
@@ -807,8 +796,6 @@ class CheryEuropeMessageSensor(CheryEuropeEntity, SensorEntity):
                     if line
                 ][:MESSAGES_CONTENT_ITEMS],
             }
-        if key == "last_message":
-            return last_message_attributes(items[0] if items else None)
         if key != "messages":
             return {}
         return messages_attributes(

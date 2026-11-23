@@ -49,7 +49,7 @@ or diagnostics.
 - Diagnostic vehicle metadata (nickname, model, colour, picture)
 - **Restore last-known values** after a Home Assistant restart
 - **Alerts** — a count plus the alert texts (tyre pressure, low traction battery, oil service, open doors/windows/trunk/sunroof)
-- **Messages** — the vehicle message inbox: total count, unread count, the last message and the newest texts. The first run imports the whole inbox (all pages, a few requests), later polls only read the newest page every 30 minutes; the full history (up to 2000 entries) is stored in `.storage` and mirrored to `config/chery_messages.json`
+- **Messages** — the vehicle message inbox: total count, unread count and the newest texts; the newest message itself is exposed in the attributes of the *Messages* sensor (`last_message` with the full `text`, `last_message_text`, title, date and read flag). The first run imports the whole inbox (all pages, a few requests), later polls only read the newest page every 30 minutes; the full history (up to 2000 entries) is stored in `.storage` and mirrored to `config/chery_messages.json`
 
 **Remote control**
 - Lock/unlock, climate (16–30 °C), front/rear glass heating
@@ -332,7 +332,7 @@ PIN **nie** trafia do logów ani diagnostyki.
 - Metadane diagnostyczne pojazdu (nick, model, kolor, zdjęcie)
 - **Przywracanie ostatnich wartości** po restarcie Home Assistant
 - **Alarmy** — licznik i treść aktywnych alarmów (ciśnienie w oponach, niski poziom baterii trakcyjnej, serwis oleju, otwarte drzwi/okna/klapa bagażnika/szyberdach)
-- **Wiadomości** — skrzynka wiadomości z serwisu: łączna liczba, liczba nieprzeczytanych, ostatnia wiadomość i treść najnowszych. Pierwsze uruchomienie pobiera całą skrzynkę (wszystkie strony, kilka zapytań), później odczytywana jest tylko najnowsza strona co 30 minut; pełna historia (do 2000 wpisów) leży w `.storage` i w kopii `config/chery_messages.json`
+- **Wiadomości** — skrzynka wiadomości z serwisu: łączna liczba, liczba nieprzeczytanych i treść najnowszych; sama ostatnia wiadomość jest w atrybutach sensora *Wiadomości* (`last_message` z pełnym `text`, `last_message_text`, tytuł, data i flaga przeczytania). Pierwsze uruchomienie pobiera całą skrzynkę (wszystkie strony, kilka zapytań), później odczytywana jest tylko najnowsza strona co 30 minut; pełna historia (do 2000 wpisów) leży w `.storage` i w kopii `config/chery_messages.json`
 
 **Sterowanie zdalne**
 - Zamek, klimatyzacja (16–30 °C), ogrzewanie szyb
