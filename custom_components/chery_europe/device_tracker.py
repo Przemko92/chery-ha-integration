@@ -13,7 +13,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
 from .coordinator import CheryEuropeDataUpdateCoordinator
-from .entity import CheryEuropeEntity, stable_unique_id
+from .entity import CheryEuropeEntity, iter_entry_coordinators, stable_unique_id
 
 PARALLEL_UPDATES = 0
 
@@ -31,8 +31,12 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the Chery Europe device tracker from a config entry."""
-    coordinator: CheryEuropeDataUpdateCoordinator = entry.runtime_data
-    async_add_entities([CheryEuropeDeviceTracker(coordinator, entry)])
+    async_add_entities(
+        [
+            CheryEuropeDeviceTracker(coordinator, entry)
+            for coordinator in iter_entry_coordinators(entry)
+        ]
+    )
 
 
 class CheryEuropeDeviceTracker(CheryEuropeEntity, TrackerEntity, RestoreEntity):
@@ -44,7 +48,7 @@ class CheryEuropeDeviceTracker(CheryEuropeEntity, TrackerEntity, RestoreEntity):
         entry: ConfigEntry,
     ) -> None:
         super().__init__(coordinator, POSITION_DESCRIPTION, entry)
-        self._attr_unique_id = stable_unique_id(entry, POSITION_DESCRIPTION.key)
+        self._attr_unique_id = stable_unique_id(entry, POSITION_DESCRIPTION.key, coordinator)
         self._restored_lat: float | None = None
         self._restored_lon: float | None = None
 

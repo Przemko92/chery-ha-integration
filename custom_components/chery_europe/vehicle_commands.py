@@ -23,6 +23,8 @@ class VehicleCommandSpec:
 
     endpoint: str
     build_body: Callable[[dict[str, Any]], dict[str, Any]]
+    # Set when the command does not live under /asc/vehicleControl/.
+    path: str | None = None
 
 
 def build_air_control_body(values: dict[str, Any]) -> dict[str, str]:
@@ -191,6 +193,39 @@ def build_empty_body(_values: dict[str, Any]) -> dict[str, Any]:
     return {}
 
 
+def build_climate_extreme_body(values: dict[str, Any], *, temperature: str) -> dict[str, str]:
+    """Climate only, at the HI (31) or LO (15) setpoint.
+
+    Live checks on a Tiggo showed that ``airControl`` at 31 °C is what the car
+    treats as HI, and 15 °C as LO. The one-shot ``heatingControl`` /
+    ``coolingControl`` macros also switch the wheel and seats, and
+    ``coolingControl`` is denied on some vehicles, so the switch never appeared.
+    """
+    enabled = bool(values.get("enabled", True))
+    return {
+        "airControlType": "1" if enabled else "0",
+        "airType": "1",
+        "temperature": temperature,
+        "times": str(values.get("duration", DEFAULT_AIR_DURATION)),
+    }
+
+
+def build_heat_everything_body(values: dict[str, Any]) -> dict[str, str]:
+    """Turn the climate to HI (31 °C) without the seat and wheel macro."""
+    return build_climate_extreme_body(values, temperature="31.0")
+
+
+def build_cool_everything_body(values: dict[str, Any]) -> dict[str, str]:
+    """Turn the climate to LO (15 °C) without the seat ventilation macro."""
+    return build_climate_extreme_body(values, temperature="15.0")
+
+
+def build_theft_alarm_body(values: dict[str, Any]) -> dict[str, str]:
+    """Arm or disarm the theft alarm (``/act/theftAlarm/setSwitch``)."""
+    enabled = bool(values.get("enabled", True))
+    return {"theftAlarmSwitch": "1" if enabled else "0"}
+
+
 COMMAND_SPECS: dict[str, VehicleCommandSpec] = {
     "ve_1104": VehicleCommandSpec("airControl", build_air_control_body),
     "ve_1105": VehicleCommandSpec("lockControl", build_lock_control_body),
@@ -207,6 +242,13 @@ COMMAND_SPECS: dict[str, VehicleCommandSpec] = {
     "ve_1207": VehicleCommandSpec("skylightControl", build_skylight_body),
     "ve_1208": VehicleCommandSpec("findCar", build_empty_body),
     "ve_1209": VehicleCommandSpec("vehicleLocation", build_empty_body),
+    "ve_1301": VehicleCommandSpec("airControl", build_heat_everything_body),
+    "ve_1302": VehicleCommandSpec("airControl", build_cool_everything_body),
+    "ve_1303": VehicleCommandSpec(
+        "theftAlarm",
+        build_theft_alarm_body,
+        path="/act/theftAlarm/setSwitch",
+    ),
 }
 
 

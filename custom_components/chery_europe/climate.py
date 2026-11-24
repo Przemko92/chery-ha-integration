@@ -22,6 +22,7 @@ from .entity import (
     CheryEuropeEntity,
     async_remove_unsupported,
     control_permissions,
+    iter_entry_coordinators,
     keep_feature,
     stable_unique_id,
     vehicle_uid,
@@ -31,8 +32,10 @@ from .pin import resolve_pin
 PARALLEL_UPDATES = 0
 
 CLIMATE_COMMAND_ID = "ve_1104"
-MIN_TEMPERATURE = 16
-MAX_TEMPERATURE = 30
+# 15 °C and 31 °C are the car's LO and HI setpoints. The vehicle list often
+# reports a narrower everyday range (16–30); those two ends still work.
+MIN_TEMPERATURE = 15
+MAX_TEMPERATURE = 31
 DEFAULT_TARGET_TEMPERATURE = 22
 
 PIN_SCHEMA = cv.make_entity_service_schema(
@@ -42,7 +45,7 @@ TEMPERATURE_PIN_SCHEMA = cv.make_entity_service_schema(
     {
         vol.Optional(ATTR_PIN): vol.All(cv.string, vol.Length(min=1)),
         vol.Required(ATTR_TEMPERATURE): vol.All(
-            vol.Coerce(float), vol.Range(min=16, max=30)
+            vol.Coerce(float), vol.Range(min=MIN_TEMPERATURE, max=MAX_TEMPERATURE)
         ),
     }
 )
@@ -80,12 +83,14 @@ async def async_setup_entry(
         supports_response=SupportsResponse.NONE,
     )
 
-    coordinator: CheryEuropeDataUpdateCoordinator = entry.runtime_data
-    perms = control_permissions(coordinator)
-    vin = vehicle_uid(coordinator, entry)
     removed: list[str] = []
-    if keep_feature(perms, CLIMATE_DESCRIPTION.key, f"{vin}_hvac_climate", removed):
-        async_add_entities([CheryEuropeClimate(coordinator, CLIMATE_DESCRIPTION, entry)])
+    entities = []
+    for coordinator in iter_entry_coordinators(entry):
+        perms = control_permissions(coordinator)
+        vin = vehicle_uid(coordinator, entry)
+        if keep_feature(perms, CLIMATE_DESCRIPTION.key, f"{vin}_hvac_climate", removed):
+            entities.append(CheryEuropeClimate(coordinator, CLIMATE_DESCRIPTION, entry))
+    async_add_entities(entities)
     async_remove_unsupported(hass, CLIMATE, removed)
 
 
@@ -112,21 +117,23 @@ class CheryEuropeClimate(CheryEuropeEntity, ClimateEntity):
         """Initialize the climate entity."""
         super().__init__(coordinator, description, entry)
         self._attr_translation_key = description.translation_key
-        self._attr_unique_id = stable_unique_id(entry, f"{description.key}_climate")
+        self._attr_unique_id = stable_unique_id(entry, f"{description.key}_climate", coordinator)
         self._target_temperature = _api_value(self.chery_data, "target_temperature")
         self._hvac_mode = _initial_hvac_mode(self.chery_data)
 
     @property
     def min_temp(self) -> float:
-        """Return the minimum HVAC temperature supported by the vehicle."""
+        """Return LO, even when the vehicle list only advertises 16 °C."""
         value = _api_value(self.chery_data, "min_temperature")
-        return float(value) if value is not None else MIN_TEMPERATURE
+        reported = float(value) if value is not None else MIN_TEMPERATURE
+        return min(reported, float(MIN_TEMPERATURE))
 
     @property
     def max_temp(self) -> float:
-        """Return the maximum HVAC temperature supported by the vehicle."""
+        """Return HI, even when the vehicle list only advertises 30 °C."""
         value = _api_value(self.chery_data, "max_temperature")
-        return float(value) if value is not None else MAX_TEMPERATURE
+        reported = float(value) if value is not None else MAX_TEMPERATURE
+        return max(reported, float(MAX_TEMPERATURE))
 
     @property
     def entity_picture(self) -> str | None:

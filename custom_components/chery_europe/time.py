@@ -19,6 +19,7 @@ from .entity import (
     CheryEuropeEntity,
     async_remove_unsupported,
     control_permissions,
+    iter_entry_coordinators,
     keep_feature,
     stable_unique_id,
     vehicle_uid,
@@ -41,12 +42,14 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Chery Europe time entities from a config entry."""
-    coordinator: CheryEuropeDataUpdateCoordinator = entry.runtime_data
-    perms = control_permissions(coordinator)
-    vin = vehicle_uid(coordinator, entry)
     removed: list[str] = []
-    if keep_feature(perms, CHARGE_START_TIME_DESCRIPTION.key, f"{vin}_charge_start_time", removed):
-        async_add_entities([CheryEuropeChargeStartTime(coordinator, entry)])
+    entities = []
+    for coordinator in iter_entry_coordinators(entry):
+        perms = control_permissions(coordinator)
+        vin = vehicle_uid(coordinator, entry)
+        if keep_feature(perms, CHARGE_START_TIME_DESCRIPTION.key, f"{vin}_charge_start_time", removed):
+            entities.append(CheryEuropeChargeStartTime(coordinator, entry))
+    async_add_entities(entities)
     async_remove_unsupported(hass, TIME, removed)
 
 
@@ -61,7 +64,7 @@ class CheryEuropeChargeStartTime(CheryEuropeEntity, TimeEntity, RestoreEntity):
         """Initialize the charge start time entity."""
         super().__init__(coordinator, CHARGE_START_TIME_DESCRIPTION, entry)
         self._value = time(hour=8, minute=0)
-        self._attr_unique_id = stable_unique_id(entry, CHARGE_START_TIME_DESCRIPTION.key)
+        self._attr_unique_id = stable_unique_id(entry, CHARGE_START_TIME_DESCRIPTION.key, coordinator)
         self._apply_vehicle_plan()
         self._sync_coordinator()
 

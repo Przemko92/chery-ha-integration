@@ -2,6 +2,12 @@ send_command:
   name: Send command
   description: Send a remote command to the Chery Europe vehicle. Uses the PIN from the service call or from integration options.
   fields:
+    vin:
+      name: VIN
+      description: Vehicle VIN. Required when more than one vehicle is configured on this account.
+      required: false
+      selector:
+        text:
     command_id:
       name: Command ID
       description: Chery Europe remote command identifier to send, for example ve_1101 for horn.
@@ -57,3 +63,9 @@ set_scheduled_charging:
       default: true
       selector:
         boolean:
+    vin:
+      name: VIN
+      description: Vehicle VIN. Required when more than one vehicle is configured on this account.
+      required: false
+      selector:
+        text:

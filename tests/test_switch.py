@@ -80,6 +80,30 @@ async def test_front_windshield_defrost_sends_climate_target():
     )
 
 
+def test_rear_window_heating_reads_state_and_sends_back_defrost():
+    """Rear window heating is the existing rear_window_defrost switch (ve_1135)."""
+    switch = _make_switch(
+        CheryData(vin=VIN, rear_window_defrost=True), key="rear_window_defrost"
+    )
+    assert switch.is_on is True
+    assert switch.command_description.command_id == "ve_1135"
+    assert switch.entity_description.name == "Rear window heating"
+
+
+@pytest.mark.asyncio
+async def test_rear_window_heating_sends_enabled_flag():
+    switch = _make_switch(CheryData(vin=VIN), key="rear_window_defrost")
+    switch.coordinator.api.send_command.return_value = {"ok": True}
+    switch.coordinator.async_set_updated_data = lambda data: None
+    switch.coordinator.schedule_refresh_after_command = lambda: None
+
+    await switch.async_turn_on()
+
+    switch.coordinator.api.send_command.assert_awaited_once_with(
+        VIN, "ve_1135", "1234", enabled=True
+    )
+
+
 def test_air_purification_reads_its_own_field():
     """air_purification follows the realtime airPurification flag."""
     switch = _make_switch(

@@ -12,12 +12,14 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
 
 from .const import (
+    CONF_ACCESS_TOKEN,
     CONF_AREA_CODE,
     CONF_ASK_FOR_PIN,
     CONF_BASE_URL,
     CONF_CLIENT_ID,
     CONF_CLIENT_SECRET,
     CONF_CODE,
+    CONF_EXPIRES_IN,
     CONF_LOGIN,
     CONF_LOGIN_METHOD,
     CONF_PHONE,
@@ -26,11 +28,16 @@ from .const import (
     CONF_POLL_CHARGING,
     CONF_POLL_HV,
     CONF_POLL_NORMAL,
+    CONF_REFRESH_TOKEN,
+    CONF_TOKEN_OBTAINED_AT,
+    CONF_VINS,
     DEFAULT_AREA_CODE,
     DEFAULT_BASE_URL,
+    DEFAULT_CHANNEL_ID,
     DEFAULT_POLL_CHARGING_MIN,
     DEFAULT_POLL_HV_MIN,
     DEFAULT_POLL_NORMAL_MIN,
+    DEFAULT_TSP_HOST,
     DOMAIN,
     LOGIN_METHOD_EMAIL,
     LOGIN_METHOD_SMS,
@@ -41,6 +48,7 @@ from .exceptions import (
     CheryEuropeRateLimitError,
     CheryEuropeTimeoutError,
 )
+from .data import vehicle_choices
 from .phone import mask_phone, normalize_phone
 from .token_storage import token_data_from_response
 
@@ -74,6 +82,55 @@ STEP_PIN_DATA_SCHEMA = vol.Schema(
 )
 
 
+async def discover_account_vehicles(
+    hass,
+    token_data: dict[str, Any],
+    *,
+    client_id: str | None,
+    client_secret: str | None,
+    base_url: str,
+) -> list[tuple[str, str]]:
+    """Return ``(vin, label)`` for every vehicle on the signed-in account."""
+    from .api import CheryEuropeApi
+    from .auth import CheryEuropeAuth
+
+    session = async_create_clientsession(hass)
+    auth = CheryEuropeAuth(
+        session,
+        base_url=base_url,
+        client_id=client_id,
+        client_secret=client_secret,
+    )
+    auth.set_tokens(
+        token_data.get(CONF_ACCESS_TOKEN),
+        token_data.get(CONF_REFRESH_TOKEN),
+        expires_in=int(token_data.get(CONF_EXPIRES_IN) or 0),
+        obtained_at=token_data.get(CONF_TOKEN_OBTAINED_AT),
+    )
+    channel_id = DEFAULT_CHANNEL_ID
+    tsp_host = DEFAULT_TSP_HOST
+    try:
+        env_config = await auth.fetch_env_config()
+        if env_config.channel_id:
+            channel_id = env_config.channel_id
+        if env_config.domain:
+            tsp_host = env_config.domain.rstrip("/")
+    except (
+        CheryEuropeConnectionError,
+        CheryEuropeTimeoutError,
+        CheryEuropeRateLimitError,
+    ):
+        _LOGGER.debug("Env bootstrap failed while listing vehicles")
+    api = CheryEuropeApi(
+        auth,
+        session,
+        base_url=base_url,
+        channel_id=channel_id,
+        tsp_host=tsp_host,
+    )
+    return vehicle_choices(await api.get_vehicle_list())
+
+
 class CheryEuropeConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Chery Europe."""
 
@@ -87,6 +144,8 @@ class CheryEuropeConfigFlow(ConfigFlow, domain=DOMAIN):
     _base_url: str = DEFAULT_BASE_URL
     _client_id: str | None = None
     _token_data: dict[str, Any] | None = None
+    _pin_options: dict[str, Any] | None = None
+    _vehicle_choices: list[tuple[str, str]] | None = None
 
     @staticmethod
     @callback
@@ -238,22 +297,98 @@ class CheryEuropeConfigFlow(ConfigFlow, domain=DOMAIN):
             elif pin != confirm:
                 errors[CONF_PIN_CONFIRM] = "pin_mismatch"
             else:
-                return self.async_create_entry(
-                    title=self._entry_title(),
-                    data={
-                        **self._account_data(),
-                        **token_data,
-                    },
-                    options={
-                        CONF_PIN: pin,
-                        CONF_ASK_FOR_PIN: bool(user_input.get(CONF_ASK_FOR_PIN, False)),
-                    },
-                )
+                self._pin_options = {
+                    CONF_PIN: pin,
+                    CONF_ASK_FOR_PIN: bool(user_input.get(CONF_ASK_FOR_PIN, False)),
+                }
+                return await self.async_step_vehicle()
 
         return self.async_show_form(
             step_id="pin",
             data_schema=STEP_PIN_DATA_SCHEMA,
             errors=errors,
+        )
+
+    async def async_step_vehicle(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Choose which vehicles to add when the account has more than one."""
+        token_data = self._token_data
+        if not self._has_login_destination() or token_data is None or self._pin_options is None:
+            return await self.async_step_user()
+
+        errors: dict[str, str] = {}
+        if self._vehicle_choices is None:
+            try:
+                self._vehicle_choices = await discover_account_vehicles(
+                    self.hass,
+                    token_data,
+                    client_id=self._client_id,
+                    client_secret=self._client_secret,
+                    base_url=self._base_url,
+                )
+            except CheryEuropeAuthError:
+                errors["base"] = "invalid_auth"
+            except (CheryEuropeConnectionError, CheryEuropeTimeoutError):
+                errors["base"] = "cannot_connect"
+            except CheryEuropeRateLimitError:
+                errors["base"] = "rate_limit"
+            except Exception:  # noqa: BLE001
+                _LOGGER.exception("Unexpected error while listing Chery Europe vehicles")
+                errors["base"] = "unknown"
+            if errors:
+                self._vehicle_choices = None
+                return self.async_show_form(
+                    step_id="vehicle",
+                    data_schema=vol.Schema({}),
+                    errors=errors,
+                )
+
+        choices = self._vehicle_choices or []
+        if not choices:
+            self._vehicle_choices = None
+            return self.async_show_form(
+                step_id="vehicle",
+                data_schema=vol.Schema({}),
+                errors={"base": "no_vehicles"},
+            )
+        if len(choices) == 1 and user_input is None:
+            return self._create_entry_with_vehicles([choices[0][0]])
+
+        if user_input is not None:
+            selected = user_input.get(CONF_VINS) or []
+            if isinstance(selected, str):
+                selected = [selected]
+            known = {vin for vin, _label in choices}
+            selected = [vin for vin in selected if vin in known]
+            if not selected:
+                errors[CONF_VINS] = "vehicle_required"
+            else:
+                return self._create_entry_with_vehicles(selected)
+
+        return self.async_show_form(
+            step_id="vehicle",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_VINS, default=[vin for vin, _label in choices]
+                    ): cv.multi_select({vin: label for vin, label in choices}),
+                }
+            ),
+            errors=errors,
+        )
+
+    def _create_entry_with_vehicles(self, vins: list[str]) -> ConfigFlowResult:
+        assert self._token_data is not None
+        assert self._pin_options is not None
+        return self.async_create_entry(
+            title=self._entry_title(),
+            data={
+                **self._account_data(),
+                **self._token_data,
+                CONF_VINS: vins,
+            },
+            options=self._pin_options,
         )
 
     async def async_step_reauth(
@@ -433,47 +568,89 @@ class CheryEuropeOptionsFlowHandler(OptionsFlow):
     ) -> ConfigFlowResult:
         errors: dict[str, str] = {}
         options = self._config_entry.options or {}
+        choices = await self._async_vehicle_choices()
         if user_input is not None:
             data = dict(user_input)
             current = str(options.get(CONF_PIN, "") or "")
             pin = str(data.pop(CONF_PIN, "") or "").strip()
             confirm = str(data.pop(CONF_PIN_CONFIRM, "") or "").strip()
+            selected = data.pop(CONF_VINS, None)
             if pin != current and pin and pin != confirm:
                 errors[CONF_PIN_CONFIRM] = "pin_mismatch"
             else:
                 if pin:
                     data[CONF_PIN] = pin
                 data[CONF_ASK_FOR_PIN] = bool(data.get(CONF_ASK_FOR_PIN, False))
-                return self.async_create_entry(title="", data=data)
+                if selected is not None and choices:
+                    vins = [selected] if isinstance(selected, str) else list(selected)
+                    known = {vin for vin, _label in choices}
+                    vins = [vin for vin in vins if vin in known]
+                    if not vins:
+                        errors[CONF_VINS] = "vehicle_required"
+                    else:
+                        current_vins = list(self._config_entry.data.get(CONF_VINS) or [])
+                        if vins != current_vins:
+                            self.hass.config_entries.async_update_entry(
+                                self._config_entry,
+                                data={**self._config_entry.data, CONF_VINS: vins},
+                            )
+                            self.hass.async_create_task(
+                                self.hass.config_entries.async_reload(
+                                    self._config_entry.entry_id
+                                )
+                            )
+                if not errors:
+                    return self.async_create_entry(title="", data=data)
+
+        schema: dict[Any, Any] = {
+            vol.Optional(
+                CONF_PIN,
+                default=options.get(CONF_PIN, ""),
+            ): cv.string,
+            vol.Optional(CONF_PIN_CONFIRM, default=""): cv.string,
+            vol.Optional(
+                CONF_ASK_FOR_PIN,
+                default=options.get(CONF_ASK_FOR_PIN, False),
+            ): cv.boolean,
+            vol.Optional(
+                CONF_POLL_NORMAL,
+                default=options.get(CONF_POLL_NORMAL, DEFAULT_POLL_NORMAL_MIN),
+            ): vol.All(vol.Coerce(int), vol.Range(min=0, max=1440)),
+            vol.Optional(
+                CONF_POLL_CHARGING,
+                default=options.get(
+                    CONF_POLL_CHARGING, DEFAULT_POLL_CHARGING_MIN
+                ),
+            ): vol.All(vol.Coerce(int), vol.Range(min=0, max=1440)),
+            vol.Optional(
+                CONF_POLL_HV,
+                default=options.get(CONF_POLL_HV, DEFAULT_POLL_HV_MIN),
+            ): vol.All(vol.Coerce(int), vol.Range(min=0, max=1440)),
+        }
+        if len(choices) > 1:
+            current_vins = [
+                vin
+                for vin in (self._config_entry.data.get(CONF_VINS) or [])
+                if vin in {item for item, _label in choices}
+            ]
+            schema[
+                vol.Required(CONF_VINS, default=current_vins or [vin for vin, _label in choices])
+            ] = cv.multi_select({vin: label for vin, label in choices})
 
         return self.async_show_form(
             step_id="init",
-            data_schema=vol.Schema(
-                {
-                    vol.Optional(
-                        CONF_PIN,
-                        default=options.get(CONF_PIN, ""),
-                    ): cv.string,
-                    vol.Optional(CONF_PIN_CONFIRM, default=""): cv.string,
-                    vol.Optional(
-                        CONF_ASK_FOR_PIN,
-                        default=options.get(CONF_ASK_FOR_PIN, False),
-                    ): cv.boolean,
-                    vol.Optional(
-                        CONF_POLL_NORMAL,
-                        default=options.get(CONF_POLL_NORMAL, DEFAULT_POLL_NORMAL_MIN),
-                    ): vol.All(vol.Coerce(int), vol.Range(min=0, max=1440)),
-                    vol.Optional(
-                        CONF_POLL_CHARGING,
-                        default=options.get(
-                            CONF_POLL_CHARGING, DEFAULT_POLL_CHARGING_MIN
-                        ),
-                    ): vol.All(vol.Coerce(int), vol.Range(min=0, max=1440)),
-                    vol.Optional(
-                        CONF_POLL_HV,
-                        default=options.get(CONF_POLL_HV, DEFAULT_POLL_HV_MIN),
-                    ): vol.All(vol.Coerce(int), vol.Range(min=0, max=1440)),
-                }
-            ),
+            data_schema=vol.Schema(schema),
             errors=errors,
         )
+
+    async def _async_vehicle_choices(self) -> list[tuple[str, str]]:
+        """List account vehicles from the running session, if it is loaded."""
+        runtime = getattr(self._config_entry, "runtime_data", None)
+        api = getattr(runtime, "api", None)
+        if api is None or not hasattr(api, "get_vehicle_list"):
+            return []
+        try:
+            return vehicle_choices(await api.get_vehicle_list())
+        except Exception:  # noqa: BLE001
+            _LOGGER.debug("Could not list vehicles while editing options", exc_info=True)
+            return []

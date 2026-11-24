@@ -166,6 +166,16 @@ async def test_set_temperature_uses_stored_pin_from_options():
 
 
 @pytest.mark.asyncio
+async def test_climate_range_includes_lo_and_hi_setpoints():
+    climate = _make_climate()
+    climate.coordinator.data = CheryData(
+        vin=VIN, min_temperature=16.0, max_temperature=30.0
+    )
+    assert climate.min_temp == 15.0
+    assert climate.max_temp == 31.0
+
+
+@pytest.mark.asyncio
 async def test_set_temperature_requires_pin():
     climate = _make_climate(pin=None)
 
