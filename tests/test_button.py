@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
-
 import pytest
 from homeassistant.components.button import ButtonEntityDescription
 from homeassistant.const import EntityCategory
@@ -46,7 +44,8 @@ def test_message_read_button_is_a_regular_action():
     assert action_attr == "async_mark_messages_read"
 
 
-def test_press_runs_the_action_once():
+@pytest.mark.asyncio
+async def test_press_runs_the_action_once():
     """Pressing the button runs the bound coordinator action once."""
     calls: list[int] = []
 
@@ -54,25 +53,27 @@ def test_press_runs_the_action_once():
         calls.append(1)
         return True
 
-    asyncio.run(_action_button(action).async_press())
+    await _action_button(action).async_press()
 
     assert calls == [1]
 
 
-def test_press_raises_when_the_cloud_refuses():
+@pytest.mark.asyncio
+async def test_press_raises_when_the_cloud_refuses():
     """A refused call surfaces as HomeAssistantError instead of failing silently."""
 
     async def action():
         return False
 
     with pytest.raises(HomeAssistantError):
-        asyncio.run(_action_button(action).async_press())
+        await _action_button(action).async_press()
 
 
-def test_press_swallows_action_exceptions():
+@pytest.mark.asyncio
+async def test_press_swallows_action_exceptions():
     """An exception in the action is logged, not raised at the user."""
 
     async def action():
         raise RuntimeError("boom")
 
-    assert asyncio.run(_action_button(action).async_press()) is None
+    assert await _action_button(action).async_press() is None

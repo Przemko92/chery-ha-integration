@@ -638,10 +638,32 @@ def test_scoped_device_lookup_matches_ha_signature():
 
     ``async_get_device_by_identifier`` takes the full ``(domain, identifier)``
     tuple plus the entry id; a mock registry happily accepts any shape, so bind
-    the real signature here instead.
+    the real signature here instead. Cores that predate the method only expose
+    the unscoped lookup, which the helper keeps as a fallback.
     """
-    sig = inspect.signature(DeviceRegistry.async_get_device_by_identifier)
+    lookup = getattr(DeviceRegistry, "async_get_device_by_identifier", None)
+    if lookup is None:
+        inspect.signature(DeviceRegistry.async_get_device).bind(
+            None, identifiers={(DOMAIN, "vin")}
+        )
+        return
+    sig = inspect.signature(lookup)
     sig.bind(None, (DOMAIN, "vin"), "entry-1")
+
+
+def test_device_lookup_falls_back_when_the_scoped_method_is_missing():
+    """Older cores resolve the device through the unscoped identifier set."""
+    from custom_components.chery_europe.entity import async_device_by_identifier
+
+    class _Registry:
+        def async_get_device(self, identifiers):
+            self.identifiers = identifiers
+            return "device"
+
+    registry = _Registry()
+
+    assert async_device_by_identifier(registry, "vin", "entry-1") == "device"
+    assert registry.identifiers == {(DOMAIN, "vin")}
 
 
 def test_entity_id_renames_match_the_polish_names() -> None:

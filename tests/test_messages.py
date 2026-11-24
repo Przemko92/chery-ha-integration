@@ -1,6 +1,5 @@
 """Tests for the vehicle message inbox helpers."""
 
-import asyncio
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
@@ -313,7 +312,8 @@ def test_message_history_is_shared_by_the_config_entry():
     assert first._create_message_history() is second._create_message_history()
 
 
-def test_failed_inbox_read_does_not_start_the_throttle():
+@pytest.mark.asyncio
+async def test_failed_inbox_read_does_not_start_the_throttle():
     from custom_components.chery_europe.coordinator import (
         CheryEuropeDataUpdateCoordinator,
     )
@@ -328,13 +328,14 @@ def test_failed_inbox_read_does_not_start_the_throttle():
     coordinator._message_history = FakeHistory()
     coordinator.owns_account_session = True
 
-    result = asyncio.run(coordinator._merge_messages(CheryData(vin="VIN")))
+    result = await coordinator._merge_messages(CheryData(vin="VIN"))
 
     assert result.messages is None
     assert coordinator._messages_polled_at is None
 
 
-def test_merge_messages_is_throttled():
+@pytest.mark.asyncio
+async def test_merge_messages_is_throttled():
     """A second update inside the interval sends no inbox request at all."""
     calls: list[tuple[int, int]] = []
 
@@ -349,13 +350,13 @@ def test_merge_messages_is_throttled():
         fetch_messages, fetch_messages_unread, polled_at=datetime.now(UTC)
     )
 
-    result = asyncio.run(coordinator._merge_messages(CheryData(vin="VIN")))
+    result = await coordinator._merge_messages(CheryData(vin="VIN"))
 
     assert calls == []
     assert result.messages is None
 
     coordinator._messages_polled_at = datetime.now(UTC) - timedelta(minutes=31)
-    result = asyncio.run(coordinator._merge_messages(CheryData(vin="VIN")))
+    result = await coordinator._merge_messages(CheryData(vin="VIN"))
 
     assert calls == [(1, 200)]  # first run imports the whole inbox
     assert result.messages_total == 563
@@ -364,7 +365,8 @@ def test_merge_messages_is_throttled():
     assert result.messages_backfilled_at is not None
 
 
-def test_merge_messages_reuses_the_stored_history():
+@pytest.mark.asyncio
+async def test_merge_messages_reuses_the_stored_history():
     """With a stored history only the newest page is read and merged."""
     calls: list[tuple[int, int]] = []
     stored, _ = parse_messages(PAGE)
@@ -394,7 +396,7 @@ def test_merge_messages_reuses_the_stored_history():
         fetch_messages, fetch_messages_unread, history=FakeHistory(stored)
     )
 
-    result = asyncio.run(coordinator._merge_messages(CheryData(vin="VIN")))
+    result = await coordinator._merge_messages(CheryData(vin="VIN"))
 
     assert calls == [(1, 50)]
     messages = result.messages
@@ -405,7 +407,8 @@ def test_merge_messages_reuses_the_stored_history():
     assert result.messages_unread_count == 2
 
 
-def test_merge_messages_rescans_when_the_unread_flag_disagrees():
+@pytest.mark.asyncio
+async def test_merge_messages_rescans_when_the_unread_flag_disagrees():
     """A read in the phone app flips the cloud flag; one rescan follows."""
     calls: list[tuple[int, int]] = []
     stored, _ = parse_messages(PAGE)  # one unread entry
@@ -430,7 +433,7 @@ def test_merge_messages_rescans_when_the_unread_flag_disagrees():
         fetch_messages, fetch_messages_unread, history=FakeHistory(stored)
     )
 
-    result = asyncio.run(coordinator._merge_messages(CheryData(vin="VIN")))
+    result = await coordinator._merge_messages(CheryData(vin="VIN"))
 
     assert calls[0] == (1, 50)
     assert calls[1] == (1, 200)
@@ -518,7 +521,8 @@ def test_mark_all_read_leaves_a_read_inbox_untouched():
     assert flagged == messages
 
 
-def test_coordinator_mark_messages_read_clears_the_unread_entities():
+@pytest.mark.asyncio
+async def test_coordinator_mark_messages_read_clears_the_unread_entities():
     """The button clears the cloud inbox, the history and the sensors."""
 
     async def mark_messages_read():
@@ -538,7 +542,7 @@ def test_coordinator_mark_messages_read_clears_the_unread_entities():
     published: list[CheryData] = []
     coordinator.async_set_updated_data = published.append
 
-    assert asyncio.run(coordinator.async_mark_messages_read()) is True
+    assert await coordinator.async_mark_messages_read() is True
 
     assert coordinator._message_history.messages[0]["read"] is True
     assert coordinator._message_history.saved == 1
@@ -546,7 +550,8 @@ def test_coordinator_mark_messages_read_clears_the_unread_entities():
     assert published[-1].messages_unread_count == 0
 
 
-def test_coordinator_mark_messages_read_keeps_the_inbox_on_rejection():
+@pytest.mark.asyncio
+async def test_coordinator_mark_messages_read_keeps_the_inbox_on_rejection():
     """A refused cloud call leaves the history and the entities alone."""
 
     async def mark_messages_read():
@@ -559,12 +564,13 @@ def test_coordinator_mark_messages_read_keeps_the_inbox_on_rejection():
     coordinator.data = CheryData(vin="VIN")
     coordinator.async_set_updated_data = lambda data: pytest.fail("published")
 
-    assert asyncio.run(coordinator.async_mark_messages_read()) is False
+    assert await coordinator.async_mark_messages_read() is False
     assert history.messages[0]["read"] is False
     assert history.saved == 0
 
 
-def test_messages_page_slices_the_stored_history():
+@pytest.mark.asyncio
+async def test_messages_page_slices_the_stored_history():
     """The get_messages service pages through the local copy only."""
     stored, _ = parse_messages(PAGE)
 
@@ -573,16 +579,16 @@ def test_messages_page_slices_the_stored_history():
 
     coordinator = _coordinator(fetch_messages, history=FakeHistory(stored))
 
-    first = asyncio.run(coordinator.async_messages_page(1, 1))
+    first = await coordinator.async_messages_page(1, 1)
     assert first["total"] == 2
     assert first["pages"] == 2
     assert [m["id"] for m in first["messages"]] == ["1001"]
     assert first["backfilled_at"] == "2026-11-23T10:00:00+00:00"
 
-    second = asyncio.run(coordinator.async_messages_page(9, 1))
+    second = await coordinator.async_messages_page(9, 1)
     assert second["page"] == 2
     assert [m["id"] for m in second["messages"]] == ["1000"]
 
-    unread = asyncio.run(coordinator.async_messages_page(1, 10, unread_only=True))
+    unread = await coordinator.async_messages_page(1, 10, unread_only=True)
     assert unread["total"] == 1
     assert [m["id"] for m in unread["messages"]] == ["1001"]

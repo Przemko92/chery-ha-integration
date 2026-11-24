@@ -319,8 +319,8 @@ def test_apply_travel_appointment_uses_the_home_assistant_timezone():
         dt_util.set_default_time_zone(UTC)
 
 
-def test_empty_travel_poll_keeps_a_known_plan_list():
-    import asyncio
+@pytest.mark.asyncio
+async def test_empty_travel_poll_keeps_a_known_plan_list():
     from types import SimpleNamespace
 
     from custom_components.chery_europe.coordinator import (
@@ -335,8 +335,8 @@ def test_empty_travel_poll_keeps_a_known_plan_list():
 
     coordinator.api = SimpleNamespace(query_travel_appointment=query)
     plans = [build_plan(name="Work", travel_time="07:30")]
-    updated = asyncio.run(
-        coordinator._merge_travel_appointment(CheryData(vin=VIN, prepare_plans=plans))
+    updated = await coordinator._merge_travel_appointment(
+        CheryData(vin=VIN, prepare_plans=plans)
     )
 
     assert updated.prepare_plans == plans
