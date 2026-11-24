@@ -1123,7 +1123,10 @@ def apply_travel_appointment(
     """Overlay a travelAppointQuery result without clearing missing plans."""
     if plans is None:
         return data
-    now = datetime.now(timezone.utc)
+    # ``travel_time`` is the local wall clock the user sees, so the next
+    # occurrence has to be computed against local now; a UTC ``now`` here
+    # shifted the next-departure sensor by the current UTC offset.
+    now = datetime.now().astimezone()
     upcoming = next_prepare_departure(plans, now)
     updates: dict[str, Any] = {
         "prepare_plans": plans,

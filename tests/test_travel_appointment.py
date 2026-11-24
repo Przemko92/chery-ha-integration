@@ -8,6 +8,8 @@ import pytest
 pytest.importorskip("homeassistant")
 
 from custom_components.chery_europe.data import (
+    CheryData,
+    apply_travel_appointment,
     parse_appointment_plans,
     parse_travel_appointment,
 )
@@ -120,3 +122,22 @@ def test_an_answer_without_plans_keeps_the_last_known_state():
     assert parse_appointment_plans({"code": "000000"}) is None
     assert parse_appointment_plans({"body": {"vin": "V"}}) is None
     assert parse_appointment_plans("nope") is None
+
+
+def test_next_departure_is_computed_on_the_local_clock(warsaw):
+    """The plan time is local, so the next run must not be built from UTC now.
+
+    Building it from ``datetime.now(timezone.utc)`` shifted the sensor by the
+    current UTC offset (09:55 instead of 08:55 in CET).
+    """
+    plans = parse_travel_appointment(TRAVEL_QUERY)
+    assert plans is not None
+
+    data = apply_travel_appointment(CheryData(vin="V"), plans)
+
+    assert data.prepare_next_departure is not None
+    upcoming = datetime.datetime.fromisoformat(data.prepare_next_departure)
+    assert upcoming.tzinfo is not None
+    local = upcoming.astimezone(warsaw)
+    hour, minute = (int(part) for part in plans[0]["travel_time"].split(":"))
+    assert (local.hour, local.minute) == (hour, minute)
