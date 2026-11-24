@@ -110,10 +110,10 @@
         "name": "Traction battery current"
       },
       "fuel_level": {
-        "name": "Fuel remaining"
+        "name": "Fuel level"
       },
       "range": {
-        "name": "Range"
+        "name": "Range total"
       },
       "tire_pressure_front_left": {
         "name": "Front left tire pressure"
@@ -128,22 +128,22 @@
         "name": "Rear right tire pressure"
       },
       "odometer": {
-        "name": "Odometer"
+        "name": "Odometer total"
       },
       "electric_range": {
-        "name": "Electric range"
+        "name": "Range electric"
       },
       "electric_odometer": {
-        "name": "Electric odometer"
+        "name": "Odometer electric"
       },
       "vehicle_speed": {
         "name": "Vehicle speed"
       },
       "fuel_range": {
-        "name": "Fuel range"
+        "name": "Range fuel"
       },
       "power_consumption": {
-        "name": "Power consumption"
+        "name": "Energy consumption"
       },
       "fuel_consumption": {
         "name": "Fuel consumption"
@@ -180,22 +180,22 @@
         "name": "Vehicle picture"
       },
       "climate_min_temperature": {
-        "name": "Climate minimum temperature"
+        "name": "Climate min. temperature"
       },
       "climate_max_temperature": {
-        "name": "Climate maximum temperature"
+        "name": "Climate max. temperature"
       },
       "last_data_update": {
-        "name": "Last data update"
+        "name": "Diagnostics last update"
       },
       "command_status": {
-        "name": "Command result"
+        "name": "Diagnostics command result"
       },
       "wake_status": {
-        "name": "Wake result"
+        "name": "Diagnostics wake result"
       },
       "probe_status": {
-        "name": "Position probe result"
+        "name": "Diagnostics position result"
       },
       "tire_temperature_front_left": {
         "name": "Front left tire temperature"
@@ -208,59 +208,101 @@
       },
       "tire_temperature_rear_right": {
         "name": "Rear right tire temperature"
+      },
+      "prepare_plans": {
+        "name": "Departure plans"
+      },
+      "prepare_next_departure": {
+        "name": "Departure next"
+      },
+      "alerts": {
+        "name": "Alerts"
+      },
+      "alerts_content": {
+        "name": "Alert details"
+      },
+      "messages": {
+        "name": "Messages"
+      },
+      "messages_unread": {
+        "name": "Unread messages"
+      },
+      "exterior_temperature": {
+        "name": "Outside temperature"
       }
     },
     "binary_sensor": {
       "online": {
-        "name": "Online"
+        "name": "Vehicle online"
       },
       "charging": {
-        "name": "Charging"
+        "name": "Charging active"
       },
       "appointment_charging": {
-        "name": "Scheduled charging"
+        "name": "Charging plan"
       },
       "charge_gun_connected": {
-        "name": "Charge cable connected"
+        "name": "Charging cable connected"
       },
       "fast_charge_gun_connected": {
-        "name": "Fast charger connected"
+        "name": "Charging fast charger"
       },
       "engine": {
-        "name": "Engine"
+        "name": "Vehicle engine"
       },
       "high_voltage": {
-        "name": "High voltage system"
+        "name": "Battery high voltage"
       },
       "air_purification": {
-        "name": "Air purification"
+        "name": "Climate air purification"
       },
       "door_front_left": {
-        "name": "Front left door"
+        "name": "Door front left"
       },
       "door_front_right": {
-        "name": "Front right door"
+        "name": "Door front right"
       },
       "door_rear_left": {
-        "name": "Rear left door"
+        "name": "Door rear left"
       },
       "door_rear_right": {
-        "name": "Rear right door"
+        "name": "Door rear right"
       },
       "hood": {
         "name": "Hood"
       },
       "window_front_left": {
-        "name": "Front left window"
+        "name": "Window front left"
       },
       "window_front_right": {
-        "name": "Front right window"
+        "name": "Window front right"
       },
       "window_rear_left": {
-        "name": "Rear left window"
+        "name": "Window rear left"
       },
       "window_rear_right": {
-        "name": "Rear right window"
+        "name": "Window rear right"
+      },
+      "alert_tire_front_left": {
+        "name": "Front left tire"
+      },
+      "alert_tire_front_right": {
+        "name": "Front right tire"
+      },
+      "alert_tire_rear_left": {
+        "name": "Rear left tire"
+      },
+      "alert_tire_rear_right": {
+        "name": "Rear right tire"
+      },
+      "alert_soc_low": {
+        "name": "Low state of charge"
+      },
+      "alert_oil_service": {
+        "name": "Oil service due"
+      },
+      "alert_electricity": {
+        "name": "Electrical system warning"
       }
     },
     "switch": {
@@ -268,10 +310,10 @@
         "name": "Front windshield heating"
       },
       "front_windshield_defrost": {
-        "name": "Front windshield defrost"
+        "name": "Window front defrost"
       },
       "air_purification": {
-        "name": "Air purification"
+        "name": "Climate air purification"
       },
       "rear_window_defrost": {
         "name": "Rear window heating"
@@ -279,38 +321,14 @@
       "steering_wheel_heating": {
         "name": "Steering wheel heating"
       },
-      "driver_seat_heating": {
-        "name": "Driver seat heating"
-      },
-      "passenger_seat_heating": {
-        "name": "Passenger seat heating"
-      },
-      "driver_seat_ventilation": {
-        "name": "Driver seat ventilation"
-      },
-      "passenger_seat_ventilation": {
-        "name": "Passenger seat ventilation"
-      },
-      "rear_left_seat_heating": {
-        "name": "Rear left seat heating"
-      },
-      "rear_right_seat_heating": {
-        "name": "Rear right seat heating"
-      },
-      "rear_left_seat_ventilation": {
-        "name": "Rear left seat ventilation"
-      },
-      "rear_right_seat_ventilation": {
-        "name": "Rear right seat ventilation"
-      },
       "charging": {
-        "name": "Charging"
+        "name": "Charging start"
       },
       "scheduled_charging": {
-        "name": "Scheduled charging"
+        "name": "Charging plan"
       },
       "automatic_updates": {
-        "name": "Automatic updates"
+        "name": "Updates automatic"
       },
       "heat_everything": {
         "name": "Climate HI"
@@ -319,22 +337,49 @@
         "name": "Climate LO"
       },
       "theft_alarm": {
-        "name": "Theft alarm"
+        "name": "Alarms anti-theft"
+      },
+      "departure": {
+        "name": "Departure plan"
+      },
+      "departure_monday": {
+        "name": "Departure plan Monday"
+      },
+      "departure_tuesday": {
+        "name": "Departure plan Tuesday"
+      },
+      "departure_wednesday": {
+        "name": "Departure plan Wednesday"
+      },
+      "departure_thursday": {
+        "name": "Departure plan Thursday"
+      },
+      "departure_friday": {
+        "name": "Departure plan Friday"
+      },
+      "departure_saturday": {
+        "name": "Departure plan Saturday"
+      },
+      "departure_sunday": {
+        "name": "Departure plan Sunday"
       }
     },
     "time": {
       "charge_start_time": {
-        "name": "Scheduled charging start time"
+        "name": "Charging start time"
+      },
+      "departure_time": {
+        "name": "Departure time"
       }
     },
     "number": {
       "charge_duration_hours": {
-        "name": "Scheduled charging duration"
+        "name": "Charging duration"
       }
     },
     "lock": {
       "doors": {
-        "name": "Doors"
+        "name": "Doors lock"
       }
     },
     "climate": {
@@ -349,7 +394,7 @@
     },
     "select": {
       "windows": {
-        "name": "Windows",
+        "name": "Windows all",
         "state": {
           "closed": "Closed",
           "vent": "Ventilation",
@@ -357,29 +402,104 @@
         }
       },
       "sunroof": {
-        "name": "Sunroof",
+        "name": "Sunroof position",
         "state": {
           "closed": "Closed",
           "tilt": "Tilt",
           "open": "Open"
         }
+      },
+      "driver_seat_heating": {
+        "name": "Driver seat heating",
+        "state": {
+          "off": "Off",
+          "low": "Low",
+          "medium": "Medium",
+          "high": "High"
+        }
+      },
+      "passenger_seat_heating": {
+        "name": "Passenger seat heating",
+        "state": {
+          "off": "Off",
+          "low": "Low",
+          "medium": "Medium",
+          "high": "High"
+        }
+      },
+      "driver_seat_ventilation": {
+        "name": "Driver seat ventilation",
+        "state": {
+          "off": "Off",
+          "low": "Low",
+          "medium": "Medium",
+          "high": "High"
+        }
+      },
+      "passenger_seat_ventilation": {
+        "name": "Passenger seat ventilation",
+        "state": {
+          "off": "Off",
+          "low": "Low",
+          "medium": "Medium",
+          "high": "High"
+        }
+      },
+      "rear_left_seat_heating": {
+        "name": "Rear left seat heating",
+        "state": {
+          "off": "Off",
+          "low": "Low",
+          "medium": "Medium",
+          "high": "High"
+        }
+      },
+      "rear_right_seat_heating": {
+        "name": "Rear right seat heating",
+        "state": {
+          "off": "Off",
+          "low": "Low",
+          "medium": "Medium",
+          "high": "High"
+        }
+      },
+      "rear_left_seat_ventilation": {
+        "name": "Rear left seat ventilation",
+        "state": {
+          "off": "Off",
+          "low": "Low",
+          "medium": "Medium",
+          "high": "High"
+        }
+      },
+      "rear_right_seat_ventilation": {
+        "name": "Rear right seat ventilation",
+        "state": {
+          "off": "Off",
+          "low": "Low",
+          "medium": "Medium",
+          "high": "High"
+        }
       }
     },
     "button": {
       "locate": {
-        "name": "Locate"
+        "name": "Position locate"
       },
       "find_car": {
-        "name": "Find car"
+        "name": "Vehicle find"
       },
       "wake": {
-        "name": "Wake vehicle"
+        "name": "Vehicle wake"
       },
       "refresh_position": {
-        "name": "Refresh position"
+        "name": "Position refresh"
       },
       "refresh_full_status": {
-        "name": "Refresh full status"
+        "name": "Diagnostics refresh status"
+      },
+      "message_read": {
+        "name": "Message read"
       }
     },
     "device_tracker": {
@@ -399,7 +519,7 @@
         },
         "duration_hours": {
           "name": "Duration",
-          "description": "How long charging should run, in hours (1–12)."
+          "description": "How long charging should run, in hours (1.5–24, steps of 15 minutes)."
         },
         "enabled": {
           "name": "Enabled",
@@ -408,6 +528,104 @@
         "vin": {
           "name": "VIN",
           "description": "Vehicle VIN. Required when more than one vehicle is configured on this account."
+        }
+      }
+    },
+    "set_prepare_plan": {
+      "name": "Set preparation plan",
+      "description": "Create or update a scheduled cabin/battery preparation plan (departure time, repeat, temperature, heating options).",
+      "fields": {
+        "plan_name": {
+          "name": "Plan name",
+          "description": "Short name of the plan, at most 10 characters and unique."
+        },
+        "travel_time": {
+          "name": "Departure time",
+          "description": "Local time you want the car ready (HH:MM)."
+        },
+        "repeat": {
+          "name": "Repeat",
+          "description": "daily, workdays, weekend or custom."
+        },
+        "days": {
+          "name": "Days",
+          "description": "Weekdays for repeat=custom (1 = Monday … 7 = Sunday)."
+        },
+        "enabled": {
+          "name": "Enabled",
+          "description": "Set to false to keep the plan but switch it off."
+        },
+        "temperature": {
+          "name": "Cabin temperature",
+          "description": "Target cabin temperature in °C (16–32)."
+        },
+        "battery_heat": {
+          "name": "Battery heating",
+          "description": "Pre-heat the high-voltage battery before departure."
+        },
+        "steering_wheel_heat": {
+          "name": "Steering wheel heating",
+          "description": "Heat the steering wheel before departure."
+        },
+        "driver_seat_heat": {
+          "name": "Driver seat heating",
+          "description": "Heat the driver seat before departure."
+        },
+        "front_defrost": {
+          "name": "Front defrost",
+          "description": "Defrost the windscreen before departure."
+        },
+        "rear_defrost": {
+          "name": "Rear defrost",
+          "description": "Defrost the rear window before departure."
+        },
+        "plan_id": {
+          "name": "Plan id",
+          "description": "Existing plan to edit; omit to add a new plan."
+        },
+        "dry_run": {
+          "name": "Dry run",
+          "description": "Only build and return the payload, do not send it to the car."
+        },
+        "pin": {
+          "name": "PIN",
+          "description": "Vehicle remote-control PIN. Optional when a PIN is stored in options."
+        },
+        "vin": {
+          "name": "VIN",
+          "description": "Vehicle VIN. Required when more than one vehicle is configured."
+        }
+      }
+    },
+    "cancel_prepare_plan": {
+      "name": "Cancel preparation plan",
+      "description": "Switch a preparation plan off. The car requires deactivation instead of deletion.",
+      "fields": {
+        "plan_id": {
+          "name": "Plan id",
+          "description": "Existing plan to edit; omit to add a new plan."
+        },
+        "dry_run": {
+          "name": "Dry run",
+          "description": "Only build and return the payload, do not send it to the car."
+        },
+        "pin": {
+          "name": "PIN",
+          "description": "Vehicle remote-control PIN. Optional when a PIN is stored in options."
+        },
+        "vin": {
+          "name": "VIN",
+          "description": "Vehicle VIN. Required when more than one vehicle is configured."
+        }
+      }
+    },
+    "list_prepare_plans": {
+      "name": "List preparation plans",
+      "description": "Read the preparation plans stored in the car and return them in the response.",
+      "fields": {
+        "vin": {
+          "name": "VIN",
+          "description": "Vehicle VIN. Required when more than one vehicle is configured."
         }
       }
     }

@@ -70,19 +70,42 @@ def plan_start_time(plan: dict[str, Any] | None) -> time | None:
     return minutes_to_local_time(utc_minutes_to_local(minutes))
 
 
-def plan_duration_hours(plan: dict[str, Any] | None) -> int | None:
-    """Return the plan duration in whole hours.
+CHARGE_DURATION_STEP_MINUTES = 15
+CHARGE_DURATION_MIN_MINUTES = 90
+CHARGE_DURATION_MAX_MINUTES = 24 * 60
 
-    Prefer ``timeConsuming`` when the plan says the duration was set.
-    Otherwise derive it from ``endTime - startTime``, which is how the car
-    shows a window when only an end clock time was stored.
-    """
+
+def snap_duration_minutes(minutes: Any) -> int:
+    """Clamp a duration to the 15 minute grid the car accepts, 1.5 h .. 24 h."""
+    try:
+        value = int(round(float(minutes) / CHARGE_DURATION_STEP_MINUTES))
+    except (TypeError, ValueError):
+        value = CHARGE_DURATION_MIN_MINUTES // CHARGE_DURATION_STEP_MINUTES
+    value *= CHARGE_DURATION_STEP_MINUTES
+    return max(CHARGE_DURATION_MIN_MINUTES, min(CHARGE_DURATION_MAX_MINUTES, value))
+
+
+def plan_duration_minutes(plan: dict[str, Any] | None) -> int | None:
+    """Return the plan duration in minutes on the 15 minute grid."""
     if not isinstance(plan, dict):
         return None
     minutes = _duration_minutes(plan)
     if minutes is None or minutes <= 0:
         return None
-    return max(1, round(minutes / 60))
+    return snap_duration_minutes(minutes)
+
+
+def plan_duration_hours(plan: dict[str, Any] | None) -> float | None:
+    """Return the plan duration in hours, in 0.25 h steps.
+
+    Prefer ``timeConsuming`` when the plan says the duration was set.
+    Otherwise derive it from ``endTime - startTime``, which is how the car
+    shows a window when only an end clock time was stored.
+    """
+    minutes = plan_duration_minutes(plan)
+    if minutes is None:
+        return None
+    return minutes / 60
 
 
 def _duration_minutes(plan: dict[str, Any]) -> int | None:

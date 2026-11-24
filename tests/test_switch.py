@@ -130,21 +130,6 @@ async def test_air_purification_off_sends_climate_state():
     )
 
 
-def test_seat_switch_exposes_level():
-    switch = _make_switch(
-        CheryData(
-            vin=VIN, driver_seat_heating=True, seat_levels={"driver_seat_heating": 2}
-        ),
-        key="driver_seat_heating",
-    )
-    assert switch.extra_state_attributes == {"level": 2}
-
-
-def test_non_seat_switch_has_no_level():
-    switch = _make_switch(CheryData(vin=VIN, seat_levels={"driver_seat_heating": 2}))
-    assert switch.extra_state_attributes is None
-
-
 def test_no_feedback_assumed_state():
     """No feedback fields -> is_on is None and assumed_state is True."""
     switch = _make_switch(CheryData(vin=VIN))
@@ -165,14 +150,12 @@ async def test_turn_on_requires_pin():
 
 
 @pytest.mark.asyncio
-async def test_setup_omits_rear_ventilation_when_denied():
+async def test_setup_omits_rear_defrost_when_denied():
     from custom_components.chery_europe.switch import async_setup_entry
 
     coordinator = SimpleNamespace(
         data=CheryData(vin=VIN),
-        api=SimpleNamespace(
-            permissions={2147: 0, 20414: 0, 2148: 0, 20415: 0, 2141: 1}
-        ),
+        api=SimpleNamespace(permissions={232: 0, 2321: 0, 20411: 0, 208: 1}),
         last_update_success=True,
     )
     entry = SimpleNamespace(entry_id="entry-1", runtime_data=coordinator)
@@ -190,10 +173,9 @@ async def test_setup_omits_rear_ventilation_when_denied():
         await async_setup_entry(Mock(), entry, lambda entities: added.extend(entities))
 
     keys = [entity.entity_description.key for entity in added]
-    assert "rear_left_seat_ventilation" not in keys
-    assert "rear_right_seat_ventilation" not in keys
-    assert "driver_seat_heating" in keys
-    assert "switch.entry-1_rear_left_seat_ventilation" in removed
+    assert "rear_window_defrost" not in keys
+    assert "steering_wheel_heating" in keys
+    assert "switch.entry-1_rear_window_defrost" in removed
 
 
 @pytest.mark.asyncio
@@ -211,5 +193,9 @@ async def test_setup_keeps_every_switch_when_permissions_are_unknown():
     await async_setup_entry(Mock(), entry, lambda entities: added.extend(entities))
 
     keys = {entity.entity_description.key for entity in added}
-    assert "rear_left_seat_ventilation" in keys
-    assert len(added) == len(SWITCH_DESCRIPTIONS) + 3
+    assert "rear_window_defrost" in keys
+    # seat levels moved to the select platform
+    assert "driver_seat_heating" not in keys
+    assert "departure" in keys
+    assert "departure_monday" in keys
+    assert len(added) == len(SWITCH_DESCRIPTIONS) + 11

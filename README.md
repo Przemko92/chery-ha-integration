@@ -46,18 +46,26 @@ or diagnostics.
 - Battery, fuel, range, odometer, tyre pressure/temperature, charge status
 - Charging power, traction battery voltage and current
 - Door/window/hood/trunk/engine/HV binary sensors
+- Outside temperature
+- **Warning flags** — tyre pressure on each wheel, low state of charge,
+  oil service due, vehicle electrical system
 - Diagnostic vehicle metadata (nickname, model, colour, picture)
 - **Restore last-known values** after a Home Assistant restart
+- **Alerts** — a count plus the alert texts (tyre pressure, low traction battery, oil service, open doors/windows/trunk/sunroof)
+- **Messages** — the vehicle message inbox in a single sensor: its state is the full text of the newest message (`date — title: text`) and the `history` attribute holds every earlier message as one line, oldest first, so the list grows downwards as new mail arrives. The attributes also carry `total`, `unread_count`, `latest`, `last_message` (with the full `text`, date and read flag), `last_message_text`, `history_count` and `history_truncated`. The first run imports the whole inbox (all pages, a few requests), later polls only read the newest page every 30 minutes; the full history (up to 2000 entries) is stored in `.storage` and mirrored to `config/chery_messages.json`
 
 **Remote control**
 - Lock/unlock, climate (15–31 °C, where 15 is LO and 31 is HI), front/rear glass heating
 - **Climate HI** and **Climate LO** switches (climate only, same setpoints)
 - Theft alarm arm/disarm
-- Seat heating/ventilation, steering wheel heating
+- Seat heating/ventilation with three levels (off / low / medium / high), steering wheel heating
 - Covers: trunk
 - Selects: windows (closed / vent / open), sunroof (closed / tilt / open)
 - Charging: start/stop, scheduled charging (time + duration entities)
-- Buttons: locate, find car, **wake vehicle**, **refresh position**, **refresh full status**
+- Scheduled **cabin/battery preparation** (departure time, repeat, temperature, battery/steering wheel/seat heating, defrost)
+- **Departure time** — a configuration `time` entity for the next departure, plus a **Departure plan**
+  switch that arms or disarms it without touching your other plans
+- Buttons: locate, find car, **wake vehicle**, **refresh position**, **refresh full status**, **message read** (configuration, marks the whole Chery inbox read on demand)
 
 **Operations**
 - MQTT push (live updates when the vehicle is online)
@@ -163,6 +171,120 @@ data:
   enabled: true  # optional; false disables the schedule
 ```
 
+The charging duration follows a 15 minute grid in the **1.5 h–24 h** range — the
+car rejects shorter windows, so both the `number` entity and the service enforce
+that bound.
+
+#### `chery_europe.set_prepare_plan`
+
+Create or update a scheduled **cabin/battery preparation** plan — the same
+feature the official app exposes as *scheduled pre-conditioning*. The
+car pre-conditions the cabin (and optionally the traction battery) so it is
+ready at your departure time.
+
+```yaml
+action: chery_europe.set_prepare_plan
+data:
+  plan_name: "Work"          # max 10 characters, must be unique
+  travel_time: "07:30"       # departure time, HH:MM
+  repeat: workdays           # daily | workdays | weekend | custom
+  # days: [1, 2, 3, 4, 5]    # only for repeat: custom (1 = Monday)
+  temperature: 22            # optional, 16–32 °C
+  battery_heat: true         # optional; pre-heat the HV battery
+  steering_wheel_heat: true  # optional
+  driver_seat_heat: false    # optional
+  front_defrost: true        # optional
+  rear_defrost: false        # optional
+```
+
+Add `plan_id: "<id>"` to edit an existing plan instead of creating a new one.
+The car accepts **at most 5 plans**, names of **10 characters**, and departures
+**at least 20 minutes apart**; the service rejects anything else before talking
+to the car.
+
+Add `dry_run: true` to only build and return the payload:
+
+```yaml
+action: chery_europe.set_prepare_plan
+data:
+  plan_name: "Test"
+  travel_time: "06:45"
+  battery_heat: true
+  dry_run: true
+response_variable: preview
+# {{ preview.body.preparePlans }}
+```
+
+#### `chery_europe.cancel_prepare_plan`
+
+Switch a plan off. The car insists a plan is **deactivated before it can be
+deleted**, so the integration clears `enabled` and every heating flag instead of
+removing the entry.
+
+```yaml
+action: chery_europe.cancel_prepare_plan
+data:
+  plan_id: "1234567890"
+```
+
+#### `chery_europe.list_prepare_plans`
+
+Read the plans stored in the car and return them (single query, no full
+refresh):
+
+```yaml
+action: chery_europe.list_prepare_plans
+response_variable: plans
+# {{ plans.plans }}, {{ plans.next_departure }}
+```
+
+The same data is exposed as two read-only sensors: **Scheduled preparation**
+(enabled plan count, full plan list in the attributes) and **Next departure**.
+Plans are re-read at most once an hour, so a short polling interval does not
+multiply the requests sent to your account.
+
+#### Departure time and the departure switches
+
+Nine configuration entities drive the plan the integration manages itself, so a
+daily departure needs no service call:
+
+- **Departure time** (`time`, `time.chery_*_departure_time`) — reads the time of
+  the plan named `Wyjazd`, or the default `07:30` when that plan does not exist yet.
+- **Departure plan** (`switch`, `switch.chery_*_departure_plan`) — `on` while the
+  plan is armed, `off` when it is deactivated.
+- **Departure plan Monday … Sunday** (seven `switch` entities,
+  `switch.chery_*_departure_plan_monday` …) — the weekdays the plan repeats on.
+
+Changing the time only keeps a local draft until the master switch is turned on;
+that is deliberate, because a `time` value has to exist before a plan can be
+created. Turning the switch on sends the plan to the car, turning it off clears
+the `enabled` flag (the car will not let an armed plan be deleted). Day switches
+write the weekday list through with every toggle and refuse to drop the last
+remaining day. Every action sends the whole plan list, so your other plans are
+preserved, and a departure closer than 20 minutes to another plan is rejected
+with a message instead of being written.
+
+#### `chery_europe.get_messages`
+
+Return a page of the stored message history. It only reads the local copy — no
+request is sent to the Chery cloud, so it is safe in automations and templates:
+
+```yaml
+action: chery_europe.get_messages
+data:
+  page: 1
+  page_size: 20
+  unread_only: false
+response_variable: inbox
+# {{ inbox.total }}, {{ inbox.pages }}, {{ inbox.messages }}
+```
+
+Everything lives in one entity: **Messages** shows the newest message as its state
+and keeps the growing list in the `history` attribute — newest line first, capped
+(200 lines / 9000 characters) so the payload stays inside the recorder limit — while the whole history lives in `config/chery_messages.json` (keyed by VIN)
+and in the integration `.storage` file. The `messages` attribute keeps the last 10
+entries as structured dicts for templates.
+
 #### `chery_europe.send_command`
 
 Low-level remote command (requires `vin` and `command_id`; `pin` is optional when
@@ -241,17 +363,25 @@ PIN **nie** trafia do logów ani diagnostyki.
 - Bateria, paliwo, zasięg, przebieg, ciśnienie/temperatura opon, stan ładowania
 - Moc ładowania, napięcie i prąd baterii trakcyjnej
 - Binary sensory: drzwi, maska, okna, silnik, HV itd.
+- Temperatura zewnętrzna
+- **Flagi alarmów** — ciśnienie w każdym kole, niski poziom baterii
+  trakcyjnej, serwis oleju, instalacja elektryczna pojazdu
 - Metadane diagnostyczne pojazdu (nick, model, kolor, zdjęcie)
 - **Przywracanie ostatnich wartości** po restarcie Home Assistant
+- **Alarmy** — licznik i treść aktywnych alarmów (ciśnienie w oponach, niski poziom baterii trakcyjnej, serwis oleju, otwarte drzwi/okna/klapa bagażnika/szyberdach)
+- **Wiadomości** — skrzynka wiadomości z serwisu w jednym sensorze: stan to pełna treść najnowszej wiadomości (`data — tytuł: tekst`), a atrybut `history` trzyma wszystkie wcześniejsze wiadomości po jednej linii, **od najstarszej**, więc lista rośnie w dół wraz z nową pocztą. Atrybuty zawierają też `total`, `unread_count`, `latest`, `last_message` (z pełnym `text`, datą i flagą przeczytania), `last_message_text`, `history_count` i `history_truncated`. Pierwsze uruchomienie pobiera całą skrzynkę (wszystkie strony, kilka zapytań), później odczytywana jest tylko najnowsza strona co 30 minut; pełna historia (do 2000 wpisów) leży w `.storage` i w kopii `config/chery_messages.json`
 
 **Sterowanie zdalne**
 - Zamek, klimatyzacja (15–31 °C, gdzie 15 to LO, a 31 to HI), ogrzewanie szyb
 - Przełączniki **Klimatyzacja HI** i **Klimatyzacja LO** (sama klima, te same nastawy)
 - Uzbrajanie i rozbrajanie alarmu antykradzieżowego
-- Ogrzewanie/wentylacja foteli, ogrzewanie kierownicy
-- Klapy: bagażnik, szyby, szyberdach
-- Ładowanie: start/stop, ładowanie zaplanowane (encje czasu i czasu trwania)
-- Przyciski: lokalizuj, znajdź auto, **wybudź auto**, **odśwież pozycję**, **odśwież pełny status**
+- Ogrzewanie i wentylacja foteli w trzech poziomach (wyłączone / niski / średni / wysoki), ogrzewanie kierownicy
+- Klapy: bagażnik
+- Wybór: szyby (zamknięte / uchylone / otwarte), szyberdach (zamknięty / uchylony / otwarty)
+- Ładowanie: start/stop, ładowanie zaplanowane (encje czasu i czasu trwania, 1,5–24 h co 15 minut)
+- Zaplanowane **przygotowanie kabiny i baterii** (godzina wyjazdu, powtarzanie, temperatura, grzanie baterii, kierownicy i fotela, odmrażanie)
+- **Godzina wyjazdu** — encja `time` w konfiguracji oraz przełącznik **Wyjazd plan**, który uzbraja albo rozbraja ten plan
+- Przyciski: lokalizuj, znajdź auto, **wybudź auto**, **odśwież pozycję**, **odśwież pełny status**, **odczyt wiadomości** (oznacza skrzynkę Chery jako przeczytaną)
 
 **Operacje**
 - Push MQTT (aktualizacje na żywo, gdy auto jest online)
@@ -343,6 +473,29 @@ Włącz też **Automatyczne aktualizacje** na stronie urządzenia, żeby polling
 
 ### Usługi
 
+#### `chery_europe.get_messages`
+
+Zwraca stronę zapisanej historii wiadomości. Czyta tylko lokalną kopię — żadne
+zapytanie nie leci do chmury Chery, więc można jej używać w automatyzacjach:
+
+```yaml
+action: chery_europe.get_messages
+data:
+  page: 1
+  page_size: 20
+  unread_only: false
+response_variable: inbox
+# {{ inbox.total }}, {{ inbox.pages }}, {{ inbox.messages }}
+```
+
+Wszystko mieści się w jednej encji: **Wiadomości** pokazują najnowszą wiadomość
+jako stan i trzymają narastającą listę w atrybucie `history` — najnowsze wpisy
+pierwsze, przycinana (200 linii / 9000 znaków), żeby payload został w limicie
+recordera — a obok stoi **Wiadomości nieprzeczytane** z licznikiem. Pełna historia
+leży w `config/chery_messages.json` (klucz: VIN) oraz w pliku `.storage`
+integracji; atrybut `messages` trzyma ostatnie 10 wpisów jako słowniki dla
+szablonów.
+
 #### `chery_europe.set_scheduled_charging`
 
 Ustawia plan ładowania. PIN bierze z opcji integracji.
@@ -354,6 +507,95 @@ data:
   duration_hours: 6
   enabled: true  # opcjonalnie; false wyłącza plan
 ```
+
+Czas ładowania przyjmuje siatkę 15 minut w zakresie **1,5 h–24 h** — auto odrzuca
+krótsze okna, więc encja `number` i usługa pilnują tej granicy.
+
+#### `chery_europe.set_prepare_plan`
+
+Tworzy albo aktualizuje plan **przygotowania kabiny/baterii** — funkcja, którą
+aplikacja oficjalna nazywa *zaplanowanym wstępnym przygotowaniem*. Auto dogrzewa
+lub schładza kabinę (opcjonalnie też baterię trakcyjną), żeby było gotowe na
+godzinę wyjazdu.
+
+```yaml
+action: chery_europe.set_prepare_plan
+data:
+  plan_name: "Praca"         # maks. 10 znaków, nazwa musi być unikalna
+  travel_time: "07:30"       # godzina wyjazdu, HH:MM
+  repeat: workdays           # daily | workdays | weekend | custom
+  # days: [1, 2, 3, 4, 5]    # tylko dla repeat: custom (1 = poniedziałek)
+  temperature: 22            # opcjonalnie, 16–32 °C
+  battery_heat: true         # opcjonalnie; dogrzanie baterii trakcyjnej
+  steering_wheel_heat: true  # opcjonalnie
+  driver_seat_heat: false    # opcjonalnie
+  front_defrost: true        # opcjonalnie
+  rear_defrost: false        # opcjonalnie
+```
+
+Dodaj `plan_id: "<id>"`, żeby edytować istniejący plan zamiast tworzyć nowy. Auto
+przyjmuje **najwyżej 5 planów**, nazwy do **10 znaków** i wyjazdy **co najmniej
+20 minut od siebie**; usługa odrzuca resztę, zanim odezwie się do auta.
+
+Dodaj `dry_run: true`, żeby tylko zbudować i zwrócić payload:
+
+```yaml
+action: chery_europe.set_prepare_plan
+data:
+  plan_name: "Test"
+  travel_time: "06:45"
+  battery_heat: true
+  dry_run: true
+response_variable: preview
+# {{ preview.body.preparePlans }}
+```
+
+#### `chery_europe.cancel_prepare_plan`
+
+Wyłącza plan. Auto wymaga, żeby plan był **najpierw dezaktywowany, a dopiero potem
+usunięty**, więc integracja czyści `enabled` i wszystkie flagi grzania, zamiast
+kasować wpis.
+
+```yaml
+action: chery_europe.cancel_prepare_plan
+data:
+  plan_id: "1234567890"
+```
+
+#### `chery_europe.list_prepare_plans`
+
+Czyta plany zapisane w aucie i zwraca je (jedno zapytanie, bez pełnego odświeżenia):
+
+```yaml
+action: chery_europe.list_prepare_plans
+response_variable: plans
+# {{ plans.plans }}, {{ plans.next_departure }}
+```
+
+Te same dane wystawia para sensorów tylko do odczytu: **Wyjazd plany** (liczba
+włączonych planów, pełna lista w atrybutach) oraz **Wyjazd następny**. Plany są
+odczytywane najwyżej raz na godzinę, więc krótki interwał pollingu nie mnoży
+zapytań do konta.
+
+#### Godzina i przełączniki wyjazdu
+
+Dziewięć encji konfiguracyjnych steruje planem, którym zarządza sama integracja,
+więc codzienny wyjazd nie wymaga wywołania usługi:
+
+- **Wyjazd godzina** (`time`, `time.wyjazd_godzina`) — czyta godzinę planu o nazwie
+  `Wyjazd` albo domyślne `07:30`, gdy takiego planu jeszcze nie ma.
+- **Wyjazd plan** (`switch`, `switch.wyjazd_plan`) — `on`, gdy plan jest uzbrojony,
+  `off`, gdy jest wyłączony.
+- **Wyjazd plan poniedziałek … niedziela** (siedem encji `switch`,
+  `switch.wyjazd_plan_poniedzialek` …) — dni tygodnia, w które plan się powtarza.
+
+Zmiana godziny trzyma tylko lokalny szkic do momentu włączenia głównego
+przełącznika; to celowe, bo wartość `time` musi istnieć, zanim powstanie plan.
+Włączenie przełącznika wysyła plan do auta, wyłączenie czyści flagę `enabled`
+(auto nie pozwoli usunąć uzbrojonego planu). Przełączniki dni zapisują listę dni
+przy każdym przełączeniu i nie pozwalają usunąć ostatniego dnia. Każda akcja
+wysyła całą listę planów, więc Twoje pozostałe plany zostają, a wyjazd bliższy niż
+20 minut od innego planu jest odrzucany komunikatem zamiast zapisu.
 
 #### `chery_europe.send_command`
 

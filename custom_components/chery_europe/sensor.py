@@ -30,9 +30,21 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import StateType
 from homeassistant.util import dt as dt_util
 
+from .alerts import alerts_content, collect_alerts
+from .const import (
+    MESSAGES_CONTENT_ITEMS,
+)
 from .coordinator import CheryEuropeDataUpdateCoordinator
 from .data import CheryData
+from .departure import departure_days, departure_state
 from .entity import CheryEuropeEntity, iter_entry_coordinators, stable_unique_id
+from .messages import (
+    message_line,
+    messages_attributes,
+    messages_content,
+    unread_messages,
+)
+from .prepare_plan import next_run
 
 PARALLEL_UPDATES = 0
 
@@ -287,6 +299,16 @@ SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
         value_fn=lambda data: data.max_temperature,
     ),
     CheryEuropeSensorEntityDescription(
+        key="exterior_temperature",
+        name="Outside temperature",
+        translation_key="exterior_temperature",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=1,
+        value_fn=lambda data: data.exterior_temperature,
+    ),
+    CheryEuropeSensorEntityDescription(
         key="tire_temperature_front_left",
         name="Front left tire temperature",
         translation_key="tire_temperature_front_left",
@@ -332,6 +354,71 @@ TIMESTAMP_SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = 
         icon="mdi:database-clock",
         entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda data: data.last_updated,
+    ),
+)
+
+PREPARE_SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
+    CheryEuropeSensorEntityDescription(
+        key="prepare_plans",
+        name="Scheduled preparation",
+        translation_key="prepare_plans",
+        icon="mdi:car-clock",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda data: (
+            None
+            if data.prepare_plans is None
+            else sum(
+                1 for plan in data.prepare_plans if plan.get("enabled", True)
+            )
+        ),
+    ),
+    CheryEuropeSensorEntityDescription(
+        key="prepare_next_departure",
+        name="Next departure",
+        translation_key="prepare_next_departure",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        icon="mdi:clock-outline",
+        value_fn=lambda data: data.prepare_next_departure,
+    ),
+)
+
+ALERT_SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
+    CheryEuropeSensorEntityDescription(
+        key="alerts",
+        name="Alerts",
+        translation_key="alerts",
+        icon="mdi:alert-circle-outline",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda data: len(collect_alerts(data)),
+    ),
+    CheryEuropeSensorEntityDescription(
+        key="alerts_content",
+        name="Alert details",
+        translation_key="alerts_content",
+        icon="mdi:alert-decagram-outline",
+        value_fn=lambda data: alerts_content(collect_alerts(data)),
+    ),
+)
+
+MESSAGE_SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
+    CheryEuropeSensorEntityDescription(
+        key="messages",
+        name="Messages",
+        translation_key="messages",
+        icon="mdi:message-text-outline",
+        value_fn=lambda data: messages_content((data.messages or [])[:1]),
+    ),
+    CheryEuropeSensorEntityDescription(
+        key="messages_unread",
+        name="Unread messages",
+        translation_key="messages_unread",
+        icon="mdi:email-badge",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda data: (
+            None
+            if data.messages is None and data.messages_unread_count is None
+            else data.messages_unread_count or 0
+        ),
     ),
 )
 
@@ -396,6 +483,18 @@ async def async_setup_entry(
         entities.extend(
             CheryEuropeTimestampSensor(coordinator, description, entry)
             for description in TIMESTAMP_SENSOR_DESCRIPTIONS
+        )
+        entities.extend(
+            CheryEuropePrepareSensor(coordinator, description, entry)
+            for description in PREPARE_SENSOR_DESCRIPTIONS
+        )
+        entities.extend(
+            CheryEuropeAlertSensor(coordinator, description, entry)
+            for description in ALERT_SENSOR_DESCRIPTIONS
+        )
+        entities.extend(
+            CheryEuropeMessageSensor(coordinator, description, entry)
+            for description in MESSAGE_SENSOR_DESCRIPTIONS
         )
     async_add_entities(entities)
 
@@ -479,6 +578,79 @@ class CheryEuropeSensor(_CheryEuropeRestoreSensor):
         return self.coordinator.data is not None and super().available
 
 
+class CheryEuropePrepareSensor(CheryEuropeEntity, SensorEntity):
+    """Scheduled cabin/battery preparation: plan count and next departure."""
+
+    entity_description: CheryEuropeSensorEntityDescription
+
+    def __init__(
+        self,
+        coordinator: CheryEuropeDataUpdateCoordinator,
+        description: CheryEuropeSensorEntityDescription,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the preparation sensor."""
+        super().__init__(coordinator, description, entry)
+        self._attr_translation_key = description.translation_key
+        self._attr_unique_id = stable_unique_id(entry, description.key, coordinator)
+
+    @property
+    def native_value(self) -> StateType:
+        """Return the enabled plan count or the next departure timestamp.
+
+        The TSP answers ``preparePlans: []`` for this car — the newer
+        ``appointmentTravel`` plans are write-only — so when the poll reports
+        no plans the managed departure plan Home Assistant commanded is the
+        only real schedule there is.
+        """
+        if self.coordinator.data is None:
+            return None
+        data = self.chery_data
+        travel_time, armed = departure_state(self.coordinator)
+        if self.entity_description.key == "prepare_plans":
+            plans = data.prepare_plans
+            if plans is None:
+                return None
+            if plans:
+                return sum(1 for plan in plans if plan.get("enabled", True))
+            return 1 if armed else 0
+        raw = data.prepare_next_departure
+        if raw:
+            return dt_util.parse_datetime(raw)
+        if not armed:
+            return None
+        plan = {"travel_time": travel_time, "days": departure_days(self.coordinator)}
+        return next_run(plan, dt_util.now())
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return the plan details so automations can read them."""
+        data = self.chery_data
+        if self.entity_description.key != "prepare_plans":
+            return {"last_updated": data.last_updated}
+        plans = data.prepare_plans
+        return {
+            "last_updated": data.last_updated,
+            "polled_at": data.prepare_polled_at,
+            "plans": [
+                {
+                    "plan_id": plan.get("plan_id"),
+                    "name": plan.get("name"),
+                    "travel_time": plan.get("travel_time"),
+                    "days": plan.get("days"),
+                    "enabled": plan.get("enabled"),
+                    "temperature": plan.get("temperature"),
+                    **{
+                        key: value
+                        for key, value in (plan.get("features") or {}).items()
+                        if value
+                    },
+                }
+                for plan in plans or []
+            ],
+        }
+
+
 class CheryEuropeStatusSensor(_CheryEuropeRestoreSensor):
     """Diagnostic text sensor for command/wake/probe results."""
 
@@ -541,6 +713,134 @@ class CheryEuropeTimestampSensor(_CheryEuropeRestoreSensor):
         if self._last_known_dt is not None:
             return self._last_known_dt
         return self._parse_timestamp(self._restored)
+
+
+class CheryEuropeAlertSensor(CheryEuropeEntity, SensorEntity):
+    """Active vehicle alerts: a count plus the alert texts."""
+
+    entity_description: CheryEuropeSensorEntityDescription
+
+    def __init__(
+        self,
+        coordinator: CheryEuropeDataUpdateCoordinator,
+        description: CheryEuropeSensorEntityDescription,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the alert sensor."""
+        super().__init__(coordinator, description, entry)
+        self._attr_translation_key = description.translation_key
+        self._attr_unique_id = stable_unique_id(entry, description.key, coordinator)
+
+    def _language(self) -> str | None:
+        """Return the Home Assistant UI language for the alert texts."""
+        return getattr(self.hass.config, "language", None)
+
+    def _alerts(self):
+        if self.coordinator.data is None:
+            return []
+        return collect_alerts(self.chery_data, self._language())
+
+    @property
+    def native_value(self) -> StateType:
+        """Return the alert count or the alert texts."""
+        if self.coordinator.data is None:
+            return None
+        alerts = self._alerts()
+        if self.entity_description.key == "alerts":
+            return len(alerts)
+        return alerts_content(alerts)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return every active alert so automations can read the texts."""
+        data = self.chery_data
+        alerts = self._alerts()
+        return {
+            "last_updated": data.last_updated,
+            "count": len(alerts),
+            "warnings": sum(1 for alert in alerts if alert.severity == "warning"),
+            "categories": sorted({alert.category for alert in alerts}),
+            "alerts": [alert.as_dict() for alert in alerts],
+        }
+
+
+class CheryEuropeMessageSensor(CheryEuropeEntity, SensorEntity):
+    """Vehicle message inbox: the message count plus the message texts."""
+
+    entity_description: CheryEuropeSensorEntityDescription
+
+    def __init__(
+        self,
+        coordinator: CheryEuropeDataUpdateCoordinator,
+        description: CheryEuropeSensorEntityDescription,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the message sensor."""
+        super().__init__(coordinator, description, entry)
+        self._attr_translation_key = description.translation_key
+        self._attr_unique_id = stable_unique_id(entry, description.key, coordinator)
+
+    def _messages(self) -> list[dict[str, Any]]:
+        """Return the stored message history (empty until the first poll)."""
+        if self.coordinator.data is None:
+            return []
+        return list(self.chery_data.messages or [])
+
+    @property
+    def native_value(self) -> StateType:
+        """Return the inbox size, the unread count, the last title or the texts."""
+        if self.coordinator.data is None:
+            return None
+        data = self.chery_data
+        key = self.entity_description.key
+        if key == "messages_unread":
+            if data.messages is None and data.messages_unread_count is None:
+                return None
+            return data.messages_unread_count or 0
+        # The newest message is the state; HA cuts states at 255 characters, so the
+        # complete text and the growing list live in the attributes.
+        return messages_content(self._messages()[:1]) or None
+
+    @property
+    def icon(self) -> str | None:
+        """Return an inbox icon that reflects the unread counter."""
+        if self.entity_description.key != "messages_unread":
+            return self.entity_description.icon
+        if self.coordinator.data is None:
+            return "mdi:email-outline"
+        return "mdi:email-alert" if self.chery_data.messages_unread_count else "mdi:email-outline"
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return the history summary, the unread list or the last message."""
+        data = self.chery_data
+        key = self.entity_description.key
+        items = self._messages()
+        if key == "messages_unread":
+            return {
+                "total": data.messages_total,
+                "unread_count": data.messages_unread_count,
+                "flag_set": data.messages_unread,
+                "last_updated": data.messages_polled_at,
+                "backfilled_at": data.messages_backfilled_at,
+                "unread": [
+                    line
+                    for line in (
+                        message_line(message) for message in unread_messages(items)
+                    )
+                    if line
+                ][:MESSAGES_CONTENT_ITEMS],
+            }
+        if key != "messages":
+            return {}
+        return messages_attributes(
+            items,
+            total=data.messages_total,
+            unread=data.messages_unread,
+            polled_at=data.messages_polled_at,
+            unread_total=data.messages_unread_count,
+            backfilled_at=data.messages_backfilled_at,
+        )
 
 
 # Backwards compatibility alias for tests and external consumers

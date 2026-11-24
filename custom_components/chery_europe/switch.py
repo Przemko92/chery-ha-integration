@@ -15,7 +15,13 @@ from .charge_schedule import plan_duration_hours, plan_start_time
 from .command_exec import async_send_vehicle_command
 from .const import SWITCH
 from .coordinator import CheryEuropeDataUpdateCoordinator
-from .data import SEAT_LEVEL_FIELDS, CheryData, climate_at_hi, climate_at_lo
+from .data import CheryData, climate_at_hi, climate_at_lo
+from .departure import (
+    async_set_departure,
+    async_set_departure_days,
+    departure_days,
+    departure_state,
+)
 from .entity import (
     CheryEuropeEntity,
     async_remove_unsupported,
@@ -27,6 +33,89 @@ from .entity import (
 )
 
 PARALLEL_UPDATES = 0
+
+DEPARTURE_SWITCH_DESCRIPTION = SwitchEntityDescription(
+    key="departure",
+    name="Departure plan",
+    translation_key="departure",
+    icon="mdi:car-clock",
+    entity_category=EntityCategory.CONFIG,
+)
+
+#: One switch per weekday, so the departure plan can be limited per day.
+DEPARTURE_DAY_DESCRIPTIONS: tuple[tuple[int, SwitchEntityDescription], ...] = (
+    (
+        1,
+        SwitchEntityDescription(
+            key="departure_monday",
+            name="Departure plan Monday",
+            translation_key="departure_monday",
+            icon="mdi:calendar-today",
+            entity_category=EntityCategory.CONFIG,
+        ),
+    ),
+    (
+        2,
+        SwitchEntityDescription(
+            key="departure_tuesday",
+            name="Departure plan Tuesday",
+            translation_key="departure_tuesday",
+            icon="mdi:calendar-today",
+            entity_category=EntityCategory.CONFIG,
+        ),
+    ),
+    (
+        3,
+        SwitchEntityDescription(
+            key="departure_wednesday",
+            name="Departure plan Wednesday",
+            translation_key="departure_wednesday",
+            icon="mdi:calendar-today",
+            entity_category=EntityCategory.CONFIG,
+        ),
+    ),
+    (
+        4,
+        SwitchEntityDescription(
+            key="departure_thursday",
+            name="Departure plan Thursday",
+            translation_key="departure_thursday",
+            icon="mdi:calendar-today",
+            entity_category=EntityCategory.CONFIG,
+        ),
+    ),
+    (
+        5,
+        SwitchEntityDescription(
+            key="departure_friday",
+            name="Departure plan Friday",
+            translation_key="departure_friday",
+            icon="mdi:calendar-today",
+            entity_category=EntityCategory.CONFIG,
+        ),
+    ),
+    (
+        6,
+        SwitchEntityDescription(
+            key="departure_saturday",
+            name="Departure plan Saturday",
+            translation_key="departure_saturday",
+            icon="mdi:calendar-weekend",
+            entity_category=EntityCategory.CONFIG,
+        ),
+    ),
+    (
+        7,
+        SwitchEntityDescription(
+            key="departure_sunday",
+            name="Departure plan Sunday",
+            translation_key="departure_sunday",
+            icon="mdi:calendar-weekend",
+            entity_category=EntityCategory.CONFIG,
+        ),
+    ),
+)
+
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -79,78 +168,9 @@ SWITCH_DESCRIPTIONS: tuple[CheryEuropeSwitchEntityDescription, ...] = (
         command_id="ve_1203",
         state_fn=lambda data: data.steering_wheel_heating,
     ),
-    CheryEuropeSwitchEntityDescription(
-        key="driver_seat_heating",
-        name="Driver seat heating",
-        translation_key="driver_seat_heating",
-        icon="mdi:car-seat-heater",
-        command_id="ve_1204",
-        command_values={"seat_field": "mSeatHeating"},
-        state_fn=lambda data: data.driver_seat_heating,
-    ),
-    CheryEuropeSwitchEntityDescription(
-        key="passenger_seat_heating",
-        name="Passenger seat heating",
-        translation_key="passenger_seat_heating",
-        icon="mdi:car-seat-heater",
-        command_id="ve_1204",
-        command_values={"seat_field": "pSeatHeating"},
-        state_fn=lambda data: data.passenger_seat_heating,
-    ),
-    CheryEuropeSwitchEntityDescription(
-        key="driver_seat_ventilation",
-        name="Driver seat ventilation",
-        translation_key="driver_seat_ventilation",
-        icon="mdi:car-seat-cooler",
-        command_id="ve_1204",
-        command_values={"seat_field": "mSeatAiry"},
-        state_fn=lambda data: data.driver_seat_ventilation,
-    ),
-    CheryEuropeSwitchEntityDescription(
-        key="passenger_seat_ventilation",
-        name="Passenger seat ventilation",
-        translation_key="passenger_seat_ventilation",
-        icon="mdi:car-seat-cooler",
-        command_id="ve_1204",
-        command_values={"seat_field": "pSeatAiry"},
-        state_fn=lambda data: data.passenger_seat_ventilation,
-    ),
-    CheryEuropeSwitchEntityDescription(
-        key="rear_left_seat_heating",
-        name="Rear left seat heating",
-        translation_key="rear_left_seat_heating",
-        icon="mdi:car-seat-heater",
-        command_id="ve_1204",
-        command_values={"seat_field": "blSeatHeating"},
-        state_fn=lambda data: data.rear_left_seat_heating,
-    ),
-    CheryEuropeSwitchEntityDescription(
-        key="rear_right_seat_heating",
-        name="Rear right seat heating",
-        translation_key="rear_right_seat_heating",
-        icon="mdi:car-seat-heater",
-        command_id="ve_1204",
-        command_values={"seat_field": "brSeatHeating"},
-        state_fn=lambda data: data.rear_right_seat_heating,
-    ),
-    CheryEuropeSwitchEntityDescription(
-        key="rear_left_seat_ventilation",
-        name="Rear left seat ventilation",
-        translation_key="rear_left_seat_ventilation",
-        icon="mdi:car-seat-cooler",
-        command_id="ve_1204",
-        command_values={"seat_field": "blSeatAiry"},
-        state_fn=lambda data: data.rear_left_seat_ventilation,
-    ),
-    CheryEuropeSwitchEntityDescription(
-        key="rear_right_seat_ventilation",
-        name="Rear right seat ventilation",
-        translation_key="rear_right_seat_ventilation",
-        icon="mdi:car-seat-cooler",
-        command_id="ve_1204",
-        command_values={"seat_field": "brSeatAiry"},
-        state_fn=lambda data: data.rear_right_seat_ventilation,
-    ),
+    # Seat heating/ventilation are three-level functions, so they live in the
+    # select platform (see select.py, SEAT_SELECT_DESCRIPTIONS) instead of a
+    # plain switch that could only send on/off at level 3.
     CheryEuropeSwitchEntityDescription(
         key="heat_everything",
         name="Climate HI",
@@ -197,6 +217,13 @@ async def async_setup_entry(
             entities.append(CheryEuropeChargeSwitch(coordinator, entry))
         if keep_feature(perms, "scheduled_charging", f"{vin}_scheduled_charging", removed):
             entities.append(CheryEuropeScheduledChargeSwitch(coordinator, entry))
+        if keep_feature(perms, "departure", f"{vin}_departure", removed):
+            entities.append(CheryEuropeDepartureSwitch(coordinator, entry))
+        entities.extend(
+            CheryEuropeDepartureDaySwitch(coordinator, description, entry, day)
+            for day, description in DEPARTURE_DAY_DESCRIPTIONS
+            if keep_feature(perms, description.key, f"{vin}_{description.key}", removed)
+        )
         entities.append(CheryEuropePollingSwitch(coordinator, entry))
     async_remove_unsupported(hass, SWITCH, removed)
     async_add_entities(entities)
@@ -227,14 +254,6 @@ class CheryEuropeCommandSwitch(CheryEuropeEntity, SwitchEntity):
     def assumed_state(self) -> bool:  # type: ignore[reportIncompatibleVariableOverride]
         """Return true when the API does not provide reliable command feedback."""
         return self.is_on is None
-
-    @property
-    def extra_state_attributes(self) -> dict[str, Any] | None:
-        """Expose the reported level of seat heating/ventilation switches."""
-        levels = self.chery_data.seat_levels
-        if self.entity_description.key not in SEAT_LEVEL_FIELDS or levels is None:
-            return None
-        return {"level": levels.get(self.entity_description.key)}
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Send the safe remote command using the PIN from the service call."""
@@ -461,11 +480,6 @@ class CheryEuropeScheduledChargeSwitch(CheryEuropeEntity, SwitchEntity, RestoreE
         return self._restored
 
     @property
-    def assumed_state(self) -> bool:  # type: ignore[reportIncompatibleVariableOverride]
-        """Return true when no reliable scheduled charging state is available."""
-        return self.is_on is None
-
-    @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
         """Expose the plan reported by the vehicle when available."""
         plan = self.chery_data.charge_appoint_plan
@@ -515,4 +529,108 @@ class CheryEuropeScheduledChargeSwitch(CheryEuropeEntity, SwitchEntity, RestoreE
             duration_hours=self.coordinator.charge_duration_hours,
         )
         self._optimistic = None
+        self.async_write_ha_state()
+
+
+class CheryEuropeDepartureSwitch(CheryEuropeEntity, SwitchEntity, RestoreEntity):
+    """Arm the managed preparation plan so the car leaves at that time."""
+
+    def __init__(
+        self,
+        coordinator: CheryEuropeDataUpdateCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the departure switch."""
+        super().__init__(coordinator, DEPARTURE_SWITCH_DESCRIPTION, entry)
+        self._attr_unique_id = stable_unique_id(
+            entry, DEPARTURE_SWITCH_DESCRIPTION.key, coordinator
+        )
+        self._armed_commanded = False
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Expose that the state came from a command, so a reload keeps it."""
+        if not self._armed_commanded:
+            return None
+        return {"armed_commanded": True}
+
+    async def async_added_to_hass(self) -> None:
+        """Restore the arm state; the car cannot be read back.
+
+        A restored ``off`` is only believed when it was commanded from here,
+        which the ``armed_commanded`` attribute records. Anything else is a
+        leftover of the days when this switch defaulted to off, and the plan in
+        the car is the one the owner armed in the app.
+        """
+        await super().async_added_to_hass()
+        if self.coordinator.departure_armed is not None:
+            return
+        last = await self.async_get_last_state()
+        if last is None:
+            self.coordinator.departure_armed = True
+            self.async_write_ha_state()
+            return
+        commanded = bool((last.attributes or {}).get("armed_commanded"))
+        if last.state == "on":
+            self._armed_commanded = commanded
+            self.coordinator.departure_armed = True
+        elif commanded:
+            self._armed_commanded = True
+            self.coordinator.departure_armed = False
+        else:
+            self.coordinator.departure_armed = True
+        self.async_write_ha_state()
+
+    @property
+    def is_on(self) -> bool:
+        """Return whether the departure plan is armed."""
+        return departure_state(self.coordinator)[1]
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Arm the departure plan, creating it from the configured time."""
+        await async_set_departure(self.coordinator, self._entry, enabled=True)
+        self._armed_commanded = True
+        self.async_write_ha_state()
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Disarm the departure plan without deleting it."""
+        await async_set_departure(self.coordinator, self._entry, enabled=False)
+        self._armed_commanded = True
+        self.async_write_ha_state()
+
+
+class CheryEuropeDepartureDaySwitch(CheryEuropeEntity, SwitchEntity):
+    """One weekday of the managed departure plan.
+
+    The weekday list travels with the plan on every write, so toggling a day
+    re-sends the whole plan (time, armed state and the new day list) to the car
+    and is refused when it would leave the plan with no day at all.
+    """
+
+    def __init__(
+        self,
+        coordinator: CheryEuropeDataUpdateCoordinator,
+        description: SwitchEntityDescription,
+        entry: ConfigEntry,
+        day: int,
+    ) -> None:
+        """Initialize the weekday switch."""
+        super().__init__(coordinator, description, entry)
+        self._day = day
+        self._attr_translation_key = description.translation_key
+        self._attr_unique_id = stable_unique_id(entry, description.key, coordinator)
+
+    @property
+    def is_on(self) -> bool:
+        """Return whether the departure plan repeats on this weekday."""
+        return self._day in departure_days(self.coordinator)
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Add this weekday to the plan and write it to the car."""
+        await async_set_departure_days(self.coordinator, self._entry, add=[self._day])
+        self.async_write_ha_state()
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Drop this weekday from the plan and write it to the car."""
+        await async_set_departure_days(self.coordinator, self._entry, remove=[self._day])
         self.async_write_ha_state()

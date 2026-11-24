@@ -6,7 +6,11 @@ from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from typing import Any
 
+from homeassistant.util import dt as dt_util
+
 from .types.vehicle_models import VehicleStatus
+from .prepare_plan import next_departure as next_prepare_departure
+from .prepare_plan import parse_plans as parse_prepare_plans
 from .vehicle_commands import build_charge_plan
 
 CHARGE_STATUS_MAP = {
@@ -120,6 +124,14 @@ class CheryData:
     window_front_right_position: int | None = None
     window_rear_left_position: int | None = None
     window_rear_right_position: int | None = None
+    # the car's own warning flags (``*Call`` fields of the status payload)
+    alert_tire_front_left: bool | None = None
+    alert_tire_front_right: bool | None = None
+    alert_tire_rear_left: bool | None = None
+    alert_tire_rear_right: bool | None = None
+    alert_soc_low: bool | None = None
+    alert_oil_service: bool | None = None
+    alert_electricity: bool | None = None
     driver_seat_heating: bool | None = None
     passenger_seat_heating: bool | None = None
     driver_seat_ventilation: bool | None = None
@@ -138,6 +150,19 @@ class CheryData:
     heat_everything: bool | None = None
     cool_everything: bool | None = None
     theft_alarm: bool | None = None
+    # Scheduled cabin/battery preparation (travelAppointQuery). ``None`` means
+    # "not read yet"; an empty list means the car really has no plans.
+    prepare_plans: list[dict[str, Any]] | None = None
+    prepare_next_departure: str | None = None
+    prepare_polled_at: str | None = None
+    # Vehicle message inbox (message centre). ``None`` means "not read yet".
+    messages: list[dict[str, Any]] | None = None
+    messages_total: int | None = None
+    messages_unread: bool | None = None
+    messages_unread_count: int | None = None
+    messages_polled_at: str | None = None
+    # When the complete inbox was imported for the first time.
+    messages_backfilled_at: str | None = None
 
     @classmethod
     def from_api_response(cls, response: dict[str, Any] | VehicleStatus | None) -> CheryData:
@@ -372,6 +397,13 @@ class CheryData:
             window_front_right_position=_window_position(payload.get("frontRightWindowState")),
             window_rear_left_position=_window_position(payload.get("backLeftWindowState")),
             window_rear_right_position=_window_position(payload.get("backRightWindowState")),
+            alert_tire_front_left=_alert_active(payload.get("lFrontTyreCall")),
+            alert_tire_front_right=_alert_active(payload.get("rFrontTyreCall")),
+            alert_tire_rear_left=_alert_active(payload.get("lRearTyreCall")),
+            alert_tire_rear_right=_alert_active(payload.get("rRearTyreCall")),
+            alert_soc_low=_alert_active(payload.get("socLowCall")),
+            alert_oil_service=_alert_active(payload.get("oilCall")),
+            alert_electricity=_alert_active(payload.get("electricityCall")),
             # seat states are levels (0 = off, 1-3); the remote seat command
             # switches them on at level 3
             driver_seat_heating=_level_on(payload.get("dSeatHeatingState")),
@@ -479,6 +511,15 @@ _FRESHNESS_IGNORE = frozenset(
         "min_temperature",
         "max_temperature",
         "charge_appoint_plan",
+        "prepare_plans",
+        "prepare_next_departure",
+        "prepare_polled_at",
+        "messages",
+        "messages_total",
+        "messages_unread",
+        "messages_unread_count",
+        "messages_polled_at",
+        "messages_backfilled_at",
     }
 )
 
@@ -597,7 +638,7 @@ def apply_command_feedback(data: CheryData, command_id: str, **kwargs: Any) -> C
             plan = build_charge_plan(
                 switch_status=1 if enabled else 0,
                 start_minutes=int(start_minutes or 480),
-                duration_hours=int(duration_hours or 6),
+                duration_hours=float(duration_hours or 6),
             )
             return replace(
                 data,
@@ -884,6 +925,13 @@ def _level_on(value: Any) -> bool | None:
         return str(value).lower() not in ("0", "false", "off", "none")
 
 
+def _alert_active(value: Any) -> bool | None:
+    """Return True when a ``*Call`` warning flag reports an active alert."""
+    if value in (None, ""):
+        return None
+    return str(value) != "0"
+
+
 def _is_open(value: Any) -> bool | None:
     """Return True when a realtime door/window/trunk flag is not closed (0)."""
     if value in (None, ""):
@@ -927,6 +975,67 @@ def apply_charge_appointment(
     return replace(data, **updates)
 
 
+def parse_travel_appointment(payload: Any) -> list[dict[str, Any]] | None:
+    """Return the preparation plans from a travelAppointQuery payload.
+
+    ``None`` means the payload carried no recognisable plan list, so the
+    coordinator keeps the last known plans instead of clearing them.
+    """
+    plans = parse_prepare_plans(payload)
+    if plans is None:
+        return None
+    return plans
+
+
+def apply_travel_appointment(
+    data: CheryData,
+    plans: list[dict[str, Any]] | None,
+    *,
+    polled_at: str | None = None,
+) -> CheryData:
+    """Overlay a travelAppointQuery result without clearing missing plans."""
+    if plans is None:
+        return data
+    # travel_time is a local wall clock. Home Assistant's configured timezone
+    # is the one the owner set, which is not always the container's UTC clock.
+    now = dt_util.now()
+    upcoming = next_prepare_departure(plans, now)
+    updates: dict[str, Any] = {
+        "prepare_plans": plans,
+        "prepare_next_departure": upcoming.isoformat() if upcoming else None,
+    }
+    if polled_at is not None:
+        updates["prepare_polled_at"] = polled_at
+    return replace(data, **updates)
+
+
+def apply_messages(
+    data: CheryData,
+    messages: list[dict[str, Any]] | None,
+    *,
+    total: int | None = None,
+    unread: bool | None = None,
+    unread_count: int | None = None,
+    polled_at: str | None = None,
+    backfilled_at: str | None = None,
+) -> CheryData:
+    """Overlay the stored message history; ``None`` keeps what is known."""
+    if messages is None:
+        return data
+    updates: dict[str, Any] = {"messages": messages}
+    if total is not None:
+        updates["messages_total"] = total
+    if unread is not None:
+        updates["messages_unread"] = unread
+    if unread_count is not None:
+        updates["messages_unread_count"] = unread_count
+    if polled_at is not None:
+        updates["messages_polled_at"] = polled_at
+    if backfilled_at is not None:
+        updates["messages_backfilled_at"] = backfilled_at
+    return replace(data, **updates)
+
+
 def parse_charge_appointment(
     payload: Any,
 ) -> tuple[bool | None, dict[str, Any] | None] | None:
@@ -937,7 +1046,15 @@ def parse_charge_appointment(
     """
     if not isinstance(payload, dict):
         return None
-    data = payload.get("data", payload)
+    # tspconsole wraps query results in "body" (chargeAppointQuery answers
+    # {"code": ..., "body": {"chargeAppointPlans": [...]}}); looking only at the
+    # top level left every plan unread. Unwrap first, like the travel parser.
+    data: Any = payload
+    for wrapper in ("body", "data"):
+        nested = data.get(wrapper)
+        if isinstance(nested, (dict, list)):
+            data = nested
+            break
     if isinstance(data, list):
         plan = _parse_charge_appoint_plan(data)
         enabled = _plan_switch_on(plan)

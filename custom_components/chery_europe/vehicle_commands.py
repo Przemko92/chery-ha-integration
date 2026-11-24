@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from .charge_schedule import local_minutes_to_utc
+from .charge_schedule import local_minutes_to_utc, snap_duration_minutes
+from .prepare_plan import travel_minutes
+
+_LOGGER = logging.getLogger(__name__)
 
 DEFAULT_AIR_DURATION = "15"
 DEFAULT_AIR_TEMPERATURE = "22.0"
@@ -113,7 +117,7 @@ def build_charge_plan(
     *,
     switch_status: int,
     start_minutes: int = DEFAULT_CHARGE_START_MINUTES,
-    duration_hours: int = DEFAULT_CHARGE_DURATION_HOURS,
+    duration_hours: float = DEFAULT_CHARGE_DURATION_HOURS,
 ) -> dict[str, Any]:
     """Build one chargeAppointPlans entry for chargeAppointControl.
 
@@ -122,7 +126,7 @@ def build_charge_plan(
     instead of ignoring ``timeConsuming`` and keeping the previous window.
     """
     utc_start = local_minutes_to_utc(start_minutes)
-    duration_minutes = int(duration_hours) * 60
+    duration_minutes = snap_duration_minutes(float(duration_hours) * 60)
     return {
         "cycleData": list(DEFAULT_CHARGE_CYCLE_DAYS),
         "startTime": utc_start,
@@ -137,7 +141,7 @@ def build_charge_appoint_body(values: dict[str, Any]) -> dict[str, Any]:
     """Build the nested body for scheduled charging."""
     enabled = values.get("enabled", True)
     start_minutes = int(values.get("start_minutes", DEFAULT_CHARGE_START_MINUTES))
-    duration_hours = int(values.get("duration_hours", DEFAULT_CHARGE_DURATION_HOURS))
+    duration_hours = float(values.get("duration_hours", DEFAULT_CHARGE_DURATION_HOURS))
     switch_status = 1 if enabled else 0
     return {
         "mainSwitch": 1 if enabled else 0,
@@ -224,6 +228,90 @@ def build_theft_alarm_body(values: dict[str, Any]) -> dict[str, str]:
     """Arm or disarm the theft alarm (``/act/theftAlarm/setSwitch``)."""
     enabled = bool(values.get("enabled", True))
     return {"theftAlarmSwitch": "1" if enabled else "0"}
+
+
+def build_prepare_plan_entry(plan: dict[str, Any]) -> dict[str, Any]:
+    """Build one ``preparePlans`` entry from a normalised prepare plan.
+
+    ``travelTime`` is the local departure clock time, ``cycleData`` the ISO
+    weekday list. Features are sent only when switched on; the car treats a
+    missing key as off for that plan.
+    """
+    from .prepare_plan import PREPARE_FEATURE_FIELDS, PREPARE_FEATURE_VALUES
+
+    entry: dict[str, Any] = {
+        "planName": plan.get("name"),
+        "travelTime": plan.get("travel_time"),
+        "cycleData": list(plan.get("days") or []),
+        "switchStatus": 1 if plan.get("enabled", True) else 0,
+    }
+    plan_id = plan.get("plan_id")
+    if plan_id not in (None, ""):
+        entry["planId"] = plan_id
+    temperature = plan.get("temperature")
+    if temperature not in (None, ""):
+        entry["temperature"] = str(temperature)
+    features = plan.get("features") or {}
+    for feature, key in PREPARE_FEATURE_FIELDS.items():
+        if features.get(feature):
+            entry[key] = PREPARE_FEATURE_VALUES[feature]
+    return entry
+
+
+ALL_WEEKDAYS = ("1", "2", "3", "4", "5", "6", "7")
+
+
+def build_travel_appoint_body(values: dict[str, Any]) -> dict[str, Any]:
+    """Build the ``appointmentTravel`` body exactly as the app does.
+
+    Decompiled from the APK: ``CVAppointGoParam.toJson`` emits ``vin``,
+    ``mainSwitcher``, ``appointmentTravelAOS`` (a list of ``CVAppointGoDetail``
+    ``CVAppointGoDetail.toJson`` as ``travelTime``, ``switcher``, ``id``,
+    ``planId``, ``travelWeekday``), ``swi`` and the two async timeouts;
+    ``taskId`` is added by the transport.  The list replaces whatever the car
+    stored, so callers must pass every plan.  Any other shape (``preparePlans``,
+    ``appointmentTravelSetVOS`` with ``cycleData``) is rejected by the car with
+    ``S0500`` / ``A05707``.
+
+    ``travelTime`` is the departure clock as **minutes from local midnight**
+    (06:05 -> ``"365"``), matching ``CommonUtils.dateTimeZone`` -> ``minutes``
+    in the APK and ``chargeAppointQuery`` -> ``startTime`` (375 = 06:15) from
+    the live API.  ``travelWeekday`` is a list of 1-based weekday numbers as
+    strings, the same convention ``chargeAppointQuery`` -> ``cycleData`` uses.
+    """
+    plans = values.get("plans") or []
+    vin = str(values.get("vin") or "")
+    details: list[dict[str, Any]] = []
+    armed = False
+    for plan in plans:
+        raw_time = str(plan.get("travel_time") or "").strip()
+        if not raw_time:
+            continue
+        try:
+            travel_time = str(travel_minutes(raw_time))
+        except ValueError:
+            _LOGGER.debug("Skipping travel plan with bad travel_time %r", raw_time)
+            continue
+        enabled = bool(plan.get("enabled", True))
+        armed = armed or enabled
+        days = [str(day).strip() for day in plan.get("days") or [] if str(day).strip()]
+        details.append(
+            {
+                "travelTime": travel_time,
+                "switcher": "1" if enabled else "0",
+                "id": plan.get("plan_id"),
+                "planId": None,
+                "travelWeekday": days or list(ALL_WEEKDAYS),
+            }
+        )
+    return {
+        "vin": vin,
+        "mainSwitcher": "1" if armed else "0",
+        "appointmentTravelAOS": details,
+        "swi": "1",
+        "firstAsyncTimeOut": "35",
+        "secondAsyncTimeOut": "35",
+    }
 
 
 COMMAND_SPECS: dict[str, VehicleCommandSpec] = {

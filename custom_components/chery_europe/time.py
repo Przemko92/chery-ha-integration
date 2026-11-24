@@ -15,6 +15,7 @@ from .charge_schedule import local_time_to_minutes, plan_start_time
 from .command_exec import async_send_vehicle_command
 from .const import TIME
 from .coordinator import CheryEuropeDataUpdateCoordinator
+from .departure import async_set_departure, departure_state
 from .entity import (
     CheryEuropeEntity,
     async_remove_unsupported,
@@ -35,6 +36,14 @@ CHARGE_START_TIME_DESCRIPTION = TimeEntityDescription(
     entity_category=EntityCategory.CONFIG,
 )
 
+DEPARTURE_TIME_DESCRIPTION = TimeEntityDescription(
+    key="departure_time",
+    name="Departure time",
+    translation_key="departure_time",
+    icon="mdi:clock-out",
+    entity_category=EntityCategory.CONFIG,
+)
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -49,6 +58,8 @@ async def async_setup_entry(
         vin = vehicle_uid(coordinator, entry)
         if keep_feature(perms, CHARGE_START_TIME_DESCRIPTION.key, f"{vin}_charge_start_time", removed):
             entities.append(CheryEuropeChargeStartTime(coordinator, entry))
+        if keep_feature(perms, DEPARTURE_TIME_DESCRIPTION.key, f"{vin}_departure_time", removed):
+            entities.append(CheryEuropeDepartureTime(coordinator, entry))
     async_add_entities(entities)
     async_remove_unsupported(hass, TIME, removed)
 
@@ -118,8 +129,68 @@ class CheryEuropeChargeStartTime(CheryEuropeEntity, TimeEntity, RestoreEntity):
             command_id="ve_1202",
             enabled=bool(self.chery_data.scheduled_charge_enabled),
             start_minutes=local_time_to_minutes(new_value),
-            duration_hours=int(self.coordinator.charge_duration_hours),
+            duration_hours=float(self.coordinator.charge_duration_hours),
         )
         self._value = new_value
         self._sync_coordinator()
         self.async_write_ha_state()
+
+
+class CheryEuropeDepartureTime(CheryEuropeEntity, TimeEntity, RestoreEntity):
+    """Departure time of the preparation plan the departure switch arms."""
+
+    def __init__(
+        self,
+        coordinator: CheryEuropeDataUpdateCoordinator,
+        entry: ConfigEntry,
+    ) -> None:
+        """Initialize the departure time entity."""
+        super().__init__(coordinator, DEPARTURE_TIME_DESCRIPTION, entry)
+        self._attr_unique_id = stable_unique_id(
+            entry, DEPARTURE_TIME_DESCRIPTION.key, coordinator
+        )
+        self._value = _as_time(departure_state(coordinator)[0])
+
+    async def async_added_to_hass(self) -> None:
+        """Restore the last commanded time; the car cannot be read back."""
+        await super().async_added_to_hass()
+        last = await self.async_get_last_state()
+        if last is not None and last.state not in (None, "", "unknown", "unavailable"):
+            try:
+                hour, minute, *_ = (int(part) for part in last.state.split(":"))
+            except (TypeError, ValueError):
+                pass
+            else:
+                if self.coordinator.departure_draft is None:
+                    self.coordinator.departure_draft = f"{hour:02d}:{minute:02d}"
+        self._value = _as_time(departure_state(self.coordinator)[0])
+
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Follow the plan the vehicle reports."""
+        travel_time, _armed = departure_state(self.coordinator)
+        self._value = _as_time(travel_time)
+        super()._handle_coordinator_update()
+
+    @property
+    def native_value(self) -> time:
+        """Return the configured departure time."""
+        return self._value
+
+    async def async_set_value(self, value: time) -> None:
+        """Store the departure time, updating the vehicle plan when it exists."""
+        new_value = value.replace(second=0, microsecond=0)
+        await async_set_departure(
+            self.coordinator,
+            self._entry,
+            travel_time=f"{new_value.hour:02d}:{new_value.minute:02d}",
+        )
+        self._value = new_value
+        self.async_write_ha_state()
+
+
+def _as_time(value: str) -> time:
+    """Convert ``HH:MM`` into a :class:`datetime.time`."""
+    hour, minute, *_ = (int(part) for part in value.split(":"))
+    return time(hour=hour, minute=minute)
