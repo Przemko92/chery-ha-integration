@@ -624,10 +624,10 @@ def test_vehicle_display_name_prefers_nickname():
 
 
 def test_vehicle_display_name_never_returns_the_vin():
-    data = CheryData(vin="LNNBDDEH5SG089258", vehicle_nickname="LNNBDDEH5SG089258")
+    data = CheryData(vin="TESTVIN0000000001", vehicle_nickname="TESTVIN0000000001")
 
     assert vehicle_display_name(data) == "Chery Vehicle"
-    assert "LNNBDDEH5SG089258" not in vehicle_display_name(data)
+    assert "TESTVIN0000000001" not in vehicle_display_name(data)
 
 
 def test_registry_names_lose_the_vin():
@@ -637,7 +637,7 @@ def test_registry_names_lose_the_vin():
     from custom_components.chery_europe.const import DOMAIN
     from custom_components.chery_europe.entity import async_drop_vin_from_names
 
-    vin = "LNNBDDEH5SG089258"
+    vin = "TESTVIN0000000001"
     entity = SimpleNamespace(
         entity_id=f"sensor.{vin.lower()}_battery_level",
         unique_id=f"{vin}_battery_level",
