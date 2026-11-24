@@ -519,7 +519,7 @@
         },
         "duration_hours": {
           "name": "Duration",
-          "description": "How long charging should run, in hours (1.5–24, steps of 15 minutes)."
+          "description": "How long charging should run, in hours (1–24, steps of 15 minutes)."
         },
         "enabled": {
           "name": "Enabled",

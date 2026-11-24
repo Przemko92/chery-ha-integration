@@ -516,7 +516,7 @@
         },
         "duration_hours": {
           "name": "Időtartam",
-          "description": "A töltés időtartama órában (1,5–24, 15 perces lépésekben)."
+          "description": "A töltés időtartama órában (1–24, 15 perces lépésekben)."
         },
         "enabled": {
           "name": "Engedélyezve",

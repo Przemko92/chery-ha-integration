@@ -519,7 +519,7 @@
         },
         "duration_hours": {
           "name": "Czas trwania",
-          "description": "Jak długo ma trwać ładowanie, w godzinach (1,5–24, co 15 minut)."
+          "description": "Jak długo ma trwać ładowanie, w godzinach (1–24, co 15 minut)."
         },
         "enabled": {
           "name": "Włączone",

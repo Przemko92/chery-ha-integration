@@ -46,13 +46,13 @@ set_scheduled_charging:
         time:
     duration_hours:
       name: Duration
-      description: How long charging should run, in hours (1.5–24, steps of 15 minutes).
+      description: How long charging should run, in hours (1–24, steps of 15 minutes).
       required: true
       example: 6
       default: 6
       selector:
         number:
-          min: 1.5
+          min: 1
           max: 24
           step: 0.25
           unit_of_measurement: h

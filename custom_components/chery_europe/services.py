@@ -70,7 +70,7 @@ SEND_COMMAND_SCHEMA = vol.Schema(
         vol.Optional("level"): vol.All(vol.Coerce(int), vol.Range(min=1, max=3)),
         vol.Optional("start_minutes"): vol.Coerce(int),
         vol.Optional(ATTR_DURATION_HOURS): vol.All(
-            vol.Coerce(float), vol.Range(min=1.5, max=24)
+            vol.Coerce(float), vol.Range(min=1, max=24)
         ),
     }
 )
@@ -79,7 +79,7 @@ SET_SCHEDULED_CHARGING_SCHEMA = vol.Schema(
     {
         vol.Required(ATTR_START_TIME): cv.time,
         vol.Required(ATTR_DURATION_HOURS): vol.All(
-            vol.Coerce(float), vol.Range(min=1.5, max=24)
+            vol.Coerce(float), vol.Range(min=1, max=24)
         ),
         vol.Optional(ATTR_ENABLED, default=True): cv.boolean,
         vol.Optional(ATTR_PIN): vol.All(cv.string, vol.Length(min=1)),

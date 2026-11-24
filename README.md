@@ -171,9 +171,8 @@ data:
   enabled: true  # optional; false disables the schedule
 ```
 
-The charging duration follows a 15 minute grid in the **1.5 h–24 h** range — the
-car rejects shorter windows, so both the `number` entity and the service enforce
-that bound.
+The charging duration follows a 15 minute grid in the **1 h–24 h** range. Both
+the `number` entity and the service enforce that bound.
 
 #### `chery_europe.set_prepare_plan`
 
@@ -378,7 +377,7 @@ PIN **nie** trafia do logów ani diagnostyki.
 - Ogrzewanie i wentylacja foteli w trzech poziomach (wyłączone / niski / średni / wysoki), ogrzewanie kierownicy
 - Klapy: bagażnik
 - Wybór: szyby (zamknięte / uchylone / otwarte), szyberdach (zamknięty / uchylony / otwarty)
-- Ładowanie: start/stop, ładowanie zaplanowane (encje czasu i czasu trwania, 1,5–24 h co 15 minut)
+- Ładowanie: start/stop, ładowanie zaplanowane (encje czasu i czasu trwania, 1–24 h co 15 minut)
 - Zaplanowane **przygotowanie kabiny i baterii** (godzina wyjazdu, powtarzanie, temperatura, grzanie baterii, kierownicy i fotela, odmrażanie)
 - **Godzina wyjazdu** — encja `time` w konfiguracji oraz przełącznik **Wyjazd plan**, który uzbraja albo rozbraja ten plan
 - Przyciski: lokalizuj, znajdź auto, **wybudź auto**, **odśwież pozycję**, **odśwież pełny status**, **odczyt wiadomości** (oznacza skrzynkę Chery jako przeczytaną)
@@ -508,8 +507,8 @@ data:
   enabled: true  # opcjonalnie; false wyłącza plan
 ```
 
-Czas ładowania przyjmuje siatkę 15 minut w zakresie **1,5 h–24 h** — auto odrzuca
-krótsze okna, więc encja `number` i usługa pilnują tej granicy.
+Czas ładowania przyjmuje siatkę 15 minut w zakresie **1 h–24 h**. Encja `number`
+i usługa pilnują tej granicy.
 
 #### `chery_europe.set_prepare_plan`
 
