@@ -7,6 +7,8 @@ from datetime import datetime, timezone
 from typing import Any
 
 from .types.vehicle_models import VehicleStatus
+from .charge_schedule import format_minutes_as_hhmm, utc_minutes_to_local
+from .prepare_plan import ALL_DAYS, DEPARTURE_PLAN_NAME, FEATURE_KEYS, normalize_travel_time
 from .prepare_plan import next_departure as next_prepare_departure
 from .prepare_plan import parse_plans as parse_prepare_plans
 from .vehicle_commands import build_charge_plan
@@ -985,16 +987,131 @@ def apply_charge_appointment(
     return replace(data, **updates)
 
 
+#: Keys the TSP uses for the departure-appointment list. ``appointmentTravelSetVOS``
+#: is what ``/asd/travelManage/travelQuery`` answers (the list the app shows);
+#: ``preparePlans`` from ``/asd/prepareManage/prepareQuery`` is a different feature.
+APPOINTMENT_PLAN_KEYS: tuple[str, ...] = (
+    "appointmentTravelSetVOS",
+    "appointmentTravelAOS",
+)
+
+
+def _switch_on(value: Any, *, default: bool = False) -> bool:
+    """Return whether a TSP switch field means on (``"1"``/``1``/``True``)."""
+    if value in (None, ""):
+        return default
+    if isinstance(value, bool):
+        return value
+    return str(value).strip() in {"1", "true", "True"}
+
+
+def _appointment_body(payload: Any) -> dict[str, Any] | None:
+    """Return the dict that carries the departure-plan list, or None."""
+    if not isinstance(payload, dict):
+        return None
+    data: Any = payload
+    for wrapper in ("body", "data"):
+        nested = data.get(wrapper)
+        if isinstance(nested, dict):
+            data = nested
+            break
+    return data if isinstance(data, dict) else None
+
+
+def parse_appointment_plans(payload: Any) -> list[dict[str, Any]] | None:
+    """Return the departure plans from a ``travelQuery`` payload, or None.
+
+    The answer looks like
+    ``{"code": "000000", "body": {"appointmentTravelSetVOS": [...],
+    "mainSwitcher": "1", "vin": ...}}`` and the entries use the same field
+    names as the ``appointmentTravel`` write: ``travelTime``, ``travelDate``,
+    ``switcher``, ``id``, ``travelAppointMainId``.
+
+    ``travelTime`` is minutes from midnight **in UTC**, not local: a plan the
+    app shows as 08:55 answers 475 while Poland is on CET, and the charging
+    plan behaves the same way (``startTime: 375`` for 07:15). The normalised
+    ``travel_time`` here is local wall-clock, so reading and writing stay
+    symmetric with :func:`~.vehicle_commands.build_travel_appoint_body`.
+
+    The appointment model carries no plan names, so the first plan is named
+    after the managed departure plan and the rest ``Plan N``; that is what the
+    ``time`` and ``switch`` entities match on.
+    """
+    data = _appointment_body(payload)
+    if data is None:
+        return None
+    entries: Any = None
+    for key in APPOINTMENT_PLAN_KEYS:
+        if key in data:
+            entries = data[key]
+            break
+    if entries is None:
+        return None
+    if isinstance(entries, dict):
+        entries = [entries]
+    if not isinstance(entries, list):
+        return None
+    main_switch = _switch_on(data.get("mainSwitcher"), default=True)
+    plans: list[dict[str, Any]] = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        raw_time = entry.get("travelTime", entry.get("travel_time"))
+        if raw_time in (None, ""):
+            continue
+        text = str(raw_time).strip()
+        if ":" in text:
+            try:
+                travel_time = normalize_travel_time(text)
+            except ValueError:
+                continue
+        else:
+            try:
+                minutes = int(float(text))
+            except (TypeError, ValueError):
+                continue
+            travel_time = format_minutes_as_hhmm(utc_minutes_to_local(minutes))
+        raw_days = entry.get("travelDate") or entry.get("days") or ()
+        days: list[int] = []
+        for item in raw_days if isinstance(raw_days, (list, tuple, set)) else ():
+            try:
+                day = int(item)
+            except (TypeError, ValueError):
+                continue
+            if 1 <= day <= 7 and day not in days:
+                days.append(day)
+        plans.append(
+            {
+                "plan_id": str(
+                    entry.get("id")
+                    or entry.get("planId")
+                    or entry.get("travelAppointMainId")
+                    or ""
+                ).strip()
+                or None,
+                "name": DEPARTURE_PLAN_NAME if not plans else f"Plan {len(plans) + 1}",
+                "travel_time": travel_time,
+                "days": sorted(days) or list(ALL_DAYS),
+                "enabled": main_switch and _switch_on(entry.get("switcher"), default=True),
+                "temperature": None,
+                "features": {key: False for key in FEATURE_KEYS},
+            }
+        )
+    return plans
+
+
 def parse_travel_appointment(payload: Any) -> list[dict[str, Any]] | None:
-    """Return the preparation plans from a travelAppointQuery payload.
+    """Return the departure plans from a travelAppointQuery payload.
 
     ``None`` means the payload carried no recognisable plan list, so the
-    coordinator keeps the last known plans instead of clearing them.
+    coordinator keeps the last known plans instead of clearing them. The app
+    reads the departure appointment first; ``preparePlans`` is the older
+    "prepare car" list and stays as the fallback for cars that answer it.
     """
-    plans = parse_prepare_plans(payload)
-    if plans is None:
-        return None
-    return plans
+    plans = parse_appointment_plans(payload)
+    if plans is not None:
+        return plans
+    return parse_prepare_plans(payload)
 
 
 def apply_travel_appointment(

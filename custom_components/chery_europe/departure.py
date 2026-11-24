@@ -46,11 +46,11 @@ def departure_state(
 ) -> tuple[str, bool]:
     """Return the managed departure time and whether the plan is armed.
 
-    The TSP exposes no read for ``appointmentTravel`` plans (``prepareQuery``
-    answers ``preparePlans: []`` even right after an accepted write), so the
-    plan the car reports can only be used when it is actually there. Otherwise
+    The plans come from ``/asd/travelManage/travelQuery``, the same list the
+    app shows, so the entities report what the car actually stored. While that
+    read has not answered yet (or the plan is missing) the entity falls back to
     the last state Home Assistant commanded — kept on the coordinator and
-    restored by the entities — is the truth.
+    restored by the entities.
     """
     plans = prepare_plans_of(coordinator.data) or []
     plan = find_plan_by_name(plans, DEPARTURE_PLAN_NAME)
@@ -85,9 +85,9 @@ async def async_set_departure_days(
 ) -> None:
     """Toggle weekdays of the managed departure plan and push the result.
 
-    The car stores the weekday list with the plan, and Home Assistant cannot
-    read it back, so the list is kept on the coordinator and written through
-    on every change. Removing the last remaining day is refused: a plan with
+    The weekday list is stored with the plan and now reads back from the car;
+    the coordinator copy is kept as the fallback while the read has not
+    answered. Removing the last remaining day is refused: a plan with
     no weekday means nothing to the vehicle.
     """
     current = departure_days(coordinator)

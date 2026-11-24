@@ -147,17 +147,20 @@ API_REALTIME_PATH = "/asr/manager/realtime"
 API_QUERY_LOCATION_PATH = "/asc/vehicleControl/queryVehicleLocation"
 API_CHARGE_APPOINT_QUERY_PATH = "/asd/chargeAppointManage/chargeAppointQuery"
 # Scheduled cabin/battery preparation (the app's "travel appointment").
-# Verified live on 2026-11-23: prepareQuery answers 200 with
-# {"code":"000000","sign":...,"body":{"preparePlans":[...],"vin":...}} and the
-# write handler is /asc/vehicleControl/appointmentTravel - a POST sweep of the
-# neighbouring names (travelAppointControl, setTravelAppointControl,
+# The departure plan the app shows is read from
+# /asd/travelManage/travelQuery - verified live on 2026-11-24: it answers 200
+# with {"code":"000000","body":{"appointmentTravelSetVOS":[{"travelTime":475,
+# "travelDate":[1..7],"switcher":1,"id":452903971}],"mainSwitcher":"1",...}}
+# while /asd/prepareManage/prepareQuery answers {"preparePlans": []} on the same
+# car, so prepareQuery is a different feature and only a fallback here.
+# The write handler is /asc/vehicleControl/appointmentTravel - a POST sweep of
+# the neighbouring names (travelAppointControl, setTravelAppointControl,
 # prepareControl, prepareControlSetSingle, ...) all came back 404 while
 # appointmentTravel answered 200 like chargeAppointControl does.
-API_TRAVEL_APPOINT_QUERY_PATH = "/asd/prepareManage/prepareQuery"
+API_TRAVEL_APPOINT_QUERY_PATH = "/asd/travelManage/travelQuery"
 API_TRAVEL_APPOINT_QUERY_FALLBACKS = (
+    "/asd/travelManage/travelQuery",
     "/asd/prepareManage/prepareQuery",
-    "/asd/travelAppointManage/travelAppointQuery",
-    "/asd/travelAppointManage/queryTravelAppoint",
 )
 TRAVEL_APPOINT_ENDPOINT = "appointmentTravel"
 API_TRAVEL_APPOINT_CONTROL_PATHS: tuple[str, ...] = (
