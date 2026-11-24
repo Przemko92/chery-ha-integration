@@ -10,6 +10,8 @@ from .charge_schedule import local_minutes_to_utc
 
 DEFAULT_AIR_DURATION = "15"
 DEFAULT_AIR_TEMPERATURE = "22.0"
+DEFAULT_HEATING_TEMPERATURE = "31.0"
+DEFAULT_COOLING_TEMPERATURE = "15.0"
 DEFAULT_CHARGE_START_MINUTES = 480
 DEFAULT_CHARGE_DURATION_HOURS = 6
 DEFAULT_CHARGE_CYCLE_DAYS = [1, 2, 3, 4, 5, 6, 7]
@@ -23,8 +25,6 @@ class VehicleCommandSpec:
 
     endpoint: str
     build_body: Callable[[dict[str, Any]], dict[str, Any]]
-    # Set when the command does not live under /asc/vehicleControl/.
-    path: str | None = None
 
 
 def build_air_control_body(values: dict[str, Any]) -> dict[str, str]:
@@ -40,6 +40,61 @@ def build_air_control_body(values: dict[str, Any]) -> dict[str, str]:
         "times": duration,
     }
     return body
+
+
+def build_heating_control_body(values: dict[str, Any]) -> dict[str, str]:
+    """Build the one-touch cabin heating macro payload (heatingControl).
+
+    Sets HVAC to HI (default 31.0 C) together with windshield/rear defrost,
+    steering wheel heating, and seat heating. Unsupported accessories are
+    pruned by ``permissions.adapt_command`` using voices 2094-20910.
+    """
+    enabled = values.get("enabled", True)
+    temperature = values.get("temperature") or DEFAULT_HEATING_TEMPERATURE
+    if isinstance(temperature, (int, float)):
+        temperature = f"{float(temperature):.1f}"
+    duration = str(values.get("duration", DEFAULT_AIR_DURATION))
+    flag = "1" if enabled else "0"
+    seat = "3" if enabled else "0"
+    return {
+        "airControlType": flag,
+        "airType": "1",
+        "temperature": str(temperature),
+        "duration": duration,
+        "frontWindshieldHeat": flag,
+        "backDefrosting": flag,
+        "steerWheelHeatSwitch": flag,
+        "mSeatHeating": seat,
+        "pSeatHeating": seat,
+        "blSeatHeating": seat,
+        "brSeatHeating": seat,
+    }
+
+
+def build_cooling_control_body(values: dict[str, Any]) -> dict[str, str]:
+    """Build the one-touch cabin cooling macro payload (coolingControl).
+
+    Sets HVAC to LO (default 15.0 C) together with seat ventilation.
+    Unsupported seats are pruned by ``permissions.adapt_command`` using
+    voices 2104-2107.
+    """
+    enabled = values.get("enabled", True)
+    temperature = values.get("temperature") or DEFAULT_COOLING_TEMPERATURE
+    if isinstance(temperature, (int, float)):
+        temperature = f"{float(temperature):.1f}"
+    duration = str(values.get("duration", DEFAULT_AIR_DURATION))
+    flag = "1" if enabled else "0"
+    seat = "3" if enabled else "0"
+    return {
+        "airControlType": flag,
+        "airType": "1",
+        "temperature": str(temperature),
+        "duration": duration,
+        "mSeatAiry": seat,
+        "pSeatAiry": seat,
+        "blSeatAiry": seat,
+        "brSeatAiry": seat,
+    }
 
 
 def build_lock_control_body(values: dict[str, Any]) -> dict[str, str]:
@@ -193,39 +248,6 @@ def build_empty_body(_values: dict[str, Any]) -> dict[str, Any]:
     return {}
 
 
-def build_climate_extreme_body(values: dict[str, Any], *, temperature: str) -> dict[str, str]:
-    """Climate only, at the HI (31) or LO (15) setpoint.
-
-    Live checks on a Tiggo showed that ``airControl`` at 31 °C is what the car
-    treats as HI, and 15 °C as LO. The one-shot ``heatingControl`` /
-    ``coolingControl`` macros also switch the wheel and seats, and
-    ``coolingControl`` is denied on some vehicles, so the switch never appeared.
-    """
-    enabled = bool(values.get("enabled", True))
-    return {
-        "airControlType": "1" if enabled else "0",
-        "airType": "1",
-        "temperature": temperature,
-        "times": str(values.get("duration", DEFAULT_AIR_DURATION)),
-    }
-
-
-def build_heat_everything_body(values: dict[str, Any]) -> dict[str, str]:
-    """Turn the climate to HI (31 °C) without the seat and wheel macro."""
-    return build_climate_extreme_body(values, temperature="31.0")
-
-
-def build_cool_everything_body(values: dict[str, Any]) -> dict[str, str]:
-    """Turn the climate to LO (15 °C) without the seat ventilation macro."""
-    return build_climate_extreme_body(values, temperature="15.0")
-
-
-def build_theft_alarm_body(values: dict[str, Any]) -> dict[str, str]:
-    """Arm or disarm the theft alarm (``/act/theftAlarm/setSwitch``)."""
-    enabled = bool(values.get("enabled", True))
-    return {"theftAlarmSwitch": "1" if enabled else "0"}
-
-
 COMMAND_SPECS: dict[str, VehicleCommandSpec] = {
     "ve_1104": VehicleCommandSpec("airControl", build_air_control_body),
     "ve_1105": VehicleCommandSpec("lockControl", build_lock_control_body),
@@ -233,6 +255,8 @@ COMMAND_SPECS: dict[str, VehicleCommandSpec] = {
     "ve_1135": VehicleCommandSpec("backDefrostingControl", build_rear_defrost_body),
     "ve_1108": VehicleCommandSpec("airControl", build_front_defrost_body),
     "ve_1109": VehicleCommandSpec("airControl", build_air_purifier_body),
+    "ve_1110": VehicleCommandSpec("heatingControl", build_heating_control_body),
+    "ve_1111": VehicleCommandSpec("coolingControl", build_cooling_control_body),
     "ve_1201": VehicleCommandSpec("chargeStartStopControl", build_charge_start_stop_body),
     "ve_1202": VehicleCommandSpec("chargeAppointControl", build_charge_appoint_body),
     "ve_1203": VehicleCommandSpec("steeringWheelControl", build_steering_wheel_body),
@@ -242,13 +266,6 @@ COMMAND_SPECS: dict[str, VehicleCommandSpec] = {
     "ve_1207": VehicleCommandSpec("skylightControl", build_skylight_body),
     "ve_1208": VehicleCommandSpec("findCar", build_empty_body),
     "ve_1209": VehicleCommandSpec("vehicleLocation", build_empty_body),
-    "ve_1301": VehicleCommandSpec("airControl", build_heat_everything_body),
-    "ve_1302": VehicleCommandSpec("airControl", build_cool_everything_body),
-    "ve_1303": VehicleCommandSpec(
-        "theftAlarm",
-        build_theft_alarm_body,
-        path="/act/theftAlarm/setSwitch",
-    ),
 }
 
 
