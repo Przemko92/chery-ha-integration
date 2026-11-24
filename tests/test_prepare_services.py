@@ -320,7 +320,7 @@ def test_apply_travel_appointment_uses_the_home_assistant_timezone():
 
 
 @pytest.mark.asyncio
-async def test_empty_travel_poll_keeps_a_known_plan_list():
+async def test_empty_travel_poll_clears_a_known_plan_list():
     from types import SimpleNamespace
 
     from custom_components.chery_europe.coordinator import (
@@ -339,7 +339,7 @@ async def test_empty_travel_poll_keeps_a_known_plan_list():
         CheryData(vin=VIN, prepare_plans=plans)
     )
 
-    assert updated.prepare_plans == plans
+    assert updated.prepare_plans == []
     assert coordinator._prepare_polled_at is not None
 
 

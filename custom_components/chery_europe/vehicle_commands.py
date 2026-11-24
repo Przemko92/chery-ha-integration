@@ -273,11 +273,13 @@ def build_travel_appoint_body(values: dict[str, Any]) -> dict[str, Any]:
     ``appointmentTravelSetVOS`` with ``cycleData``) is rejected by the car with
     ``S0500`` / ``A05707``.
 
-    ``travelTime`` is the departure clock as **minutes from local midnight**
-    (06:05 -> ``"365"``), matching ``CommonUtils.dateTimeZone`` -> ``minutes``
-    in the APK and ``chargeAppointQuery`` -> ``startTime`` (375 = 06:15) from
-    the live API.  ``travelWeekday`` is a list of 1-based weekday numbers as
-    strings, the same convention ``chargeAppointQuery`` -> ``cycleData`` uses.
+    ``travelTime`` is the departure clock as **UTC minutes from midnight**: the
+    car stores the offset-shifted value and the app shifts it back for display,
+    exactly like the charging plan (``startTime`` in
+    :mod:`~.charge_schedule`). A local 08:55 in Poland (CET, UTC+1) therefore
+    goes out as ``"475"``, not ``"535"``. ``travelWeekday`` is a list of
+    1-based weekday numbers as strings, the same convention
+    ``chargeAppointQuery`` -> ``cycleData`` uses.
     """
     plans = values.get("plans") or []
     vin = str(values.get("vin") or "")
@@ -288,7 +290,7 @@ def build_travel_appoint_body(values: dict[str, Any]) -> dict[str, Any]:
         if not raw_time:
             continue
         try:
-            travel_time = str(travel_minutes(raw_time))
+            travel_time = str(local_minutes_to_utc(travel_minutes(raw_time)))
         except ValueError:
             _LOGGER.debug("Skipping travel plan with bad travel_time %r", raw_time)
             continue

@@ -409,16 +409,8 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
         self._prepare_polled_at = now
         if plans is None:
             return data
-        # prepareQuery answers [] on cars whose travel plans are write-only,
-        # even right after a successful appointmentTravel write. Replacing a
-        # list we already hold would drop every plan the next write does not
-        # repeat.
-        if not plans and data.prepare_plans:
-            _LOGGER.debug(
-                "Travel appointment query for %s returned no plans; keeping the last list",
-                data.vin,
-            )
-            return data
+        # An empty list is a real answer from travelQuery (no departure plans).
+        # ``None`` above is the failure case and keeps the last list.
         return apply_travel_appointment(data, plans, polled_at=now.isoformat())
 
     def invalidate_prepare_cache(self) -> None:
