@@ -68,6 +68,7 @@ def _entry():
                     "vehicleNickname": "Daily driver",
                     "clientSecret": "cs-camel",
                     "model": "eQ7",  # non-sensitive, must stay visible
+                    "messages": [{"text": "service due", "content": "book a visit"}],
                 },
             },
         ),
@@ -113,6 +114,7 @@ async def test_diagnostics_redacts_all_sensitive_fields():
 
     # runtime_data.data non-sensitive field remains visible
     assert vehicle["model"] == "eQ7"
+    assert vehicle["messages"] == REDACTED
 
     # Top-level non-sensitive diagnostics fields remain visible
     assert result["entry_id"] == "test-entry-id"

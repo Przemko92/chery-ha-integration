@@ -28,6 +28,9 @@ TO_REDACT = {
     "areacode",
     "vehicle_nickname",
     "vehiclenickname",
+    "messages",
+    "text",
+    "content",
 }
 REDACTED = "***REDACTED***"
 

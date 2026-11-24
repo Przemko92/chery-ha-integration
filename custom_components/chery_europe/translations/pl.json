@@ -98,61 +98,61 @@
   "entity": {
     "sensor": {
       "battery_level": {
-        "name": "Poziom baterii"
+        "name": "Bateria poziom"
       },
       "charging_power_kw": {
-        "name": "Moc ładowania"
+        "name": "Ładowanie moc"
       },
       "battery_voltage_v": {
-        "name": "Napięcie baterii trakcyjnej"
+        "name": "Bateria napięcie"
       },
       "battery_current_a": {
-        "name": "Prąd baterii trakcyjnej"
+        "name": "Bateria prąd"
       },
       "fuel_level": {
-        "name": "Pozostałe paliwo"
+        "name": "Paliwo poziom"
       },
       "range": {
-        "name": "Zasięg"
+        "name": "Zasięg łączny"
       },
       "tire_pressure_front_left": {
-        "name": "Ciśnienie przedniej lewej opony"
+        "name": "Koło przednie lewe ciśnienie"
       },
       "tire_pressure_front_right": {
-        "name": "Ciśnienie przedniej prawej opony"
+        "name": "Koło przednie prawe ciśnienie"
       },
       "tire_pressure_rear_left": {
-        "name": "Ciśnienie tylnej lewej opony"
+        "name": "Koło tylne lewe ciśnienie"
       },
       "tire_pressure_rear_right": {
-        "name": "Ciśnienie tylnej prawej opony"
+        "name": "Koło tylne prawe ciśnienie"
       },
       "odometer": {
-        "name": "Przebieg"
+        "name": "Przebieg łączny"
       },
       "electric_range": {
         "name": "Zasięg elektryczny"
       },
       "electric_odometer": {
-        "name": "Przebieg na prądzie"
+        "name": "Przebieg elektryczny"
       },
       "vehicle_speed": {
-        "name": "Prędkość pojazdu"
+        "name": "Pojazd prędkość"
       },
       "fuel_range": {
-        "name": "Zasięg na paliwie"
+        "name": "Zasięg paliwo"
       },
       "power_consumption": {
-        "name": "Zużycie prądu"
+        "name": "Energia zużycie"
       },
       "fuel_consumption": {
-        "name": "Spalanie"
+        "name": "Paliwo spalanie"
       },
       "remain_charge_time": {
-        "name": "Pozostały czas ładowania"
+        "name": "Ładowanie pozostały czas"
       },
       "charge_status": {
-        "name": "Stan ładowania",
+        "name": "Ładowanie stan",
         "state": {
           "not_charging": "Nie ładuje",
           "charging": "Ładowanie",
@@ -160,7 +160,7 @@
         }
       },
       "appointment_charge_status": {
-        "name": "Stan zaplanowanego ładowania",
+        "name": "Ładowanie stan zaplanowany",
         "state": {
           "off": "Wyłączone",
           "enabled": "Włączone",
@@ -168,72 +168,93 @@
         }
       },
       "vehicle_nickname": {
-        "name": "Nazwa pojazdu"
+        "name": "Pojazd nazwa"
       },
       "vehicle_full_name": {
-        "name": "Model pojazdu"
+        "name": "Pojazd model"
       },
       "vehicle_color": {
-        "name": "Kolor pojazdu"
+        "name": "Pojazd kolor"
       },
       "vehicle_picture": {
-        "name": "Zdjęcie pojazdu"
+        "name": "Pojazd zdjęcie"
       },
       "climate_min_temperature": {
-        "name": "Minimalna temperatura klimatyzacji"
+        "name": "Klimatyzacja temperatura min."
       },
       "climate_max_temperature": {
-        "name": "Maksymalna temperatura klimatyzacji"
+        "name": "Klimatyzacja temperatura maks."
       },
       "last_data_update": {
-        "name": "Ostatnie pobranie danych"
+        "name": "Diagnostyka ostatnie pobranie"
       },
       "command_status": {
-        "name": "Wynik komendy"
+        "name": "Diagnostyka wynik komendy"
       },
       "wake_status": {
-        "name": "Wynik wybudzenia"
+        "name": "Diagnostyka wynik wybudzenia"
       },
       "probe_status": {
-        "name": "Wynik odczytu pozycji"
+        "name": "Diagnostyka wynik pozycji"
       },
       "tire_temperature_front_left": {
-        "name": "Temperatura przedniej lewej opony"
+        "name": "Koło przednie lewe temperatura"
       },
       "tire_temperature_front_right": {
-        "name": "Temperatura przedniej prawej opony"
+        "name": "Koło przednie prawe temperatura"
       },
       "tire_temperature_rear_left": {
-        "name": "Temperatura tylnej lewej opony"
+        "name": "Koło tylne lewe temperatura"
       },
       "tire_temperature_rear_right": {
-        "name": "Temperatura tylnej prawej opony"
+        "name": "Koło tylne prawe temperatura"
+      },
+      "prepare_plans": {
+        "name": "Wyjazd plany"
+      },
+      "prepare_next_departure": {
+        "name": "Wyjazd następny"
+      },
+      "alerts": {
+        "name": "Alarmy"
+      },
+      "alerts_content": {
+        "name": "Alarmy treść"
+      },
+      "messages": {
+        "name": "Wiadomości"
+      },
+      "messages_unread": {
+        "name": "Wiadomości nieprzeczytane"
+      },
+      "exterior_temperature": {
+        "name": "Temperatura zewnętrzna"
       }
     },
     "binary_sensor": {
       "online": {
-        "name": "Online"
+        "name": "Pojazd online"
       },
       "charging": {
-        "name": "Ładowanie"
+        "name": "Ładowanie trwa"
       },
       "appointment_charging": {
-        "name": "Zaplanowane ładowanie"
+        "name": "Ładowanie plan"
       },
       "charge_gun_connected": {
-        "name": "Kabel ładowania podłączony"
+        "name": "Ładowanie kabel podłączony"
       },
       "fast_charge_gun_connected": {
-        "name": "Szybka ładowarka podłączona"
+        "name": "Ładowanie szybka ładowarka"
       },
       "engine": {
-        "name": "Silnik"
+        "name": "Pojazd silnik"
       },
       "high_voltage": {
-        "name": "Układ wysokiego napięcia"
+        "name": "Bateria wysokie napięcie"
       },
       "air_purification": {
-        "name": "Oczyszczanie powietrza"
+        "name": "Klimatyzacja oczyszczanie powietrza"
       },
       "door_front_left": {
         "name": "Drzwi przednie lewe"
@@ -261,53 +282,50 @@
       },
       "window_rear_right": {
         "name": "Szyba tylna prawa"
+      },
+      "alert_tire_front_left": {
+        "name": "Koło przednie lewe"
+      },
+      "alert_tire_front_right": {
+        "name": "Koło przednie prawe"
+      },
+      "alert_tire_rear_left": {
+        "name": "Koło tylne lewe"
+      },
+      "alert_tire_rear_right": {
+        "name": "Koło tylne prawe"
+      },
+      "alert_soc_low": {
+        "name": "Niski stan naładowania baterii"
+      },
+      "alert_oil_service": {
+        "name": "Serwis oleju"
+      },
+      "alert_electricity": {
+        "name": "Ostrzeżenie instalacji elektrycznej"
       }
     },
     "switch": {
       "front_windshield_heating": {
-        "name": "Ogrzewanie przedniej szyby"
+        "name": "Szyba przednia ogrzewanie"
       },
       "front_windshield_defrost": {
-        "name": "Odmrażanie przedniej szyby (nawiew)"
+        "name": "Szyba przednia odmrażanie"
       },
       "air_purification": {
-        "name": "Oczyszczanie powietrza"
+        "name": "Klimatyzacja oczyszczanie powietrza"
       },
       "rear_window_defrost": {
-        "name": "Ogrzewanie tylnej szyby"
+        "name": "Szyba tylna ogrzewanie"
       },
       "steering_wheel_heating": {
-        "name": "Ogrzewanie kierownicy"
-      },
-      "driver_seat_heating": {
-        "name": "Ogrzewanie fotela kierowcy"
-      },
-      "passenger_seat_heating": {
-        "name": "Ogrzewanie fotela pasażera"
-      },
-      "driver_seat_ventilation": {
-        "name": "Wentylacja fotela kierowcy"
-      },
-      "passenger_seat_ventilation": {
-        "name": "Wentylacja fotela pasażera"
-      },
-      "rear_left_seat_heating": {
-        "name": "Ogrzewanie fotela tylnego lewego"
-      },
-      "rear_right_seat_heating": {
-        "name": "Ogrzewanie fotela tylnego prawego"
-      },
-      "rear_left_seat_ventilation": {
-        "name": "Wentylacja fotela tylnego lewego"
-      },
-      "rear_right_seat_ventilation": {
-        "name": "Wentylacja fotela tylnego prawego"
+        "name": "Kierownica ogrzewanie"
       },
       "charging": {
-        "name": "Ładowanie"
+        "name": "Ładowanie start"
       },
       "scheduled_charging": {
-        "name": "Zaplanowane ładowanie"
+        "name": "Ładowanie plan"
       },
       "automatic_updates": {
         "name": "Aktualizacje automatyczne"
@@ -319,22 +337,49 @@
         "name": "Klimatyzacja LO"
       },
       "theft_alarm": {
-        "name": "Alarm antykradzieżowy"
+        "name": "Alarmy antykradzieżowy"
+      },
+      "departure": {
+        "name": "Wyjazd plan"
+      },
+      "departure_monday": {
+        "name": "Wyjazd plan poniedziałek"
+      },
+      "departure_tuesday": {
+        "name": "Wyjazd plan wtorek"
+      },
+      "departure_wednesday": {
+        "name": "Wyjazd plan środa"
+      },
+      "departure_thursday": {
+        "name": "Wyjazd plan czwartek"
+      },
+      "departure_friday": {
+        "name": "Wyjazd plan piątek"
+      },
+      "departure_saturday": {
+        "name": "Wyjazd plan sobota"
+      },
+      "departure_sunday": {
+        "name": "Wyjazd plan niedziela"
       }
     },
     "time": {
       "charge_start_time": {
-        "name": "Godzina rozpoczęcia ładowania"
+        "name": "Ładowanie godzina startu"
+      },
+      "departure_time": {
+        "name": "Wyjazd godzina"
       }
     },
     "number": {
       "charge_duration_hours": {
-        "name": "Czas trwania ładowania"
+        "name": "Ładowanie czas trwania"
       }
     },
     "lock": {
       "doors": {
-        "name": "Drzwi"
+        "name": "Drzwi zamek"
       }
     },
     "climate": {
@@ -349,7 +394,7 @@
     },
     "select": {
       "windows": {
-        "name": "Szyby",
+        "name": "Szyby wszystkie",
         "state": {
           "closed": "Zamknięte",
           "vent": "Wentylacja",
@@ -357,29 +402,104 @@
         }
       },
       "sunroof": {
-        "name": "Szyberdach",
+        "name": "Szyberdach pozycja",
         "state": {
           "closed": "Zamknięty",
           "tilt": "Uchylony",
           "open": "Otwarty"
         }
+      },
+      "driver_seat_heating": {
+        "name": "Fotel kierowcy ogrzewanie",
+        "state": {
+          "off": "Wyłączony",
+          "low": "Niski",
+          "medium": "Średni",
+          "high": "Wysoki"
+        }
+      },
+      "passenger_seat_heating": {
+        "name": "Fotel pasażera ogrzewanie",
+        "state": {
+          "off": "Wyłączony",
+          "low": "Niski",
+          "medium": "Średni",
+          "high": "Wysoki"
+        }
+      },
+      "driver_seat_ventilation": {
+        "name": "Fotel kierowcy wentylacja",
+        "state": {
+          "off": "Wyłączony",
+          "low": "Niski",
+          "medium": "Średni",
+          "high": "Wysoki"
+        }
+      },
+      "passenger_seat_ventilation": {
+        "name": "Fotel pasażera wentylacja",
+        "state": {
+          "off": "Wyłączony",
+          "low": "Niski",
+          "medium": "Średni",
+          "high": "Wysoki"
+        }
+      },
+      "rear_left_seat_heating": {
+        "name": "Fotel tylny lewy ogrzewanie",
+        "state": {
+          "off": "Wyłączony",
+          "low": "Niski",
+          "medium": "Średni",
+          "high": "Wysoki"
+        }
+      },
+      "rear_right_seat_heating": {
+        "name": "Fotel tylny prawy ogrzewanie",
+        "state": {
+          "off": "Wyłączony",
+          "low": "Niski",
+          "medium": "Średni",
+          "high": "Wysoki"
+        }
+      },
+      "rear_left_seat_ventilation": {
+        "name": "Fotel tylny lewy wentylacja",
+        "state": {
+          "off": "Wyłączony",
+          "low": "Niski",
+          "medium": "Średni",
+          "high": "Wysoki"
+        }
+      },
+      "rear_right_seat_ventilation": {
+        "name": "Fotel tylny prawy wentylacja",
+        "state": {
+          "off": "Wyłączony",
+          "low": "Niski",
+          "medium": "Średni",
+          "high": "Wysoki"
+        }
       }
     },
     "button": {
       "locate": {
-        "name": "Zlokalizuj"
+        "name": "Pozycja zlokalizuj"
       },
       "find_car": {
-        "name": "Znajdź auto"
+        "name": "Pojazd znajdź"
       },
       "wake": {
-        "name": "Wybudź auto"
+        "name": "Pojazd wybudź"
       },
       "refresh_position": {
-        "name": "Odśwież pozycję"
+        "name": "Pozycja odśwież"
       },
       "refresh_full_status": {
-        "name": "Odśwież pełny status"
+        "name": "Diagnostyka odśwież status"
+      },
+      "message_read": {
+        "name": "Wiadomość przeczytana"
       }
     },
     "device_tracker": {
@@ -399,7 +519,7 @@
         },
         "duration_hours": {
           "name": "Czas trwania",
-          "description": "Jak długo ma trwać ładowanie, w godzinach (1–12)."
+          "description": "Jak długo ma trwać ładowanie, w godzinach (1–24, co 15 minut)."
         },
         "enabled": {
           "name": "Włączone",
@@ -408,6 +528,104 @@
         "vin": {
           "name": "VIN",
           "description": "VIN pojazdu. Wymagany, gdy na tym koncie jest skonfigurowany więcej niż jeden pojazd."
+        }
+      }
+    },
+    "set_prepare_plan": {
+      "name": "Ustaw plan przygotowania kabiny",
+      "description": "Dodaj lub zmień zaplanowane przygotowanie kabiny/baterii (godzina wyjazdu, powtarzanie, temperatura, ogrzewanie).",
+      "fields": {
+        "plan_name": {
+          "name": "Nazwa planu",
+          "description": "Krótka nazwa planu, maks. 10 znaków, musi być unikalna."
+        },
+        "travel_time": {
+          "name": "Godzina wyjazdu",
+          "description": "Godzina, na którą auto ma być gotowe (HH:MM)."
+        },
+        "repeat": {
+          "name": "Powtarzanie",
+          "description": "daily (codziennie), workdays (dni robocze), weekend lub custom (własne dni)."
+        },
+        "days": {
+          "name": "Dni tygodnia",
+          "description": "Dni dla repeat=custom (1 = poniedziałek … 7 = niedziela)."
+        },
+        "enabled": {
+          "name": "Aktywny",
+          "description": "False wyłącza plan, ale go nie usuwa."
+        },
+        "temperature": {
+          "name": "Temperatura kabiny",
+          "description": "Docelowa temperatura kabiny w °C (16–32)."
+        },
+        "battery_heat": {
+          "name": "Podgrzewanie baterii",
+          "description": "Podgrzej baterię trakcyjną przed wyjazdem."
+        },
+        "steering_wheel_heat": {
+          "name": "Podgrzewanie kierownicy",
+          "description": "Podgrzej kierownicę przed wyjazdem."
+        },
+        "driver_seat_heat": {
+          "name": "Podgrzewanie fotela kierowcy",
+          "description": "Podgrzej fotel kierowcy przed wyjazdem."
+        },
+        "front_defrost": {
+          "name": "Odmrażanie przedniej szyby",
+          "description": "Odmroź przednią szybę przed wyjazdem."
+        },
+        "rear_defrost": {
+          "name": "Odmrażanie tylnej szyby",
+          "description": "Odmroź tylną szybę przed wyjazdem."
+        },
+        "plan_id": {
+          "name": "Identyfikator planu",
+          "description": "Plan do edycji; pomiń, aby dodać nowy."
+        },
+        "dry_run": {
+          "name": "Test",
+          "description": "Zbuduj i zwróć payload, ale nie wysyłaj go do auta."
+        },
+        "pin": {
+          "name": "PIN",
+          "description": "PIN zdalnego sterowania. Opcjonalny, gdy PIN jest zapisany w opcjach."
+        },
+        "vin": {
+          "name": "VIN",
+          "description": "VIN pojazdu. Wymagany, jeśli na koncie jest więcej niż jedno auto."
+        }
+      }
+    },
+    "cancel_prepare_plan": {
+      "name": "Wyłącz plan przygotowania",
+      "description": "Wyłącza plan przygotowania. Auto wymaga dezaktywacji zamiast usuwania.",
+      "fields": {
+        "plan_id": {
+          "name": "Identyfikator planu",
+          "description": "Plan do edycji; pomiń, aby dodać nowy."
+        },
+        "dry_run": {
+          "name": "Test",
+          "description": "Zbuduj i zwróć payload, ale nie wysyłaj go do auta."
+        },
+        "pin": {
+          "name": "PIN",
+          "description": "PIN zdalnego sterowania. Opcjonalny, gdy PIN jest zapisany w opcjach."
+        },
+        "vin": {
+          "name": "VIN",
+          "description": "VIN pojazdu. Wymagany, jeśli na koncie jest więcej niż jedno auto."
+        }
+      }
+    },
+    "list_prepare_plans": {
+      "name": "Odczytaj plany przygotowania",
+      "description": "Odczytuje z auta listę planów przygotowania i zwraca ją w odpowiedzi usługi.",
+      "fields": {
+        "vin": {
+          "name": "VIN",
+          "description": "VIN pojazdu. Wymagany, jeśli na koncie jest więcej niż jedno auto."
         }
       }
     }

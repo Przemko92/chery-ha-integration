@@ -208,6 +208,27 @@
       },
       "tire_temperature_rear_right": {
         "name": "Jobb hátsó gumiabroncs hőmérséklete"
+      },
+      "prepare_plans": {
+        "name": "Ütemezett előkészítés"
+      },
+      "prepare_next_departure": {
+        "name": "Következő indulás"
+      },
+      "alerts": {
+        "name": "Riasztások"
+      },
+      "alerts_content": {
+        "name": "Riasztás részletei"
+      },
+      "messages": {
+        "name": "Üzenetek"
+      },
+      "messages_unread": {
+        "name": "Olvasatlan üzenetek"
+      },
+      "exterior_temperature": {
+        "name": "Külső hőmérséklet"
       }
     },
     "binary_sensor": {
@@ -261,6 +282,27 @@
       },
       "window_rear_right": {
         "name": "Jobb hátsó ablak"
+      },
+      "alert_tire_front_left": {
+        "name": "Bal első gumiabroncs"
+      },
+      "alert_tire_front_right": {
+        "name": "Jobb első gumiabroncs"
+      },
+      "alert_tire_rear_left": {
+        "name": "Bal hátsó gumiabroncs"
+      },
+      "alert_tire_rear_right": {
+        "name": "Jobb hátsó gumiabroncs"
+      },
+      "alert_soc_low": {
+        "name": "Alacsony akkumulátor-töltöttség"
+      },
+      "alert_oil_service": {
+        "name": "Olajcsere esedékes"
+      },
+      "alert_electricity": {
+        "name": "Elektromos rendszer figyelmeztetés"
       }
     },
     "switch": {
@@ -275,30 +317,6 @@
       },
       "steering_wheel_heating": {
         "name": "Kormányfűtés"
-      },
-      "driver_seat_heating": {
-        "name": "Vezetőülés fűtése"
-      },
-      "passenger_seat_heating": {
-        "name": "Utasülés fűtése"
-      },
-      "driver_seat_ventilation": {
-        "name": "Vezetőülés szellőztetése"
-      },
-      "passenger_seat_ventilation": {
-        "name": "Utasülés szellőztetése"
-      },
-      "rear_left_seat_heating": {
-        "name": "Bal hátsó ülés fűtése"
-      },
-      "rear_right_seat_heating": {
-        "name": "Jobb hátsó ülés fűtése"
-      },
-      "rear_left_seat_ventilation": {
-        "name": "Bal hátsó ülés szellőztetése"
-      },
-      "rear_right_seat_ventilation": {
-        "name": "Jobb hátsó ülés szellőztetése"
       },
       "charging": {
         "name": "Töltés"
@@ -317,11 +335,38 @@
       },
       "theft_alarm": {
         "name": "Riasztó"
+      },
+      "departure": {
+        "name": "Indulási terv"
+      },
+      "departure_monday": {
+        "name": "Indulási terv hétfő"
+      },
+      "departure_tuesday": {
+        "name": "Indulási terv kedd"
+      },
+      "departure_wednesday": {
+        "name": "Indulási terv szerda"
+      },
+      "departure_thursday": {
+        "name": "Indulási terv csütörtök"
+      },
+      "departure_friday": {
+        "name": "Indulási terv péntek"
+      },
+      "departure_saturday": {
+        "name": "Indulási terv szombat"
+      },
+      "departure_sunday": {
+        "name": "Indulási terv vasárnap"
       }
     },
     "time": {
       "charge_start_time": {
         "name": "Ütemezett töltés kezdési időpontja"
+      },
+      "departure_time": {
+        "name": "Indulás időpontja"
       }
     },
     "number": {
@@ -360,6 +405,78 @@
           "tilt": "Billentve",
           "open": "Nyitva"
         }
+      },
+      "driver_seat_heating": {
+        "name": "Vezetőülés fűtése",
+        "state": {
+          "off": "Kikapcsolva",
+          "low": "Alacsony",
+          "medium": "Közepes",
+          "high": "Magas"
+        }
+      },
+      "passenger_seat_heating": {
+        "name": "Utasülés fűtése",
+        "state": {
+          "off": "Kikapcsolva",
+          "low": "Alacsony",
+          "medium": "Közepes",
+          "high": "Magas"
+        }
+      },
+      "driver_seat_ventilation": {
+        "name": "Vezetőülés szellőztetése",
+        "state": {
+          "off": "Kikapcsolva",
+          "low": "Alacsony",
+          "medium": "Közepes",
+          "high": "Magas"
+        }
+      },
+      "passenger_seat_ventilation": {
+        "name": "Utasülés szellőztetése",
+        "state": {
+          "off": "Kikapcsolva",
+          "low": "Alacsony",
+          "medium": "Közepes",
+          "high": "Magas"
+        }
+      },
+      "rear_left_seat_heating": {
+        "name": "Bal hátsó ülés fűtése",
+        "state": {
+          "off": "Kikapcsolva",
+          "low": "Alacsony",
+          "medium": "Közepes",
+          "high": "Magas"
+        }
+      },
+      "rear_right_seat_heating": {
+        "name": "Jobb hátsó ülés fűtése",
+        "state": {
+          "off": "Kikapcsolva",
+          "low": "Alacsony",
+          "medium": "Közepes",
+          "high": "Magas"
+        }
+      },
+      "rear_left_seat_ventilation": {
+        "name": "Bal hátsó ülés szellőztetése",
+        "state": {
+          "off": "Kikapcsolva",
+          "low": "Alacsony",
+          "medium": "Közepes",
+          "high": "Magas"
+        }
+      },
+      "rear_right_seat_ventilation": {
+        "name": "Jobb hátsó ülés szellőztetése",
+        "state": {
+          "off": "Kikapcsolva",
+          "low": "Alacsony",
+          "medium": "Közepes",
+          "high": "Magas"
+        }
       }
     },
     "button": {
@@ -377,6 +494,9 @@
       },
       "refresh_full_status": {
         "name": "Teljes állapot frissítése"
+      },
+      "message_read": {
+        "name": "Üzenet olvasott"
       }
     },
     "device_tracker": {
@@ -396,7 +516,7 @@
         },
         "duration_hours": {
           "name": "Időtartam",
-          "description": "A töltés időtartama órában (1–12)."
+          "description": "A töltés időtartama órában (1–24, 15 perces lépésekben)."
         },
         "enabled": {
           "name": "Engedélyezve",
@@ -405,6 +525,104 @@
         "vin": {
           "name": "VIN",
           "description": "A jármű VIN-je. Kötelező, ha egynél több jármű van beállítva ezen a fiókon."
+        }
+      }
+    },
+    "set_prepare_plan": {
+      "name": "Előkészítési terv beállítása",
+      "description": "Ütemezett utastér/akkumulátor előkészítés létrehozása vagy módosítása.",
+      "fields": {
+        "plan_name": {
+          "name": "Plan name",
+          "description": "Short name of the plan, at most 10 characters and unique."
+        },
+        "travel_time": {
+          "name": "Departure time",
+          "description": "Local time you want the car ready (HH:MM)."
+        },
+        "repeat": {
+          "name": "Repeat",
+          "description": "daily, workdays, weekend or custom."
+        },
+        "days": {
+          "name": "Days",
+          "description": "Weekdays for repeat=custom (1 = Monday … 7 = Sunday)."
+        },
+        "enabled": {
+          "name": "Enabled",
+          "description": "Set to false to keep the plan but switch it off."
+        },
+        "temperature": {
+          "name": "Cabin temperature",
+          "description": "Target cabin temperature in °C (16–32)."
+        },
+        "battery_heat": {
+          "name": "Battery heating",
+          "description": "Pre-heat the high-voltage battery before departure."
+        },
+        "steering_wheel_heat": {
+          "name": "Steering wheel heating",
+          "description": "Heat the steering wheel before departure."
+        },
+        "driver_seat_heat": {
+          "name": "Driver seat heating",
+          "description": "Heat the driver seat before departure."
+        },
+        "front_defrost": {
+          "name": "Front defrost",
+          "description": "Defrost the windscreen before departure."
+        },
+        "rear_defrost": {
+          "name": "Rear defrost",
+          "description": "Defrost the rear window before departure."
+        },
+        "plan_id": {
+          "name": "Plan id",
+          "description": "Existing plan to edit; omit to add a new plan."
+        },
+        "dry_run": {
+          "name": "Dry run",
+          "description": "Only build and return the payload, do not send it to the car."
+        },
+        "pin": {
+          "name": "PIN",
+          "description": "Vehicle remote-control PIN. Optional when a PIN is stored in options."
+        },
+        "vin": {
+          "name": "VIN",
+          "description": "Vehicle VIN. Required when more than one vehicle is configured."
+        }
+      }
+    },
+    "cancel_prepare_plan": {
+      "name": "Előkészítési terv kikapcsolása",
+      "description": "Kikapcsolja az előkészítési tervet; a jármű törlés helyett deaktiválást vár.",
+      "fields": {
+        "plan_id": {
+          "name": "Plan id",
+          "description": "Existing plan to edit; omit to add a new plan."
+        },
+        "dry_run": {
+          "name": "Dry run",
+          "description": "Only build and return the payload, do not send it to the car."
+        },
+        "pin": {
+          "name": "PIN",
+          "description": "Vehicle remote-control PIN. Optional when a PIN is stored in options."
+        },
+        "vin": {
+          "name": "VIN",
+          "description": "Vehicle VIN. Required when more than one vehicle is configured."
+        }
+      }
+    },
+    "list_prepare_plans": {
+      "name": "Előkészítési tervek listázása",
+      "description": "Beolvassa a járműben tárolt előkészítési terveket.",
+      "fields": {
+        "vin": {
+          "name": "VIN",
+          "description": "Vehicle VIN. Required when more than one vehicle is configured."
         }
       }
     }

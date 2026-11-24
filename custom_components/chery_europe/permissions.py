@@ -30,6 +30,9 @@ ENDPOINT_CATEGORY = {
     "findCar": 202,
     "vehicleLocation": 211,
     "theftAlarm": 401,
+    # travelAppointControl (scheduled cabin/battery preparation) is deliberately
+    # unmapped: the app does not expose its permission category, and an unmapped
+    # endpoint fails open instead of blocking a legitimate command.
 }
 
 PRUNABLE_FIELDS = {

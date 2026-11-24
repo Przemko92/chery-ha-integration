@@ -12,7 +12,7 @@ from homeassistant.const import EntityCategory, UnitOfTime
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .charge_schedule import plan_duration_hours
+from .charge_schedule import plan_duration_hours, snap_duration_minutes
 from .command_exec import async_send_vehicle_command
 from .const import NUMBER
 from .coordinator import CheryEuropeDataUpdateCoordinator
@@ -34,9 +34,9 @@ CHARGE_DURATION_DESCRIPTION = NumberEntityDescription(
     translation_key="charge_duration_hours",
     icon="mdi:battery-clock",
     entity_category=EntityCategory.CONFIG,
-    native_min_value=1,
-    native_max_value=12,
-    native_step=1,
+    native_min_value=1.0,
+    native_max_value=24,
+    native_step=0.25,
     native_unit_of_measurement=UnitOfTime.HOURS,
     mode=NumberMode.BOX,
 )
@@ -94,20 +94,18 @@ class CheryEuropeChargeDurationNumber(CheryEuropeEntity, RestoreNumber):
         hours = plan_duration_hours(self.chery_data.charge_appoint_plan)
         if hours is None:
             return False
-        max_hours = int(CHARGE_DURATION_DESCRIPTION.native_max_value or 12)
-        self._value = float(min(hours, max_hours))
+        self._value = self._snap(hours)
         return True
 
     def _sync_coordinator(self) -> None:
-        self.coordinator.charge_duration_hours = int(self._value)
+        self.coordinator.charge_duration_hours = self._value
 
     @callback
     def _handle_coordinator_update(self) -> None:
         """Keep the entity aligned with the plan reported by the vehicle."""
         plan_hours = plan_duration_hours(self.chery_data.charge_appoint_plan)
-        if plan_hours is not None and float(plan_hours) != self._value:
-            max_hours = int(CHARGE_DURATION_DESCRIPTION.native_max_value or 12)
-            self._value = float(min(plan_hours, max_hours))
+        if plan_hours is not None and self._snap(plan_hours) != self._value:
+            self._value = self._snap(plan_hours)
             self._sync_coordinator()
         super()._handle_coordinator_update()
 
@@ -116,9 +114,14 @@ class CheryEuropeChargeDurationNumber(CheryEuropeEntity, RestoreNumber):
         """Return the configured charge duration."""
         return self._value
 
+    @staticmethod
+    def _snap(value: float) -> float:
+        """Snap an hour value to the 15 minute grid the car accepts."""
+        return snap_duration_minutes(float(value) * 60) / 60
+
     async def async_set_native_value(self, value: float) -> None:
         """Send a new scheduled charging duration to the vehicle."""
-        hours = int(value)
+        hours = self._snap(value)
         await async_send_vehicle_command(
             self.coordinator,
             self._entry,
@@ -129,6 +132,6 @@ class CheryEuropeChargeDurationNumber(CheryEuropeEntity, RestoreNumber):
             start_minutes=int(self.coordinator.charge_start_minutes),
             duration_hours=hours,
         )
-        self._value = float(value)
+        self._value = hours
         self._sync_coordinator()
         self.async_write_ha_state()

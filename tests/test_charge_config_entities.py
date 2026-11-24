@@ -93,3 +93,69 @@ async def test_user_edit_sends_plan_and_follows_later_vehicle_updates():
     duration._handle_coordinator_update()
     assert start.native_value == time(23, 0)
     assert duration.native_value == 6.0
+
+
+def test_duration_offers_the_whole_day_in_quarter_hours():
+    entity = CheryEuropeChargeDurationNumber(_coordinator(), _entry())
+    desc = entity.entity_description
+
+    assert desc.native_max_value == 24
+    assert desc.native_min_value == 1.0
+    assert desc.native_step == 0.25
+
+
+def test_duration_reads_the_thirteen_hour_window_from_the_car():
+    entity = CheryEuropeChargeDurationNumber(_coordinator(_vehicle_plan(duration_min=780)), _entry())
+
+    assert entity.native_value == 13.0
+    assert entity.coordinator.charge_duration_hours == 13
+
+
+@pytest.mark.asyncio
+async def test_quarter_hour_edit_is_sent_as_minutes():
+    coordinator = _coordinator(_vehicle_plan(duration_min=780))
+    duration = CheryEuropeChargeDurationNumber(coordinator, _entry())
+    duration.async_write_ha_state = lambda: None
+
+    await duration.async_set_native_value(13.25)
+
+    call = coordinator.api.send_command.await_args
+    assert call.kwargs["duration_hours"] == 13.25
+    assert duration.native_value == 13.25
+    assert coordinator.charge_duration_hours == 13.25
+
+
+@pytest.mark.asyncio
+async def test_duration_beyond_24_hours_is_clamped():
+    coordinator = _coordinator(_vehicle_plan(duration_min=780))
+    duration = CheryEuropeChargeDurationNumber(coordinator, _entry())
+    duration.async_write_ha_state = lambda: None
+
+    await duration.async_set_native_value(30)
+
+    assert duration.native_value == 24.0
+    assert coordinator.api.send_command.await_args.kwargs["duration_hours"] == 24.0
+
+
+@pytest.mark.asyncio
+async def test_duration_below_one_hour_is_clamped_to_one_hour():
+    coordinator = _coordinator(_vehicle_plan(duration_min=780))
+    duration = CheryEuropeChargeDurationNumber(coordinator, _entry())
+    duration.async_write_ha_state = lambda: None
+
+    await duration.async_set_native_value(0.5)
+
+    assert duration.native_value == 1.0
+    assert coordinator.api.send_command.await_args.kwargs["duration_hours"] == 1.0
+
+
+@pytest.mark.asyncio
+async def test_a_one_hour_duration_reaches_the_car_unchanged():
+    coordinator = _coordinator(_vehicle_plan(duration_min=780))
+    duration = CheryEuropeChargeDurationNumber(coordinator, _entry())
+    duration.async_write_ha_state = lambda: None
+
+    await duration.async_set_native_value(1.0)
+
+    assert duration.native_value == 1.0
+    assert coordinator.api.send_command.await_args.kwargs["duration_hours"] == 1.0

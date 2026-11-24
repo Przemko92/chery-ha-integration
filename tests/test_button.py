@@ -1,0 +1,79 @@
+"""Tests for the Chery Europe button platform."""
+
+from __future__ import annotations
+
+import pytest
+from homeassistant.components.button import ButtonEntityDescription
+from homeassistant.const import EntityCategory
+from homeassistant.exceptions import HomeAssistantError
+
+from custom_components.chery_europe.button import (
+    ACTION_BUTTONS,
+    CheryEuropeActionButton,
+)
+
+
+def _action_button(action):
+    """Build an action button without running the entity initialiser."""
+    button = object.__new__(CheryEuropeActionButton)
+    button.entity_description = ButtonEntityDescription(
+        key="message_read",
+        name="Message read",
+        translation_key="message_read",
+    )
+    button._action = action
+    return button
+
+
+def _message_read_entry():
+    for row in ACTION_BUTTONS:
+        if row[0] == "message_read":
+            return row
+    raise AssertionError("message_read missing from ACTION_BUTTONS")
+
+
+def test_message_read_button_is_a_regular_action():
+    """The read button is a normal control and calls the read coordinator method."""
+    key, name, translation_key, icon, category, action_attr = _message_read_entry()
+
+    assert key == "message_read"
+    assert name == "Message read"
+    assert translation_key == "message_read"
+    assert icon == "mdi:email-open-outline"
+    assert category is None
+    assert action_attr == "async_mark_messages_read"
+
+
+@pytest.mark.asyncio
+async def test_press_runs_the_action_once():
+    """Pressing the button runs the bound coordinator action once."""
+    calls: list[int] = []
+
+    async def action():
+        calls.append(1)
+        return True
+
+    await _action_button(action).async_press()
+
+    assert calls == [1]
+
+
+@pytest.mark.asyncio
+async def test_press_raises_when_the_cloud_refuses():
+    """A refused call surfaces as HomeAssistantError instead of failing silently."""
+
+    async def action():
+        return False
+
+    with pytest.raises(HomeAssistantError):
+        await _action_button(action).async_press()
+
+
+@pytest.mark.asyncio
+async def test_press_swallows_action_exceptions():
+    """An exception in the action is logged, not raised at the user."""
+
+    async def action():
+        raise RuntimeError("boom")
+
+    assert await _action_button(action).async_press() is None

@@ -1,4 +1,4 @@
-"""Select platform for the closed/vent-or-tilt/open window and sunroof control."""
+"""Select platform for window/sunroof position and the seat level controls."""
 
 from __future__ import annotations
 
@@ -11,11 +11,12 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .command_exec import async_send_vehicle_command
-from .const import SELECT
+from .const import SELECT, SWITCH
 from .coordinator import CheryEuropeDataUpdateCoordinator
-from .data import CheryData
+from .data import SEAT_FIELD_TO_ATTR, CheryData
 from .entity import (
     CheryEuropeEntity,
+    async_remove_moved_entities,
     async_remove_unsupported,
     control_permissions,
     iter_entry_coordinators,
@@ -82,9 +83,9 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up Chery Europe vent selects from a config entry."""
+    """Set up the Chery Europe selects from a config entry."""
     removed: list[str] = []
-    entities = []
+    entities: list[SelectEntity] = []
     for coordinator in iter_entry_coordinators(entry):
         perms = control_permissions(coordinator)
         vin = vehicle_uid(coordinator, entry)
@@ -98,6 +99,13 @@ async def async_setup_entry(
                 removed,
             )
         )
+        for description in SEAT_SELECT_DESCRIPTIONS:
+            suffix = f"{description.key}{SEAT_SELECT_SUFFIX}"
+            if keep_feature(perms, description.key, f"{vin}_{suffix}", removed):
+                entities.append(CheryEuropeSeatSelect(coordinator, description, entry))
+    # The seat level controls used to be switches; drop those registry entries so
+    # they do not stay behind as unavailable orphans next to the new selects.
+    async_remove_moved_entities(hass, entry, SWITCH, SEAT_SELECT_KEYS)
     async_add_entities(entities)
     async_remove_unsupported(hass, SELECT, removed)
 
@@ -148,4 +156,150 @@ class CheryEuropeVentSelect(CheryEuropeEntity, SelectEntity):
             {},
             command_id=self.entity_description.command_id,
             action=action,
+        )
+
+
+#: Seat level select options in the order Home Assistant shows them, with the
+#: level the car expects for each (0 = off, 1-3 = heating/ventilation strength).
+SEAT_LEVEL_OPTIONS: dict[str, int] = {
+    "off": 0,
+    "low": 1,
+    "medium": 2,
+    "high": 3,
+}
+SEAT_OPTION_BY_LEVEL = {level: option for option, level in SEAT_LEVEL_OPTIONS.items()}
+#: Unique id suffix of the seat selects; distinct from the old switch entities.
+SEAT_SELECT_SUFFIX = "_level_select"
+
+
+@dataclass(frozen=True, kw_only=True)
+class CheryEuropeSeatSelectEntityDescription(SelectEntityDescription):
+    """Describes an off/low/medium/high select for one seat function."""
+
+    command_id: str
+    seat_field: str
+
+
+SEAT_SELECT_DESCRIPTIONS: tuple[CheryEuropeSeatSelectEntityDescription, ...] = (
+    CheryEuropeSeatSelectEntityDescription(
+        key="driver_seat_heating",
+        name="Driver seat heating",
+        translation_key="driver_seat_heating",
+        icon="mdi:car-seat-heater",
+        command_id="ve_1204",
+        seat_field="mSeatHeating",
+    ),
+    CheryEuropeSeatSelectEntityDescription(
+        key="passenger_seat_heating",
+        name="Passenger seat heating",
+        translation_key="passenger_seat_heating",
+        icon="mdi:car-seat-heater",
+        command_id="ve_1204",
+        seat_field="pSeatHeating",
+    ),
+    CheryEuropeSeatSelectEntityDescription(
+        key="driver_seat_ventilation",
+        name="Driver seat ventilation",
+        translation_key="driver_seat_ventilation",
+        icon="mdi:car-seat-cooler",
+        command_id="ve_1204",
+        seat_field="mSeatAiry",
+    ),
+    CheryEuropeSeatSelectEntityDescription(
+        key="passenger_seat_ventilation",
+        name="Passenger seat ventilation",
+        translation_key="passenger_seat_ventilation",
+        icon="mdi:car-seat-cooler",
+        command_id="ve_1204",
+        seat_field="pSeatAiry",
+    ),
+    CheryEuropeSeatSelectEntityDescription(
+        key="rear_left_seat_heating",
+        name="Rear left seat heating",
+        translation_key="rear_left_seat_heating",
+        icon="mdi:car-seat-heater",
+        command_id="ve_1204",
+        seat_field="blSeatHeating",
+    ),
+    CheryEuropeSeatSelectEntityDescription(
+        key="rear_right_seat_heating",
+        name="Rear right seat heating",
+        translation_key="rear_right_seat_heating",
+        icon="mdi:car-seat-heater",
+        command_id="ve_1204",
+        seat_field="brSeatHeating",
+    ),
+    CheryEuropeSeatSelectEntityDescription(
+        key="rear_left_seat_ventilation",
+        name="Rear left seat ventilation",
+        translation_key="rear_left_seat_ventilation",
+        icon="mdi:car-seat-cooler",
+        command_id="ve_1204",
+        seat_field="blSeatAiry",
+    ),
+    CheryEuropeSeatSelectEntityDescription(
+        key="rear_right_seat_ventilation",
+        name="Rear right seat ventilation",
+        translation_key="rear_right_seat_ventilation",
+        icon="mdi:car-seat-cooler",
+        command_id="ve_1204",
+        seat_field="brSeatAiry",
+    ),
+)
+
+#: Keys of the seat level selects, used to clean up the old switch entities.
+SEAT_SELECT_KEYS: tuple[str, ...] = tuple(
+    description.key for description in SEAT_SELECT_DESCRIPTIONS
+)
+
+
+class CheryEuropeSeatSelect(CheryEuropeEntity, SelectEntity):
+    """Off/low/medium/high control for one seat heating or ventilation function."""
+
+    entity_description: CheryEuropeSeatSelectEntityDescription
+
+    def __init__(
+        self,
+        coordinator: CheryEuropeDataUpdateCoordinator,
+        description: CheryEuropeSeatSelectEntityDescription,
+        entry: ConfigEntry,
+    ) -> None:
+        super().__init__(coordinator, description, entry)
+        self._attr_unique_id = stable_unique_id(
+            entry, f"{description.key}{SEAT_SELECT_SUFFIX}", coordinator
+        )
+
+    @property
+    def _level(self) -> int | None:
+        """Return the level the car reports for this seat function (0 = off)."""
+        levels = self.chery_data.seat_levels
+        if levels is None:
+            return None
+        attr = SEAT_FIELD_TO_ATTR.get(self.entity_description.seat_field)
+        return levels.get(attr) if attr else None
+
+    @property
+    def current_option(self) -> str | None:
+        level = self._level
+        if level is None:
+            return None
+        return SEAT_OPTION_BY_LEVEL[min(3, max(0, level))]
+
+    @property
+    def options(self) -> list[str]:
+        return list(SEAT_LEVEL_OPTIONS)
+
+    async def async_select_option(self, option: str) -> None:
+        level = SEAT_LEVEL_OPTIONS.get(option)
+        if level is None:
+            raise ValueError(f"Unsupported seat level: {option}")
+        await async_send_vehicle_command(
+            self.coordinator,
+            self._entry,
+            self.chery_data.vin,
+            {},
+            command_id=self.entity_description.command_id,
+            seat_field=self.entity_description.seat_field,
+            enabled=level > 0,
+            level=level,
         )
