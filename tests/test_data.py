@@ -630,7 +630,7 @@ def test_vehicle_display_name_never_returns_the_vin():
     assert "TESTVIN0000000001" not in vehicle_display_name(data)
 
 
-def test_registry_names_lose_the_vin():
+def test_registry_names_lose_the_vin_but_keep_it_as_the_serial_number():
     from types import SimpleNamespace
     from unittest.mock import Mock, patch
 
@@ -648,7 +648,9 @@ def test_registry_names_lose_the_vin():
         id="dev1",
         identifiers={(DOMAIN, vin)},
         name=vin,
-        serial_number=vin,
+        # Older builds blanked the serial number when they dropped the VIN
+        # from the names; the migration puts it back.
+        serial_number=None,
     )
     entity_reg = Mock()
     entity_reg.async_generate_entity_id.return_value = "sensor.battery_level"
@@ -683,7 +685,7 @@ def test_registry_names_lose_the_vin():
     assert (DOMAIN, "entry-1") in device_update["new_identifiers"]
     assert (DOMAIN, vin) not in device_update["new_identifiers"]
     assert device_update["name"] == "Tiggo 8"
-    assert device_update["serial_number"] is None
+    assert device_update["serial_number"] == vin
     entity_update = entity_reg.async_update_entity.call_args.kwargs
     assert entity_update["new_unique_id"] == "entry-1_battery_level"
     assert entity_update["new_entity_id"] == "sensor.battery_level"
