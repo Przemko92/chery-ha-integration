@@ -20,6 +20,7 @@ from .const import (
     ATTR_ENABLED,
     ATTR_PIN,
     ATTR_START_TIME,
+    ATTR_VIN,
     DOMAIN,
     SERVICE_SEND_COMMAND,
     SERVICE_SET_SCHEDULED_CHARGING,
@@ -31,6 +32,7 @@ from .pin import resolve_pin
 
 SEND_COMMAND_SCHEMA = vol.Schema(
     {
+        vol.Optional(ATTR_VIN): vol.All(cv.string, vol.Length(min=1)),
         vol.Required(ATTR_COMMAND_ID): vol.All(cv.string, vol.Length(min=1)),
         vol.Optional(ATTR_PIN): vol.All(cv.string, vol.Length(min=1)),
         vol.Optional("temperature"): vol.Coerce(float),
@@ -52,6 +54,7 @@ SET_SCHEDULED_CHARGING_SCHEMA = vol.Schema(
         ),
         vol.Optional(ATTR_ENABLED, default=True): cv.boolean,
         vol.Optional(ATTR_PIN): vol.All(cv.string, vol.Length(min=1)),
+        vol.Optional(ATTR_VIN): vol.All(cv.string, vol.Length(min=1)),
     }
 )
 
@@ -63,24 +66,29 @@ def async_setup_services(hass: HomeAssistant) -> None:
 
     async def handle_send_command(call: ServiceCall) -> dict[str, Any]:
         entry = _get_loaded_entry(hass)
-        coordinator: CheryEuropeDataUpdateCoordinator = entry.runtime_data
+        coordinator = _coordinator_for_call(entry, call.data.get(ATTR_VIN))
         pin = resolve_pin(entry, call.data)
         vin = coordinator.data.vin if coordinator.data is not None else None
         if not vin:
             raise HomeAssistantError("Vehicle is unavailable")
         try:
+            send_kwargs: dict[str, Any] = {
+                "action": call.data.get("action"),
+                "temperature": call.data.get("temperature"),
+                "enabled": call.data.get(ATTR_ENABLED),
+                "hvac_mode": call.data.get("hvac_mode"),
+                "seat_field": call.data.get("seat_field"),
+                "level": call.data.get("level"),
+                "start_minutes": call.data.get("start_minutes"),
+                "duration_hours": call.data.get(ATTR_DURATION_HOURS),
+            }
+            if getattr(coordinator, "_permissions_loaded", False):
+                send_kwargs["permissions"] = coordinator.permissions
             response = await coordinator.api.send_command(
                 vin,
                 call.data[ATTR_COMMAND_ID],
                 pin,
-                action=call.data.get("action"),
-                temperature=call.data.get("temperature"),
-                enabled=call.data.get(ATTR_ENABLED),
-                hvac_mode=call.data.get("hvac_mode"),
-                seat_field=call.data.get("seat_field"),
-                level=call.data.get("level"),
-                start_minutes=call.data.get("start_minutes"),
-                duration_hours=call.data.get(ATTR_DURATION_HOURS),
+                **send_kwargs,
             )
 
             if not response.get("ok"):
@@ -97,6 +105,7 @@ def async_setup_services(hass: HomeAssistant) -> None:
                         action=call.data.get("action"),
                         enabled=call.data.get(ATTR_ENABLED),
                         hvac_mode=call.data.get("hvac_mode"),
+                        temperature=call.data.get("temperature"),
                         seat_field=call.data.get("seat_field"),
                         level=call.data.get("level"),
                         start_minutes=call.data.get("start_minutes"),
@@ -124,7 +133,7 @@ def async_setup_services(hass: HomeAssistant) -> None:
 
     async def handle_set_scheduled_charging(call: ServiceCall) -> dict[str, Any]:
         entry = _get_loaded_entry(hass)
-        coordinator: CheryEuropeDataUpdateCoordinator = entry.runtime_data
+        coordinator = _coordinator_for_call(entry, call.data.get(ATTR_VIN))
         start: time = call.data[ATTR_START_TIME]
         duration_hours: int = call.data[ATTR_DURATION_HOURS]
         enabled: bool = call.data[ATTR_ENABLED]
@@ -169,6 +178,24 @@ def async_setup_services(hass: HomeAssistant) -> None:
             schema=SET_SCHEDULED_CHARGING_SCHEMA,
             supports_response=SupportsResponse.OPTIONAL,
         )
+
+
+def _coordinator_for_call(
+    entry: ConfigEntry, vin: str | None
+) -> CheryEuropeDataUpdateCoordinator:
+    """Pick the vehicle coordinator. ``vin`` is required when several are loaded."""
+    from .entity import iter_entry_coordinators
+
+    coordinators = iter_entry_coordinators(entry)
+    if vin:
+        for coordinator in coordinators:
+            data = getattr(coordinator, "data", None)
+            if getattr(data, "vin", None) == vin or getattr(coordinator, "vin_filter", None) == vin:
+                return coordinator
+        raise HomeAssistantError("Vehicle is unavailable")
+    if len(coordinators) == 1:
+        return coordinators[0]
+    raise HomeAssistantError("More than one vehicle is configured; pass vin")
 
 
 def _get_loaded_entry(hass: HomeAssistant) -> ConfigEntry:

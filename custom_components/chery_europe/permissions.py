@@ -29,24 +29,10 @@ ENDPOINT_CATEGORY = {
     "chargeAppointControl": 213,
     "findCar": 202,
     "vehicleLocation": 211,
+    "theftAlarm": 401,
 }
 
 PRUNABLE_FIELDS = {
-    "heatingControl": {
-        "steerWheelHeatSwitch": 2094,
-        "frontWindshieldHeat": 2095,
-        "mSeatHeating": 2096,
-        "pSeatHeating": 2097,
-        "blSeatHeating": 2098,
-        "brSeatHeating": 2099,
-        "backDefrosting": 20910,
-    },
-    "coolingControl": {
-        "mSeatAiry": 2104,
-        "pSeatAiry": 2105,
-        "blSeatAiry": 2106,
-        "brSeatAiry": 2107,
-    },
     "airControl": {
         "frontDefrosting": 2045,
         "airPurControlType": 2046,
@@ -61,13 +47,24 @@ PRUNABLE_FIELDS = {
         "brSeatAiry": 20415,
         "frontWindshieldHeat": 20416,
     },
+    "heatingControl": {
+        "steerWheelHeatSwitch": 2094,
+        "frontWindshieldHeat": 2095,
+        "mSeatHeating": 2096,
+        "pSeatHeating": 2097,
+        "blSeatHeating": 2098,
+        "brSeatHeating": 2099,
+        "backDefrosting": 20910,
+    },
+    "coolingControl": {
+        "mSeatAiry": 2049,
+        "pSeatAiry": 20410,
+        "blSeatAiry": 20414,
+        "brSeatAiry": 20415,
+    },
 }
 
-BASE_VOICE = {
-    "airControl": 2041,
-    "heatingControl": 2093,
-    "coolingControl": 2103,
-}
+BASE_VOICE = {"airControl": 2041, "heatingControl": 2093}
 
 FALLBACK = {
     ("backDefrostingControl", "backDefrosting"): (2321, 20411),
@@ -111,6 +108,11 @@ FEATURE_VOICES: dict[str, tuple[int, ...]] = {
     "trunk": (205,),
     "hvac": (204,),
     "doors": (203,),
+    # HI/LO ride on ordinary climate. Voice 210 (coolingControl) is denied on
+    # some cars, which used to hide the cool switch entirely.
+    "heat_everything": (204, 209),
+    "cool_everything": (204, 210),
+    "theft_alarm": (401,),
 }
 
 
@@ -181,23 +183,6 @@ def _reroute(
     body: dict[str, Any],
     perms: dict[int, int],
 ) -> tuple[str, dict[str, Any]]:
-    if (
-        endpoint == "coolingControl"
-        and (category_denied("coolingControl", perms) or not allowed(perms, BASE_VOICE["coolingControl"]))
-        and not category_denied("airControl", perms)
-        and allowed(perms, BASE_VOICE["airControl"])
-    ):
-        recomposed: dict[str, Any] = {
-            "airControlType": body.get("airControlType", "1"),
-            "airType": body.get("airType", "1"),
-            "temperature": "16.0",
-            "times": str(body.get("duration", BASE_AIRCONTROL["times"])),
-        }
-        for seat_field in ("mSeatAiry", "pSeatAiry", "blSeatAiry", "brSeatAiry"):
-            if seat_field in body:
-                recomposed[seat_field] = body[seat_field]
-        return "airControl", recomposed
-
     for field in list(body):
         rule = FALLBACK.get((endpoint, field))
         if not rule:

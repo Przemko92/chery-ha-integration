@@ -202,3 +202,13 @@ def test_hvac_mode_shows_auto_when_api_enabled_even_if_local_mode_off():
     climate = CheryEuropeClimate(coordinator, CLIMATE_DESCRIPTION, entry)
 
     assert climate.hvac_mode == HVACMode.AUTO
+
+
+def test_hvac_mode_returns_to_off_when_api_reports_disabled():
+    data = CheryData(vin=VIN, hvac_enabled=False, hvac_mode="heat")
+    coordinator = SimpleNamespace(data=data, last_update_success=True)
+    entry = SimpleNamespace(entry_id="entry-1", options={CONF_PIN: PIN})
+    climate = CheryEuropeClimate(coordinator, CLIMATE_DESCRIPTION, entry)
+    climate._hvac_mode = HVACMode.HEAT
+
+    assert climate.hvac_mode == HVACMode.OFF

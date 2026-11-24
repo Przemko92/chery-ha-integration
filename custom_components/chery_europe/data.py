@@ -111,6 +111,7 @@ class CheryData:
     door_rear_left_open: bool | None = None
     door_rear_right_open: bool | None = None
     trunk_open: bool | None = None
+    hood_open: bool | None = None
     window_front_left_open: bool | None = None
     window_front_right_open: bool | None = None
     window_rear_left_open: bool | None = None
@@ -134,6 +135,9 @@ class CheryData:
     command_status: str | None = None
     wake_status: str | None = None
     probe_status: str | None = None
+    heat_everything: bool | None = None
+    cool_everything: bool | None = None
+    theft_alarm: bool | None = None
 
     @classmethod
     def from_api_response(cls, response: dict[str, Any] | VehicleStatus | None) -> CheryData:
@@ -207,6 +211,7 @@ class CheryData:
                         "rear_window_defrost",
                         "rearWindowDefrost",
                         "rear_window_heating",
+                        "rWinHeatingState",
                     )
                 ),
                 hvac_enabled=_as_bool(
@@ -267,10 +272,19 @@ class CheryData:
         charge_plan = _parse_charge_appoint_plan(payload.get("chargeAppointPlans"))
         scheduled_charge_enabled = _plan_switch_on(charge_plan)
 
+        target_temperature = _as_float(
+            _first(payload, "frontSetTempLeft", "frontSetTempRight", "targetTemp")
+        )
+
         hvac_enabled = None
+        hvac_mode = None
         front_hvac = payload.get("frontHVACState")
         if front_hvac is not None:
             hvac_enabled = str(front_hvac) not in {"0", ""}
+            if hvac_enabled is False:
+                hvac_mode = "off"
+            elif target_temperature is not None:
+                hvac_mode = "heat" if target_temperature >= HI_SETPOINT - 0.5 else "auto"
 
         tire_temperatures = {
             "front_left": _as_float(payload.get("lFrontTyreTemp")),
@@ -338,21 +352,26 @@ class CheryData:
             ),
             front_windshield_defrost=_state_on(payload.get("fWinHeatingState")),
             rear_window_defrost=_state_on(
-                _first(payload, "backDefrostingState", "backDefrosting")
+                _first(
+                    payload,
+                    "rWinHeatingState",
+                    "backDefrostingState",
+                    "backDefrosting",
+                )
             ),
             steering_wheel_heating=_state_on(payload.get("steerWheelHeating")),
             air_purification=_state_on(payload.get("airPurification")),
             sunroof_open=_is_open(payload.get("sunroofState")),
             sunroof_position=_sunroof_position(payload.get("sunroofState")),
             hvac_enabled=hvac_enabled,
-            target_temperature=_as_float(
-                _first(payload, "frontSetTempLeft", "frontSetTempRight", "targetTemp")
-            ),
+            hvac_mode=hvac_mode,
+            target_temperature=target_temperature,
             door_front_left_open=_is_open(payload.get("frontLeftDoor")),
             door_front_right_open=_is_open(payload.get("frontRightDoor")),
             door_rear_left_open=_is_open(payload.get("backLeftDoor")),
             door_rear_right_open=_is_open(payload.get("backRightDoor")),
             trunk_open=_is_open(payload.get("trunkDoor")),
+            hood_open=_is_open(payload.get("hood")),
             window_front_left_open=_is_open(payload.get("frontLeftWindowState")),
             window_front_right_open=_is_open(payload.get("frontRightWindowState")),
             window_rear_left_open=_is_open(payload.get("backLeftWindowState")),
@@ -540,6 +559,8 @@ def merge_chery_data(base: CheryData, update: CheryData) -> CheryData:
         value = getattr(update, field_name)
         if value is not None:
             merged = replace(merged, **{field_name: value})
+    if update.hvac_enabled is True and update.hvac_mode is None and merged.hvac_mode == "off":
+        merged = replace(merged, hvac_mode=None)
     return merged
 
 
@@ -548,25 +569,57 @@ def apply_command_feedback(data: CheryData, command_id: str, **kwargs: Any) -> C
     if command_id == "ve_1104":
         enabled = kwargs.get("enabled")
         hvac_mode = kwargs.get("hvac_mode")
+        temperature = _as_float(kwargs.get("temperature"))
         if enabled is True:
             updates: dict[str, Any] = {"hvac_enabled": True}
             if hvac_mode is not None:
                 updates["hvac_mode"] = hvac_mode
+            if temperature is not None:
+                updates["target_temperature"] = temperature
             return replace(data, **updates)
         if enabled is False:
             return replace(data, hvac_enabled=False, hvac_mode="off")
     if command_id == "ve_1110":
         enabled = kwargs.get("enabled")
+        hvac_mode = kwargs.get("hvac_mode")
+        temperature = _as_float(kwargs.get("temperature"))
+        if enabled is True and hvac_mode == "auto":
+            updates = {"hvac_enabled": True, "hvac_mode": "auto"}
+            if temperature is not None:
+                updates["target_temperature"] = temperature
+            for field in (
+                "front_windshield_heating",
+                "front_windshield_defrost",
+                "rear_window_defrost",
+                "steering_wheel_heating",
+                "driver_seat_heating",
+                "passenger_seat_heating",
+                "rear_left_seat_heating",
+                "rear_right_seat_heating",
+            ):
+                if getattr(data, field) is True:
+                    updates[field] = False
+            return replace(data, **updates)
         if enabled is True:
-            return replace(data, hvac_enabled=True, hvac_mode="heat")
+            updates = {"hvac_enabled": True, "hvac_mode": "heat"}
+            if temperature is not None:
+                updates["target_temperature"] = temperature
+            return replace(data, **updates)
         if enabled is False:
-            return replace(data, hvac_enabled=False, hvac_mode="off")
-    if command_id == "ve_1111":
-        enabled = kwargs.get("enabled")
-        if enabled is True:
-            return replace(data, hvac_enabled=True, hvac_mode="cool")
-        if enabled is False:
-            return replace(data, hvac_enabled=False, hvac_mode="off")
+            updates = {"hvac_enabled": False, "hvac_mode": "off"}
+            for field in (
+                "front_windshield_heating",
+                "front_windshield_defrost",
+                "rear_window_defrost",
+                "steering_wheel_heating",
+                "driver_seat_heating",
+                "passenger_seat_heating",
+                "rear_left_seat_heating",
+                "rear_right_seat_heating",
+            ):
+                if getattr(data, field) is True:
+                    updates[field] = False
+            return replace(data, **updates)
     if command_id == "ve_1105":
         action = str(kwargs.get("action", "lock")).lower()
         return replace(data, is_locked=action != "unlock")
@@ -640,7 +693,117 @@ def apply_command_feedback(data: CheryData, command_id: str, **kwargs: Any) -> C
             sunroof_open=opened,
             sunroof_position=ACTION_TO_POSITION.get(action, 100 if opened else 0),
         )
+    if command_id == "ve_1301":
+        return _apply_comfort_macro(data, enabled=bool(kwargs.get("enabled", True)), heat=True)
+    if command_id == "ve_1302":
+        return _apply_comfort_macro(data, enabled=bool(kwargs.get("enabled", True)), heat=False)
+    if command_id == "ve_1303":
+        return replace(data, theft_alarm=bool(kwargs.get("enabled", True)))
     return data
+
+
+HI_SETPOINT = 31.0
+LO_SETPOINT = 15.0
+
+
+def climate_at_hi(data: CheryData) -> bool | None:
+    """True when climate is running at the HI setpoint."""
+    return _climate_at_extreme(data, hi=True)
+
+
+def climate_at_lo(data: CheryData) -> bool | None:
+    """True when climate is running at the LO setpoint."""
+    return _climate_at_extreme(data, hi=False)
+
+
+def _climate_at_extreme(data: CheryData, *, hi: bool) -> bool | None:
+    if data.hvac_enabled is False:
+        return False
+    if data.target_temperature is None:
+        return None
+    if hi:
+        at_extreme = data.target_temperature >= HI_SETPOINT - 0.5
+    else:
+        at_extreme = data.target_temperature <= LO_SETPOINT + 0.5
+    if data.hvac_enabled is None:
+        return at_extreme
+    return bool(data.hvac_enabled) and at_extreme
+
+
+def _apply_comfort_macro(data: CheryData, *, enabled: bool, heat: bool) -> CheryData:
+    """Reflect a climate HI or LO command. Seats and the wheel stay untouched."""
+    temperature = HI_SETPOINT if heat else LO_SETPOINT
+    return replace(
+        data,
+        hvac_enabled=enabled,
+        target_temperature=temperature if enabled else data.target_temperature,
+        heat_everything=enabled and heat,
+        cool_everything=enabled and not heat,
+    )
+
+
+def parse_theft_alarm(response: Any) -> bool | None:
+    """Return the theft-alarm switch from a querySwitch payload."""
+    value = _find_key(response, "theftAlarmSwitch")
+    if value is None:
+        return None
+    return str(value).strip() not in {"0", "false", "False"}
+
+
+def vehicle_choices(vehicles: list[Any]) -> list[tuple[str, str]]:
+    """Return ``(vin, label)`` rows for the setup picker.
+
+    Labels prefer nickname, model and colour. The full VIN is not shown.
+    Identical labels gain the last four VIN characters so two cars stay distinct.
+    """
+    rows: list[tuple[str, str]] = []
+    for item in vehicles:
+        data = CheryData.from_api_response(item)
+        vin = data.vin
+        if not vin:
+            continue
+        rows.append((vin, _vehicle_choice_label(data, vin)))
+    counts: dict[str, int] = {}
+    for _vin, label in rows:
+        counts[label] = counts.get(label, 0) + 1
+    labeled: list[tuple[str, str]] = []
+    for vin, label in rows:
+        if counts[label] > 1:
+            label = f"{label} ({vin[-4:]})"
+        labeled.append((vin, label))
+    return labeled
+
+
+def _vehicle_choice_label(data: CheryData, vin: str) -> str:
+    parts: list[str] = []
+    name = vehicle_display_name(data)
+    if name and name != "Chery Vehicle":
+        parts.append(name)
+    model = data.vehicle_full_name
+    if model and model not in parts and not _contains_same(model, vin):
+        parts.append(model)
+    color = data.vehicle_color_name_en
+    if color and color not in parts:
+        parts.append(color)
+    if not parts:
+        return f"…{vin[-4:]}"
+    return " · ".join(parts)
+
+
+def _contains_same(value: str, vin: str) -> bool:
+    return value.strip().upper() == vin.strip().upper()
+
+
+def _find_key(payload: Any, key: str) -> Any:
+    if not isinstance(payload, dict):
+        return None
+    if payload.get(key) not in (None, ""):
+        return payload.get(key)
+    for nested in ("body", "data"):
+        found = _find_key(payload.get(nested), key)
+        if found is not None:
+            return found
+    return None
 
 
 def _first(data: dict[str, Any], *keys: str) -> Any:
