@@ -46,7 +46,7 @@ class CheryEuropeMqttClient:
         t_user_id: str,
         channel_id: int,
         certs_dir: str,
-        on_payload: Callable[[str, dict[str, Any]], None],
+        on_payload: Callable[[str, dict[str, Any], dict[str, Any]], None],
     ) -> None:
         self._host = host
         self._port = port
@@ -104,10 +104,11 @@ class CheryEuropeMqttClient:
                 _LOGGER.debug("Chery Europe MQTT payload ignored: %s", err)
                 return
             service, data = parse_vehicle_mqtt_message(obj)
-            if not data:
-                return
+            # The envelope goes along even when the frame carries no telemetry:
+            # message-centre notifications have to be readable from the reply
+            # sensor instead of being dropped here.
             _LOGGER.debug("Chery Europe MQTT svc=%s keys=%s", service or "?", sorted(data))
-            self._on_payload(service, data)
+            self._on_payload(service, data, obj)
 
         client.on_connect = on_connect
         client.on_message = on_message

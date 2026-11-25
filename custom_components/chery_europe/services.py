@@ -16,6 +16,7 @@ from .charge_schedule import local_time_to_minutes
 from .command_exec import async_send_vehicle_command
 from .const import (
     TSP_CODE_ASLEEP,
+    ATTR_AIR_DURATION,
     ATTR_BATTERY_HEAT,
     ATTR_COMMAND_ID,
     ATTR_DAYS,
@@ -56,6 +57,7 @@ from .prepare_plan import (
     merge_plan,
     validate_plans,
 )
+from .vehicle_commands import AIR_DURATION_OPTIONS
 
 SEND_COMMAND_SCHEMA = vol.Schema(
     {
@@ -71,6 +73,9 @@ SEND_COMMAND_SCHEMA = vol.Schema(
         vol.Optional("start_minutes"): vol.Coerce(int),
         vol.Optional(ATTR_DURATION_HOURS): vol.All(
             vol.Coerce(float), vol.Range(min=1, max=24)
+        ),
+        vol.Optional(ATTR_AIR_DURATION): vol.All(
+            vol.Coerce(str), vol.In(AIR_DURATION_OPTIONS)
         ),
     }
 )
@@ -173,6 +178,7 @@ def async_setup_services(hass: HomeAssistant) -> None:
                 "level": call.data.get("level"),
                 "start_minutes": call.data.get("start_minutes"),
                 "duration_hours": call.data.get(ATTR_DURATION_HOURS),
+                "duration": call.data.get(ATTR_AIR_DURATION),
             }
             if getattr(coordinator, "_permissions_loaded", False):
                 send_kwargs["permissions"] = coordinator.permissions

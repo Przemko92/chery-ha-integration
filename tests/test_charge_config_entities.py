@@ -17,15 +17,18 @@ VIN = "VIN123456"
 
 
 def _coordinator(data: CheryData | None = None):
-    return SimpleNamespace(
+    coordinator = SimpleNamespace(
         data=data or CheryData(vin=VIN),
         last_update_success=True,
         charge_start_minutes=480,
         charge_duration_hours=6,
+        charge_schedule_listeners=[],
         api=SimpleNamespace(send_command=AsyncMock(return_value={"ok": True})),
         async_set_updated_data=Mock(),
         schedule_refresh_after_command=Mock(),
     )
+    coordinator.async_notify_charge_schedule = Mock()
+    return coordinator
 
 
 def _entry():
@@ -82,7 +85,7 @@ async def test_user_edit_sends_plan_and_follows_later_vehicle_updates():
     start_call = coordinator.api.send_command.await_args_list[0]
     assert start_call.args[1] == "ve_1202"
     assert start_call.kwargs["start_minutes"] == 21 * 60 + 30
-    assert start_call.kwargs["duration_hours"] == 8
+    assert start_call.kwargs["duration_hours"] == 8.5
     assert start_call.kwargs["enabled"] is True
     duration_call = coordinator.api.send_command.await_args_list[1]
     assert duration_call.kwargs["duration_hours"] == 7

@@ -8,12 +8,23 @@ from dataclasses import dataclass
 from typing import Any
 
 from .charge_schedule import local_minutes_to_utc, snap_duration_minutes
+from .error_codes import describe_code
 from .prepare_plan import travel_minutes
 
 _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_AIR_DURATION = "15"
 DEFAULT_AIR_TEMPERATURE = "22.0"
+#: Air-conditioning runtimes the car accepts in the airControl ``times`` field
+#: (the 5/10/15 minutes choice of the official app).
+AIR_DURATION_OPTIONS = ("5", "10", "15")
+
+
+def air_duration(values: dict[str, Any]) -> str:
+    """Return the airControl ``times`` value, ignoring empty/None overrides."""
+    return str(values.get("duration") or DEFAULT_AIR_DURATION)
+
+
 DEFAULT_CHARGE_START_MINUTES = 480
 DEFAULT_CHARGE_DURATION_HOURS = 6
 DEFAULT_CHARGE_CYCLE_DAYS = [1, 2, 3, 4, 5, 6, 7]
@@ -36,7 +47,7 @@ def build_air_control_body(values: dict[str, Any]) -> dict[str, str]:
     temperature = values.get("temperature", DEFAULT_AIR_TEMPERATURE)
     if isinstance(temperature, (int, float)):
         temperature = f"{float(temperature):.1f}"
-    duration = str(values.get("duration", DEFAULT_AIR_DURATION))
+    duration = air_duration(values)
     body = {
         "airControlType": "1" if enabled else "0",
         "airType": "1",
@@ -55,7 +66,7 @@ def build_front_windshield_body(values: dict[str, Any]) -> dict[str, str]:
     enabled = values.get("enabled", True)
     body = {"frontWindshieldHeat": "1" if enabled else "0"}
     if enabled:
-        body["times"] = str(values.get("duration", DEFAULT_AIR_DURATION))
+        body["times"] = air_duration(values)
     return body
 
 
@@ -75,7 +86,7 @@ def build_front_defrost_body(values: dict[str, Any]) -> dict[str, str]:
         "airControlType": "1" if enabled else "0",
         "airType": "1",
         "temperature": str(temperature),
-        "times": str(values.get("duration", DEFAULT_AIR_DURATION)),
+        "times": air_duration(values),
     }
     if enabled:
         body["frontDefrosting"] = "1"
@@ -100,7 +111,7 @@ def build_air_purifier_body(values: dict[str, Any]) -> dict[str, str]:
         "airControlType": "1" if climate_on else "0",
         "airType": "1",
         "temperature": str(temperature),
-        "times": str(values.get("duration", DEFAULT_AIR_DURATION)),
+        "times": air_duration(values),
         "airPurControlType": "1" if enabled else "0",
     }
 
@@ -109,7 +120,7 @@ def build_rear_defrost_body(values: dict[str, Any]) -> dict[str, str]:
     enabled = values.get("enabled", True)
     body = {"backDefrosting": "1" if enabled else "0"}
     if enabled:
-        body["times"] = str(values.get("duration", DEFAULT_AIR_DURATION))
+        body["times"] = air_duration(values)
     return body
 
 
@@ -174,7 +185,7 @@ def build_seat_control_body(values: dict[str, Any]) -> dict[str, str]:
         level = 3
     body = {field: str(level) if enabled else "0"}
     if enabled:
-        body["times"] = str(values.get("duration", DEFAULT_AIR_DURATION))
+        body["times"] = air_duration(values)
     return body
 
 
@@ -210,7 +221,7 @@ def build_climate_extreme_body(values: dict[str, Any], *, temperature: str) -> d
         "airControlType": "1" if enabled else "0",
         "airType": "1",
         "temperature": temperature,
-        "times": str(values.get("duration", DEFAULT_AIR_DURATION)),
+        "times": air_duration(values),
     }
 
 
@@ -349,6 +360,10 @@ def command_result(response: Any) -> dict[str, Any]:
 
     code = response.get("code")
     message = response.get("msg") or response.get("message") or response.get("key")
+    if not message:
+        # The backend usually answers a refusal with the bare code; explain the
+        # ones we know so the entity shows why the command did not go through.
+        message = describe_code(code)
     ok = code in TSP_COMMAND_SUCCESS or response.get("ok") is True
     return {
         "ok": ok,

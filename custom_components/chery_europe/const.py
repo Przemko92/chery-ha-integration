@@ -6,7 +6,7 @@ from datetime import timedelta
 NAME = "Chery Europe"
 DOMAIN = "chery_europe"
 DOMAIN_DATA = f"{DOMAIN}_data"
-VERSION = "0.7.0b2"
+VERSION = "0.7.0b4"
 ISSUE_URL = "https://github.com/Przemko92/chery-ha-integration/issues"
 
 # Platforms
@@ -50,6 +50,8 @@ ATTR_COMMAND_ID = "command_id"
 ATTR_PIN = "pin"
 ATTR_START_TIME = "start_time"
 ATTR_DURATION_HOURS = "duration_hours"
+#: airControl "times" — climate runtime in minutes (5, 10 or 15).
+ATTR_AIR_DURATION = "duration"
 ATTR_ENABLED = "enabled"
 ATTR_PLAN_ID = "plan_id"
 ATTR_PLAN_NAME = "plan_name"
@@ -101,6 +103,16 @@ REFRESH_HV_WAIT_SECONDS = 25
 POST_COMMAND_REFRESH_DELAYS = (5, 10, 20)
 # Same vehicle command (lock, climate, ...) is not sent more often than this.
 COMMAND_MIN_INTERVAL_SECONDS = 5
+# The car executes ONE command at a time: a command that arrives while the
+# previous one is still running comes back as A00082 and is not executed, so
+# the same command is retried after these pauses before the entity fails.
+COMMAND_BUSY_CODE = "A00082"
+COMMAND_BUSY_RETRY_DELAYS = (6, 10)
+# Wake/locate only makes the car answer: it is not a control write, so it must
+# not clear the last refusal shown by the diagnostics entities.
+NON_CONTROL_COMMAND_IDS = frozenset({"ve_1209"})
+# What the diagnostics error entities read when the last command went through.
+NO_COMMAND_ERROR = "brak"
 STATUS_MAX_LEN = 255
 
 # Login identity prefix used by the legend BFF email/SMS OTP grant.

@@ -24,6 +24,8 @@ from .const import (
     API_VMC_QUERY_AUTHORITY_PATH,
     API_VMC_QUERY_LIST_PATH,
     API_VMC_SET_VEC_DEFAULT_PATH,
+    COMMAND_BUSY_CODE,
+    COMMAND_BUSY_RETRY_DELAYS,
     DEFAULT_BASE_URL,
     DEFAULT_CHANNEL_ID,
     DEFAULT_MESSAGES_PAGE_SIZE,
@@ -97,6 +99,11 @@ class CheryEuropeApi:
         self._tsp_login_lock = asyncio.Lock()
         # One in-flight HTTP call, and the same vehicle command at most every 5s.
         self._request_queue = ApiRequestQueue()
+        # Injected so tests can drive the pause between busy retries.
+        self._sleep = asyncio.sleep
+        # Set by the coordinator to see every vehicle command outcome; keeps the
+        # diagnostics entities honest even when a caller swallows the failure.
+        self.command_result_callbacks: list[Any] = []
 
     async def _request(self, method: str, endpoint: str, **kwargs: Any) -> Any:
         """Perform an authenticated request with retry and token refresh."""
@@ -263,7 +270,7 @@ class CheryEuropeApi:
         last_error: Exception | None = None
         for path in self._travel_control_paths():
             try:
-                response = await self._send_vehicle_control(
+                response = await self._send_vehicle_control_retrying(
                     vin=vin, pin=pin, endpoint=endpoint, body=body, path=path
                 )
             except CheryEuropeConnectionError as exc:
@@ -425,14 +432,63 @@ class CheryEuropeApi:
         body = spec.build_body(kwargs)
         perms = self._permissions if permissions is None else permissions
         endpoint, body = adapt_command(spec.endpoint, body, perms)
-        response = await self._send_vehicle_control(
+        response = await self._send_vehicle_control_retrying(
             vin=vin,
             pin=pin,
             endpoint=endpoint,
             body=body,
             path=spec.path,
+            command_id=command_id,
         )
         return command_result(response)
+
+    async def _send_vehicle_control_retrying(
+        self,
+        *,
+        vin: str,
+        pin: str,
+        endpoint: str,
+        body: dict[str, Any],
+        path: str | None = None,
+        command_id: str | None = None,
+    ) -> Any:
+        """Send a command, waiting out the car while it reports it is busy.
+
+        The car executes one command at a time, so a command that arrives while
+        the previous one is still running comes back as A00082 and is not
+        executed at all; the very same request a few seconds later lands.
+        """
+        attempt = 0
+        while True:
+            response = await self._send_vehicle_control(
+                vin=vin, pin=pin, endpoint=endpoint, body=body, path=path
+            )
+            busy = isinstance(response, dict) and response.get("code") == COMMAND_BUSY_CODE
+            if not busy or attempt >= len(COMMAND_BUSY_RETRY_DELAYS):
+                self._notify_command_result(vin, command_id or endpoint, response)
+                return response
+            delay = COMMAND_BUSY_RETRY_DELAYS[attempt]
+            _LOGGER.debug(
+                "Chery Europe: the car is busy (A00082) with %s; retrying in %ss",
+                command_id or endpoint,
+                delay,
+            )
+            await self._sleep(delay)
+            attempt += 1
+
+    def _notify_command_result(self, vin: str, command_id: str, response: Any) -> None:
+        """Hand the outcome to the coordinators for their diagnostics entities."""
+        callbacks = self.command_result_callbacks
+        if not callbacks:
+            return
+        result = command_result(response)
+        for callback in list(callbacks):
+            try:
+                callback(vin, command_id, result)
+            except Exception:  # noqa: BLE001 - reporting must never break a command
+                _LOGGER.debug(
+                    "Chery Europe: command result callback failed", exc_info=True
+                )
 
     async def get_vehicle_authority(self, vin: str) -> dict[int, int]:
         """Return the vehicle command permission map, or UNKNOWN on failure."""

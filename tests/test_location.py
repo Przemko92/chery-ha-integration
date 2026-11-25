@@ -79,7 +79,13 @@ def test_mqtt_ack_does_not_overwrite_telemetry():
     coordinator = _coordinator()
     coordinator.data = CheryData(vin=VIN, battery_level=80, latitude=50.0, longitude=20.0)
     coordinator._apply_mqtt_payload("1209", ACK)
-    coordinator.async_set_updated_data.assert_not_called()
+    updated = coordinator.async_set_updated_data.call_args[0][0]
+    # The acknowledgement moves only the reply diagnostics: nothing it carries
+    # is allowed to overwrite the telemetry read from the status endpoint.
+    assert updated.battery_level == 80
+    assert (updated.latitude, updated.longitude) == (50.0, 20.0)
+    assert updated.mqtt_last_service == "1209"
+    assert updated.mqtt_frames_seen == 1
 
 
 def test_mqtt_1301_updates_device_tracker_coordinates():

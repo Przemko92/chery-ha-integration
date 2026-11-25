@@ -191,6 +191,12 @@
       "command_status": {
         "name": "Diagnostics command result"
       },
+      "command_error_code": {
+        "name": "Diagnostics command error code"
+      },
+      "command_error_text": {
+        "name": "Diagnostics command error"
+      },
       "wake_status": {
         "name": "Diagnostics wake result"
       },
@@ -229,6 +235,12 @@
       },
       "exterior_temperature": {
         "name": "Outside temperature"
+      },
+      "interior_temperature": {
+        "name": "Inside temperature"
+      },
+      "mqtt_last_reply": {
+        "name": "MQTT reply"
       }
     },
     "binary_sensor": {
@@ -282,6 +294,9 @@
       },
       "window_rear_right": {
         "name": "Window rear right"
+      },
+      "info": {
+        "name": "Info"
       },
       "alert_tire_front_left": {
         "name": "Front left tire"
@@ -365,6 +380,9 @@
       }
     },
     "time": {
+      "charge_end_time": {
+        "name": "Scheduled charging end time"
+      },
       "charge_start_time": {
         "name": "Charging start time"
       },
@@ -480,6 +498,14 @@
           "medium": "Medium",
           "high": "High"
         }
+      },
+      "air_duration": {
+        "name": "Climate runtime",
+        "state": {
+          "5": "5 min",
+          "10": "10 min",
+          "15": "15 min"
+        }
       }
     },
     "button": {
@@ -500,6 +526,9 @@
       },
       "message_read": {
         "name": "Message read"
+      },
+      "departure_in_15_min": {
+        "name": "Departure in 15 minutes"
       }
     },
     "device_tracker": {

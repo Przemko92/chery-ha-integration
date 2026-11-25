@@ -8,7 +8,7 @@ from homeassistant.components.number import (
     RestoreNumber,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import EntityCategory, UnitOfTime
+from homeassistant.const import UnitOfTime
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -33,7 +33,6 @@ CHARGE_DURATION_DESCRIPTION = NumberEntityDescription(
     name="Scheduled charging duration",
     translation_key="charge_duration_hours",
     icon="mdi:battery-clock",
-    entity_category=EntityCategory.CONFIG,
     native_min_value=1.0,
     native_max_value=24,
     native_step=0.25,
@@ -82,6 +81,7 @@ class CheryEuropeChargeDurationNumber(CheryEuropeEntity, RestoreNumber):
     async def async_added_to_hass(self) -> None:
         """Restore last HA value, then prefer the live vehicle plan."""
         await super().async_added_to_hass()
+        self.coordinator.charge_schedule_listeners.append(self)
         last = await self.async_get_last_number_data()
         if last is not None and last.native_value is not None:
             self._value = float(last.native_value)
@@ -96,6 +96,13 @@ class CheryEuropeChargeDurationNumber(CheryEuropeEntity, RestoreNumber):
             return False
         self._value = self._snap(hours)
         return True
+
+    async def async_will_remove_from_hass(self) -> None:
+        """Stop listening once the entity is gone."""
+        listeners = getattr(self.coordinator, "charge_schedule_listeners", None)
+        if listeners and self in listeners:
+            listeners.remove(self)
+        await super().async_will_remove_from_hass()
 
     def _sync_coordinator(self) -> None:
         self.coordinator.charge_duration_hours = self._value
@@ -134,4 +141,5 @@ class CheryEuropeChargeDurationNumber(CheryEuropeEntity, RestoreNumber):
         )
         self._value = hours
         self._sync_coordinator()
+        self.coordinator.async_notify_charge_schedule()
         self.async_write_ha_state()

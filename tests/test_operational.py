@@ -141,4 +141,10 @@ def test_preserve_control_state_when_realtime_is_missing():
 
 def test_status_sensor_descriptions_exist():
     keys = {desc.key for desc in STATUS_SENSOR_DESCRIPTIONS}
-    assert keys == {"command_status", "wake_status", "probe_status"}
+    assert keys == {
+        "command_status",
+        "command_error_code",
+        "command_error_text",
+        "wake_status",
+        "probe_status",
+    }

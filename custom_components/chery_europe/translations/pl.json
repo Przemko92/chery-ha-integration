@@ -191,6 +191,12 @@
       "command_status": {
         "name": "Diagnostyka wynik komendy"
       },
+      "command_error_code": {
+        "name": "Diagnostyka błąd kod"
+      },
+      "command_error_text": {
+        "name": "Diagnostyka błąd opis"
+      },
       "wake_status": {
         "name": "Diagnostyka wynik wybudzenia"
       },
@@ -227,8 +233,14 @@
       "messages_unread": {
         "name": "Wiadomości nieprzeczytane"
       },
+      "mqtt_last_reply": {
+        "name": "Diagnostyka odpowiedź MQTT"
+      },
       "exterior_temperature": {
         "name": "Temperatura zewnętrzna"
+      },
+      "interior_temperature": {
+        "name": "Temperatura wewnętrzna"
       }
     },
     "binary_sensor": {
@@ -282,6 +294,9 @@
       },
       "window_rear_right": {
         "name": "Szyba tylna prawa"
+      },
+      "info": {
+        "name": "Info"
       },
       "alert_tire_front_left": {
         "name": "Koło przednie lewe"
@@ -365,6 +380,9 @@
       }
     },
     "time": {
+      "charge_end_time": {
+        "name": "Ładowanie godzina zakończenia"
+      },
       "charge_start_time": {
         "name": "Ładowanie godzina startu"
       },
@@ -480,6 +498,14 @@
           "medium": "Średni",
           "high": "Wysoki"
         }
+      },
+      "air_duration": {
+        "name": "Klimatyzacja czas pracy",
+        "state": {
+          "5": "5 min",
+          "10": "10 min",
+          "15": "15 min"
+        }
       }
     },
     "button": {
@@ -500,6 +526,9 @@
       },
       "message_read": {
         "name": "Wiadomość przeczytana"
+      },
+      "departure_in_15_min": {
+        "name": "Wyjazd za 15min"
       }
     },
     "device_tracker": {

@@ -23,7 +23,7 @@ def test_mqtt_verifies_broker_hostname(monkeypatch):
         t_user_id="user-1",
         channel_id=1,
         certs_dir="/tmp/chery-mqtt-certs",
-        on_payload=lambda service, data: None,
+        on_payload=lambda service, data, envelope: None,
     )
 
     assert client.start() is True

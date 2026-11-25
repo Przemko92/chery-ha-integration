@@ -24,6 +24,7 @@ from .entity import (
     stable_unique_id,
     vehicle_uid,
 )
+from .vehicle_commands import AIR_DURATION_OPTIONS
 
 PARALLEL_UPDATES = 0
 
@@ -103,6 +104,10 @@ async def async_setup_entry(
             suffix = f"{description.key}{SEAT_SELECT_SUFFIX}"
             if keep_feature(perms, description.key, f"{vin}_{suffix}", removed):
                 entities.append(CheryEuropeSeatSelect(coordinator, description, entry))
+        if keep_feature(perms, "hvac", f"{vin}_{AIR_DURATION_UNIQUE_SUFFIX}", removed):
+            entities.append(
+                CheryEuropeAirDurationSelect(coordinator, AIR_DURATION_DESCRIPTION, entry)
+            )
     # The seat level controls used to be switches; drop those registry entries so
     # they do not stay behind as unavailable orphans next to the new selects.
     async_remove_moved_entities(hass, entry, SWITCH, SEAT_SELECT_KEYS)
@@ -303,3 +308,58 @@ class CheryEuropeSeatSelect(CheryEuropeEntity, SelectEntity):
             enabled=level > 0,
             level=level,
         )
+
+
+AIR_DURATION_UNIQUE_SUFFIX = "air_duration_select"
+
+
+@dataclass(frozen=True, kw_only=True)
+class CheryEuropeAirDurationSelectEntityDescription(SelectEntityDescription):
+    """Describes the air-conditioning runtime select."""
+
+
+AIR_DURATION_DESCRIPTION = CheryEuropeAirDurationSelectEntityDescription(
+    key="air_duration",
+    name="Climate runtime",
+    translation_key="air_duration",
+    icon="mdi:timer-outline",
+)
+
+
+class CheryEuropeAirDurationSelect(CheryEuropeEntity, SelectEntity):
+    """Pick the airControl ``times`` used when the climate is started remotely.
+
+    The car accepts 5, 10 or 15 minutes in the ``times`` field of the
+    airControl command; the value lives on the coordinator so the climate
+    entity can send it with every start.
+    """
+
+    entity_description: CheryEuropeAirDurationSelectEntityDescription
+
+    def __init__(
+        self,
+        coordinator: CheryEuropeDataUpdateCoordinator,
+        description: CheryEuropeAirDurationSelectEntityDescription,
+        entry: ConfigEntry,
+    ) -> None:
+        super().__init__(coordinator, description, entry)
+        self._attr_unique_id = stable_unique_id(
+            entry, AIR_DURATION_UNIQUE_SUFFIX, coordinator
+        )
+
+    @property
+    def current_option(self) -> str | None:
+        """Return the runtime that will be sent with the next start."""
+        return getattr(self.coordinator, "hvac_duration", None)
+
+    @property
+    def options(self) -> list[str]:
+        """Return the runtimes the car accepts, in minutes."""
+        return list(AIR_DURATION_OPTIONS)
+
+    async def async_select_option(self, option: str) -> None:
+        """Store the runtime for the next climate start."""
+        if option not in AIR_DURATION_OPTIONS:
+            raise ValueError(f"Unsupported climate runtime: {option}")
+        self.coordinator.hvac_duration = option
+        self.async_write_ha_state()

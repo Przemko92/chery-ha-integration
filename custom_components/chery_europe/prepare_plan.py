@@ -465,9 +465,8 @@ def departure_plan_update(
     Every other plan is passed through untouched because the car replaces the
     whole list on write. An existing departure plan keeps its comfort features,
     temperature and schedule; only the departure time and the switch change.
-    ``days`` is the fallback schedule when no plan exists yet, so a brand-new
-    plan keeps the weekdays Home Assistant had stored instead of silently
-    repeating every day.
+    ``days`` overrides that schedule, so a caller that knows the weekday list it
+    wants (a new plan, or a plan that must gain today) is not silently ignored.
     """
     entries = [dict(existing) for existing in plans or ()]
     existing = find_plan_by_name(entries, name) or {}
@@ -482,7 +481,7 @@ def departure_plan_update(
             and str(entry.get("name") or "").strip().casefold() != stale
         ]
     features = existing.get("features") or {}
-    schedule = existing.get("days") or days
+    schedule = list(days) if days else existing.get("days")
     plan = build_plan(
         name=existing.get("name") or name,
         travel_time=travel_time,

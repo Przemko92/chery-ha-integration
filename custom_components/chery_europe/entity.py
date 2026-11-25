@@ -136,13 +136,18 @@ def async_drop_vin_from_names(
         )
 
 
-LEGACY_ENTITY_KEYS = ("last_message", "messages_content", "messages_history")
+LEGACY_ENTITY_KEYS = (
+    "last_message",
+    "messages_content",
+    "messages_history",
+    "departure_restore",
+)
 
 # Entity ids are generated from the translated name only once, when the entity is
 # first registered, so a renamed translation leaves the old slug behind forever.
 # (domain, unique_id suffix, old slug, new slug)
 # Unique-id suffixes that differ from the translation key of their entity.
-UID_TRANSLATION_KEYS = {"charging_switch": "charging"}
+UID_TRANSLATION_KEYS = {"charging_switch": "charging", "air_duration_select": "air_duration"}
 
 ENTITY_ID_RENAMES = (
     # Messages and alarms.
@@ -193,6 +198,8 @@ ENTITY_ID_RENAMES = (
     ("switch", "heat_everything", "klimatyzacja_grzej_wszystko", "klimatyzacja_hi"),
     ("switch", "cool_everything", "chlodz_wszystko", "klimatyzacja_lo"),
     ("switch", "cool_everything", "klimatyzacja_chlodz_wszystko", "klimatyzacja_lo"),
+    ("select", "air_duration_select", "czas_pracy_klimatyzacji", "klimatyzacja_czas_pracy"),
+    ("select", "air_duration_select", "climate_runtime", "klimatyzacja_czas_pracy"),
     # Windows.
     ("switch", "front_windshield_heating", "ogrzewanie_przedniej_szyby", "szyba_przednia_ogrzewanie"),
     ("switch", "front_windshield_defrost", "odmrazanie_przedniej_szyby_nawiew", "szyba_przednia_odmrazanie"),
@@ -225,6 +232,8 @@ ENTITY_ID_RENAMES = (
     ("button", "wake", "wybudz_auto", "pojazd_wybudz"),
     ("button", "refresh_full_status", "odswiez_pelny_status", "diagnostyka_odswiez_status"),
     ("button", "refresh_full_status", "status_odswiez", "diagnostyka_odswiez_status"),
+    ("button", "departure_in_15_min", "wyjazd_za_15_minut", "wyjazd_za_15min"),
+    ("button", "departure_in_15_min", "wyjazd_za_15_min", "wyjazd_za_15min"),
     # Ranges, consumption and diagnostics.
     ("sensor", "fuel_level", "pozostale_paliwo", "paliwo_poziom"),
     ("sensor", "range", "zasieg", "zasieg_laczny"),
@@ -255,6 +264,41 @@ def async_rename_entity_ids(hass: HomeAssistant, entry: ConfigEntry) -> None:
             new_id = f"{domain}.{object_id[: -len(old_slug)]}{new_slug}"
             if registry.async_get(new_id) is None:
                 registry.async_update_entity(entity.entity_id, new_entity_id=new_id)
+
+
+#: Entities that are controlled while the car is in use rather than configured
+#: once, so they belong under "Controls" on the device page.
+CONTROL_CATEGORY_KEYS = (
+    "charge_start_time",
+    "charge_end_time",
+    "charge_duration_hours",
+    "scheduled_charging",
+    "departure",
+    "departure_time",
+    "departure_monday",
+    "departure_tuesday",
+    "departure_wednesday",
+    "departure_thursday",
+    "departure_friday",
+    "departure_saturday",
+    "departure_sunday",
+)
+
+
+def async_move_to_controls(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Drop the config category from the charging and departure entities.
+
+    The category is copied into the entity registry when an entity is created
+    for the first time, so removing it from the entity description only helps
+    new installs: existing ones would keep the entities under "Configuration"
+    for good.  Clearing the stored category moves them on the next setup.
+    """
+    registry = er.async_get(hass)
+    for entity in er.async_entries_for_config_entry(registry, entry.entry_id):
+        if entity.entity_category is None:
+            continue
+        if any(entity.unique_id.endswith(f"_{key}") for key in CONTROL_CATEGORY_KEYS):
+            registry.async_update_entity(entity.entity_id, entity_category=None)
 
 
 def async_remove_legacy_entities(hass: HomeAssistant, entry: ConfigEntry) -> None:
