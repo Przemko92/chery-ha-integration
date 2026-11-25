@@ -248,7 +248,7 @@ async def test_post_command_refresh_waits_before_first_poll():
     with patch("custom_components.chery_europe.coordinator.asyncio.sleep", sleep):
         await coordinator._refresh_after_command_safe()
 
-    assert events[0] == ("sleep", 5)
+    assert events[0] == ("sleep", 10)
     assert events == [
         item
         for delay in POST_COMMAND_REFRESH_DELAYS

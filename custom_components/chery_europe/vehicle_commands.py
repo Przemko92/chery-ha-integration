@@ -10,6 +10,7 @@ from .charge_schedule import local_minutes_to_utc
 
 DEFAULT_AIR_DURATION = "15"
 DEFAULT_AIR_TEMPERATURE = "22.0"
+DEFAULT_HEATING_TEMPERATURE = "31.0"
 DEFAULT_CHARGE_START_MINUTES = 480
 DEFAULT_CHARGE_DURATION_HOURS = 6
 DEFAULT_CHARGE_CYCLE_DAYS = [1, 2, 3, 4, 5, 6, 7]
@@ -40,6 +41,38 @@ def build_air_control_body(values: dict[str, Any]) -> dict[str, str]:
         "times": duration,
     }
     return body
+
+
+def build_heating_control_body(values: dict[str, Any]) -> dict[str, str]:
+    """Build the one-touch cabin heating macro payload (heatingControl).
+
+    Sets HVAC to HI (default 31.0 C) together with steering wheel heating and
+    seat heating while keeping windshield/rear heaters off. Unsupported
+    accessories are pruned by ``permissions.adapt_command`` using voices
+    2094-20910.
+    """
+    enabled = values.get("enabled", True)
+    heaters_enabled = bool(enabled) and values.get("hvac_mode") != "auto"
+    temperature = values.get("temperature") or DEFAULT_HEATING_TEMPERATURE
+    if isinstance(temperature, (int, float)):
+        temperature = f"{float(temperature):.1f}"
+    duration = str(values.get("duration", DEFAULT_AIR_DURATION))
+    air_flag = "1" if enabled else "0"
+    heater_flag = "1" if heaters_enabled else "0"
+    seat = "3" if heaters_enabled else "0"
+    return {
+        "airControlType": air_flag,
+        "airType": "1",
+        "temperature": str(temperature),
+        "duration": duration,
+        "frontWindshieldHeat": "0",
+        "backDefrosting": "0",
+        "steerWheelHeatSwitch": heater_flag,
+        "mSeatHeating": seat,
+        "pSeatHeating": seat,
+        "blSeatHeating": seat,
+        "brSeatHeating": seat,
+    }
 
 
 def build_lock_control_body(values: dict[str, Any]) -> dict[str, str]:
@@ -233,6 +266,7 @@ COMMAND_SPECS: dict[str, VehicleCommandSpec] = {
     "ve_1135": VehicleCommandSpec("backDefrostingControl", build_rear_defrost_body),
     "ve_1108": VehicleCommandSpec("airControl", build_front_defrost_body),
     "ve_1109": VehicleCommandSpec("airControl", build_air_purifier_body),
+    "ve_1110": VehicleCommandSpec("heatingControl", build_heating_control_body),
     "ve_1201": VehicleCommandSpec("chargeStartStopControl", build_charge_start_stop_body),
     "ve_1202": VehicleCommandSpec("chargeAppointControl", build_charge_appoint_body),
     "ve_1203": VehicleCommandSpec("steeringWheelControl", build_steering_wheel_body),

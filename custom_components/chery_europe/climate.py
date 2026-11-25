@@ -1,3 +1,4 @@
+import time
 from typing import Any
 
 import voluptuous as vol
@@ -18,6 +19,7 @@ from .const import (
     SERVICE_SEND_COMMAND,
 )
 from .coordinator import CheryEuropeDataUpdateCoordinator
+from .data import HI_SETPOINT, climate_at_hi
 from .entity import (
     CheryEuropeEntity,
     async_remove_unsupported,
@@ -27,16 +29,29 @@ from .entity import (
     stable_unique_id,
     vehicle_uid,
 )
+from .permissions import allowed, category_denied
 from .pin import resolve_pin
 
 PARALLEL_UPDATES = 0
 
 CLIMATE_COMMAND_ID = "ve_1104"
+HEATING_COMMAND_ID = "ve_1110"
+_HEATER_ATTRS: tuple[str, ...] = (
+    "front_windshield_heating",
+    "rear_window_defrost",
+    "steering_wheel_heating",
+    "driver_seat_heating",
+    "passenger_seat_heating",
+    "rear_left_seat_heating",
+    "rear_right_seat_heating",
+)
 # 15 °C and 31 °C are the car's LO and HI setpoints. The vehicle list often
 # reports a narrower everyday range (16–30); those two ends still work.
 MIN_TEMPERATURE = 15
 MAX_TEMPERATURE = 31
 DEFAULT_TARGET_TEMPERATURE = 22
+# Hold requested mode briefly while waiting for car telemetry to reflect it.
+OPTIMISTIC_WINDOW_SECONDS = 45.0
 
 PIN_SCHEMA = cv.make_entity_service_schema(
     {vol.Optional(ATTR_PIN): vol.All(cv.string, vol.Length(min=1))}
@@ -119,7 +134,11 @@ class CheryEuropeClimate(CheryEuropeEntity, ClimateEntity):
         self._attr_translation_key = description.translation_key
         self._attr_unique_id = stable_unique_id(entry, f"{description.key}_climate", coordinator)
         self._target_temperature = _api_value(self.chery_data, "target_temperature")
+        self._auto_temperature = _non_hi_temperature(self._target_temperature)
         self._hvac_mode = _initial_hvac_mode(self.chery_data)
+        self._optimistic_mode: HVACMode | None = None
+        self._optimistic_until: float = 0.0
+        self._optimistic_data: Any = None
 
     @property
     def min_temp(self) -> float:
@@ -140,20 +159,58 @@ class CheryEuropeClimate(CheryEuropeEntity, ClimateEntity):
         """Return the vehicle picture from the vehicle list."""
         return self.chery_data.vehicle_picture_url
 
+    def _set_optimistic_mode(self, mode: HVACMode) -> None:
+        """Hold the requested mode briefly while waiting for car telemetry to catch up."""
+        self._hvac_mode = mode
+        self._optimistic_mode = mode
+        self._optimistic_until = time.monotonic() + OPTIMISTIC_WINDOW_SECONDS
+        self._optimistic_data = self.chery_data
+
+    def _active_optimistic_mode(self, enabled: bool | None) -> HVACMode | None:
+        """Return optimistic mode while active, clearing it once confirmed or expired."""
+        if self._optimistic_mode is None:
+            return None
+        if time.monotonic() >= self._optimistic_until:
+            self._optimistic_mode = None
+            self._optimistic_data = None
+            return None
+        if self.chery_data is self._optimistic_data:
+            return self._optimistic_mode
+        if self._optimistic_mode == HVACMode.OFF:
+            confirmed = enabled is False
+        elif self._optimistic_mode == HVACMode.HEAT:
+            confirmed = enabled is True and climate_at_hi(self.chery_data) is True
+        else:
+            confirmed = enabled is True and climate_at_hi(self.chery_data) is not True
+        if confirmed:
+            self._optimistic_mode = None
+            self._optimistic_data = None
+            return None
+        return self._optimistic_mode
+
     def _handle_coordinator_update(self) -> None:
         """Sync local HVAC state when realtime feedback arrives."""
         enabled = _api_value(self.chery_data, "hvac_enabled")
         api_mode = _map_hvac_mode(_api_value(self.chery_data, "hvac_mode"))
-        if api_mode is not None:
-            self._hvac_mode = api_mode
-        elif enabled is True:
-            if self._hvac_mode in (None, HVACMode.OFF):
-                self._hvac_mode = HVACMode.AUTO
+        optimistic = self._active_optimistic_mode(enabled)
+        if optimistic is not None:
+            self._hvac_mode = optimistic
         elif enabled is False:
             self._hvac_mode = HVACMode.OFF
+        elif enabled is True:
+            if climate_at_hi(self.chery_data) is True:
+                self._hvac_mode = HVACMode.HEAT
+            elif api_mode in (HVACMode.HEAT, HVACMode.AUTO):
+                self._hvac_mode = api_mode
+            elif self._hvac_mode in (None, HVACMode.OFF):
+                self._hvac_mode = HVACMode.AUTO
+        elif api_mode is not None:
+            self._hvac_mode = api_mode
         target = _api_value(self.chery_data, "target_temperature")
         if target is not None:
             self._target_temperature = target
+            if float(target) < HI_SETPOINT - 0.5:
+                self._auto_temperature = float(target)
         super()._handle_coordinator_update()
 
     @property
@@ -169,18 +226,23 @@ class CheryEuropeClimate(CheryEuropeEntity, ClimateEntity):
     @property
     def hvac_mode(self) -> HVACMode:  # type: ignore[reportIncompatibleVariableOverride]
         """Return HVAC mode mapped from API data, falling back to last command."""
-        api_mode = _map_hvac_mode(_api_value(self.chery_data, "hvac_mode"))
-        if api_mode is not None:
-            return api_mode
         enabled = _api_value(self.chery_data, "hvac_enabled")
+        optimistic = self._active_optimistic_mode(enabled)
+        if optimistic is not None:
+            return optimistic
+        if enabled is False:
+            return HVACMode.OFF
+        api_mode = _map_hvac_mode(_api_value(self.chery_data, "hvac_mode"))
         if enabled is True:
+            if climate_at_hi(self.chery_data) is True:
+                return HVACMode.HEAT
+            if api_mode in (HVACMode.HEAT, HVACMode.AUTO):
+                return api_mode
             if self._hvac_mode in (HVACMode.HEAT, HVACMode.AUTO):
                 return self._hvac_mode
             return HVACMode.AUTO
-        if enabled is False:
-            if self._hvac_mode in (HVACMode.HEAT, HVACMode.AUTO):
-                return self._hvac_mode
-            return HVACMode.OFF
+        if api_mode is not None:
+            return api_mode
         return self._hvac_mode or HVACMode.OFF
 
     @property
@@ -194,44 +256,56 @@ class CheryEuropeClimate(CheryEuropeEntity, ClimateEntity):
         temperature = float(kwargs[ATTR_TEMPERATURE])
         await self._send_climate_command(pin, temperature=temperature, enabled=True)
         self._target_temperature = temperature
+        if temperature < HI_SETPOINT - 0.5:
+            self._auto_temperature = temperature
         if self.hvac_mode == HVACMode.OFF:
-            self._hvac_mode = HVACMode.AUTO
+            self._set_optimistic_mode(HVACMode.AUTO)
         self.async_write_ha_state()
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on vehicle HVAC using the PIN from the service call."""
         pin = resolve_pin(self._entry, kwargs)
-        temperature = self.target_temperature or DEFAULT_TARGET_TEMPERATURE
+        temperature = self._auto_temperature
         await self._send_climate_command(pin, enabled=True, temperature=temperature)
         self._target_temperature = temperature
-        self._hvac_mode = HVACMode.AUTO
+        self._set_optimistic_mode(HVACMode.AUTO)
         self.async_write_ha_state()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        """Turn off vehicle HVAC using the PIN from the service call."""
+        """Turn off vehicle HVAC and active cabin heaters/coolers."""
         pin = resolve_pin(self._entry, kwargs)
-        await self._send_climate_command(
-            pin,
-            enabled=False,
-            temperature=self.target_temperature or DEFAULT_TARGET_TEMPERATURE,
-        )
-        self._hvac_mode = HVACMode.OFF
+        await self._async_turn_off_all(pin, include_mode=False)
+        self._set_optimistic_mode(HVACMode.OFF)
         self.async_write_ha_state()
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode, **kwargs: Any) -> None:
         """Set HVAC mode using the PIN from the service call."""
         pin = resolve_pin(self._entry, kwargs)
         if hvac_mode == HVACMode.OFF:
+            await self._async_turn_off_all(pin, include_mode=True)
+        elif hvac_mode == HVACMode.HEAT:
             await self._send_climate_command(
                 pin,
-                enabled=False,
+                command_id=HEATING_COMMAND_ID,
+                enabled=True,
                 hvac_mode=hvac_mode.value,
-                temperature=self.target_temperature or DEFAULT_TARGET_TEMPERATURE,
+                temperature=self.max_temp,
             )
-        elif hvac_mode in (HVACMode.HEAT, HVACMode.AUTO):
-            temperature = self.target_temperature or DEFAULT_TARGET_TEMPERATURE
+            self._target_temperature = self.max_temp
+        elif hvac_mode == HVACMode.AUTO:
+            temperature = self._auto_temperature
+            perms = control_permissions(self.coordinator)
+            any_heater_on = self.hvac_mode == HVACMode.HEAT or any(
+                _api_value(self.chery_data, attr) is True for attr in _HEATER_ATTRS
+            )
+            use_heating_clear = (
+                any_heater_on
+                and not category_denied("heatingControl", perms)
+                and allowed(perms, 2093)
+            )
             await self._send_climate_command(
                 pin,
+                command_id=HEATING_COMMAND_ID if use_heating_clear else CLIMATE_COMMAND_ID,
                 enabled=True,
                 hvac_mode=hvac_mode.value,
                 temperature=temperature,
@@ -239,10 +313,45 @@ class CheryEuropeClimate(CheryEuropeEntity, ClimateEntity):
             self._target_temperature = temperature
         else:
             raise HomeAssistantError(f"Unsupported HVAC mode: {hvac_mode}")
-        self._hvac_mode = hvac_mode
+        self._set_optimistic_mode(hvac_mode)
         self.async_write_ha_state()
 
-    async def _send_climate_command(self, pin: str, **data: Any) -> None:
+    async def _async_turn_off_all(self, pin: str, *, include_mode: bool) -> None:
+        """Turn off HVAC (and heaters via heatingControl when any heater is active)."""
+        perms = control_permissions(self.coordinator)
+        any_heater_on = self.hvac_mode == HVACMode.HEAT or any(
+            _api_value(self.chery_data, attr) is True for attr in _HEATER_ATTRS
+        )
+        use_heating_off = (
+            any_heater_on
+            and not category_denied("heatingControl", perms)
+            and allowed(perms, 2093)
+        )
+        extra: dict[str, Any] = {"hvac_mode": HVACMode.OFF.value} if include_mode else {}
+        if use_heating_off:
+            await self._send_climate_command(
+                pin,
+                command_id=HEATING_COMMAND_ID,
+                enabled=False,
+                temperature=self.max_temp,
+                **extra,
+            )
+        else:
+            await self._send_climate_command(
+                pin,
+                command_id=CLIMATE_COMMAND_ID,
+                enabled=False,
+                temperature=self.target_temperature or DEFAULT_TARGET_TEMPERATURE,
+                **extra,
+            )
+
+    async def _send_climate_command(
+        self,
+        pin: str,
+        *,
+        command_id: str = CLIMATE_COMMAND_ID,
+        **data: Any,
+    ) -> None:
         """Call the Chery Europe command service without storing the PIN."""
         if not self.chery_data.vin:
             raise HomeAssistantError("Vehicle is unavailable")
@@ -251,7 +360,7 @@ class CheryEuropeClimate(CheryEuropeEntity, ClimateEntity):
             DOMAIN,
             SERVICE_SEND_COMMAND,
             {
-                ATTR_COMMAND_ID: CLIMATE_COMMAND_ID,
+                ATTR_COMMAND_ID: command_id,
                 ATTR_PIN: pin,
                 **data,
             },
@@ -280,11 +389,30 @@ def _map_hvac_mode(value: Any) -> HVACMode | None:
     return None
 
 
+def _non_hi_temperature(value: Any) -> float:
+    """Return a normal Auto setpoint, never carrying over HI (31 °C) from Heat."""
+    if value is not None:
+        try:
+            temp = float(value)
+        except (TypeError, ValueError):
+            temp = float(DEFAULT_TARGET_TEMPERATURE)
+        if temp < HI_SETPOINT - 0.5:
+            return temp
+    return float(DEFAULT_TARGET_TEMPERATURE)
+
+
+def _active_hvac_mode(data: Any) -> HVACMode:
+    """Return HEAT when telemetry shows HVAC running at HI, otherwise AUTO."""
+    if data is not None and climate_at_hi(data) is True:
+        return HVACMode.HEAT
+    return HVACMode.AUTO
+
+
 def _initial_hvac_mode(data: Any) -> HVACMode:
     """Derive the initial HVAC mode from normalized vehicle data."""
     api_mode = _map_hvac_mode(_api_value(data, "hvac_mode"))
     if api_mode is not None:
         return api_mode
     if _api_value(data, "hvac_enabled") is True:
-        return HVACMode.AUTO
+        return _active_hvac_mode(data)
     return HVACMode.OFF

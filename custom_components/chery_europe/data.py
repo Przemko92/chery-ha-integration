@@ -272,10 +272,19 @@ class CheryData:
         charge_plan = _parse_charge_appoint_plan(payload.get("chargeAppointPlans"))
         scheduled_charge_enabled = _plan_switch_on(charge_plan)
 
+        target_temperature = _as_float(
+            _first(payload, "frontSetTempLeft", "frontSetTempRight", "targetTemp")
+        )
+
         hvac_enabled = None
+        hvac_mode = None
         front_hvac = payload.get("frontHVACState")
         if front_hvac is not None:
             hvac_enabled = str(front_hvac) not in {"0", ""}
+            if hvac_enabled is False:
+                hvac_mode = "off"
+            elif target_temperature is not None:
+                hvac_mode = "heat" if target_temperature >= HI_SETPOINT - 0.5 else "auto"
 
         tire_temperatures = {
             "front_left": _as_float(payload.get("lFrontTyreTemp")),
@@ -355,9 +364,8 @@ class CheryData:
             sunroof_open=_is_open(payload.get("sunroofState")),
             sunroof_position=_sunroof_position(payload.get("sunroofState")),
             hvac_enabled=hvac_enabled,
-            target_temperature=_as_float(
-                _first(payload, "frontSetTempLeft", "frontSetTempRight", "targetTemp")
-            ),
+            hvac_mode=hvac_mode,
+            target_temperature=target_temperature,
             door_front_left_open=_is_open(payload.get("frontLeftDoor")),
             door_front_right_open=_is_open(payload.get("frontRightDoor")),
             door_rear_left_open=_is_open(payload.get("backLeftDoor")),
@@ -551,6 +559,8 @@ def merge_chery_data(base: CheryData, update: CheryData) -> CheryData:
         value = getattr(update, field_name)
         if value is not None:
             merged = replace(merged, **{field_name: value})
+    if update.hvac_enabled is True and update.hvac_mode is None and merged.hvac_mode == "off":
+        merged = replace(merged, hvac_mode=None)
     return merged
 
 
@@ -558,10 +568,58 @@ def apply_command_feedback(data: CheryData, command_id: str, **kwargs: Any) -> C
     """Optimistically update coordinator data after a successful remote command."""
     if command_id == "ve_1104":
         enabled = kwargs.get("enabled")
+        hvac_mode = kwargs.get("hvac_mode")
+        temperature = _as_float(kwargs.get("temperature"))
         if enabled is True:
-            return replace(data, hvac_enabled=True)
+            updates: dict[str, Any] = {"hvac_enabled": True}
+            if hvac_mode is not None:
+                updates["hvac_mode"] = hvac_mode
+            if temperature is not None:
+                updates["target_temperature"] = temperature
+            return replace(data, **updates)
         if enabled is False:
-            return replace(data, hvac_enabled=False)
+            return replace(data, hvac_enabled=False, hvac_mode="off")
+    if command_id == "ve_1110":
+        enabled = kwargs.get("enabled")
+        hvac_mode = kwargs.get("hvac_mode")
+        temperature = _as_float(kwargs.get("temperature"))
+        if enabled is True and hvac_mode == "auto":
+            updates = {"hvac_enabled": True, "hvac_mode": "auto"}
+            if temperature is not None:
+                updates["target_temperature"] = temperature
+            for field in (
+                "front_windshield_heating",
+                "front_windshield_defrost",
+                "rear_window_defrost",
+                "steering_wheel_heating",
+                "driver_seat_heating",
+                "passenger_seat_heating",
+                "rear_left_seat_heating",
+                "rear_right_seat_heating",
+            ):
+                if getattr(data, field) is True:
+                    updates[field] = False
+            return replace(data, **updates)
+        if enabled is True:
+            updates = {"hvac_enabled": True, "hvac_mode": "heat"}
+            if temperature is not None:
+                updates["target_temperature"] = temperature
+            return replace(data, **updates)
+        if enabled is False:
+            updates = {"hvac_enabled": False, "hvac_mode": "off"}
+            for field in (
+                "front_windshield_heating",
+                "front_windshield_defrost",
+                "rear_window_defrost",
+                "steering_wheel_heating",
+                "driver_seat_heating",
+                "passenger_seat_heating",
+                "rear_left_seat_heating",
+                "rear_right_seat_heating",
+            ):
+                if getattr(data, field) is True:
+                    updates[field] = False
+            return replace(data, **updates)
     if command_id == "ve_1105":
         action = str(kwargs.get("action", "lock")).lower()
         return replace(data, is_locked=action != "unlock")

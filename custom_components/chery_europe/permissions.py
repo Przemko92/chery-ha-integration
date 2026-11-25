@@ -48,13 +48,13 @@ PRUNABLE_FIELDS = {
         "frontWindshieldHeat": 20416,
     },
     "heatingControl": {
-        "frontWindshieldHeat": 20416,
-        "backDefrosting": 20411,
-        "steerWheelHeatSwitch": 2081,
-        "mSeatHeating": 2047,
-        "pSeatHeating": 2048,
-        "blSeatHeating": 20412,
-        "brSeatHeating": 20413,
+        "steerWheelHeatSwitch": 2094,
+        "frontWindshieldHeat": 2095,
+        "mSeatHeating": 2096,
+        "pSeatHeating": 2097,
+        "blSeatHeating": 2098,
+        "brSeatHeating": 2099,
+        "backDefrosting": 20910,
     },
     "coolingControl": {
         "mSeatAiry": 2049,
@@ -64,7 +64,7 @@ PRUNABLE_FIELDS = {
     },
 }
 
-BASE_VOICE = {"airControl": 2041}
+BASE_VOICE = {"airControl": 2041, "heatingControl": 2093}
 
 FALLBACK = {
     ("backDefrostingControl", "backDefrosting"): (2321, 20411),

@@ -104,6 +104,8 @@ def async_setup_services(hass: HomeAssistant) -> None:
                         call.data[ATTR_COMMAND_ID],
                         action=call.data.get("action"),
                         enabled=call.data.get(ATTR_ENABLED),
+                        hvac_mode=call.data.get("hvac_mode"),
+                        temperature=call.data.get("temperature"),
                         seat_field=call.data.get("seat_field"),
                         level=call.data.get("level"),
                         start_minutes=call.data.get("start_minutes"),
