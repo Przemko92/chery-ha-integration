@@ -152,6 +152,7 @@ def test_numeric_sensors_have_long_term_statistics_state_class():
         "tire_temperature_rear_left": SensorStateClass.MEASUREMENT,
         "tire_temperature_rear_right": SensorStateClass.MEASUREMENT,
         "exterior_temperature": SensorStateClass.MEASUREMENT,
+        "interior_temperature": SensorStateClass.MEASUREMENT,
     }
     by_key = {desc.key: desc.state_class for desc in SENSOR_DESCRIPTIONS}
 
@@ -210,3 +211,23 @@ def test_exterior_temperature_reads_the_status_payload():
     assert sensor.native_unit_of_measurement == UnitOfTemperature.CELSIUS
     assert description.state_class == SensorStateClass.MEASUREMENT
     assert _sensor("exterior_temperature", CheryData(vin="VIN123")).native_value is None
+
+
+def test_interior_temperature_reads_the_cabin_temperature():
+    """The cabin field is exposed on its own, next to the climate entity."""
+    sensor = _sensor(
+        "interior_temperature", CheryData(vin="VIN123", interior_temperature=21.5)
+    )
+
+    assert sensor.native_value == 21.5
+    assert sensor.device_class == SensorDeviceClass.TEMPERATURE
+    assert sensor.native_unit_of_measurement == UnitOfTemperature.CELSIUS
+    assert _sensor("interior_temperature", CheryData(vin="VIN123")).native_value is None
+
+
+def test_interior_temperature_is_disabled_after_install():
+    """Off by default: the climate card already shows the cabin temperature."""
+    sensor = _sensor("interior_temperature", CheryData(vin="VIN123"))
+
+    assert sensor.entity_registry_enabled_default is False
+    assert sensor.entity_category is None

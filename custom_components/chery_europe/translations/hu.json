@@ -227,8 +227,14 @@
       "messages_unread": {
         "name": "Olvasatlan üzenetek"
       },
+      "mqtt_last_reply": {
+        "name": "Diagnosztika MQTT válasz"
+      },
       "exterior_temperature": {
         "name": "Külső hőmérséklet"
+      },
+      "interior_temperature": {
+        "name": "Belső hőmérséklet"
       }
     },
     "binary_sensor": {
@@ -282,6 +288,9 @@
       },
       "window_rear_right": {
         "name": "Jobb hátsó ablak"
+      },
+      "info": {
+        "name": "Infó"
       },
       "alert_tire_front_left": {
         "name": "Bal első gumiabroncs"
@@ -362,6 +371,9 @@
       }
     },
     "time": {
+      "charge_end_time": {
+        "name": "Ütemezett töltés befejezési ideje"
+      },
       "charge_start_time": {
         "name": "Ütemezett töltés kezdési időpontja"
       },
@@ -477,6 +489,14 @@
           "medium": "Közepes",
           "high": "Magas"
         }
+      },
+      "air_duration": {
+        "name": "Klíma üzemidő",
+        "state": {
+          "5": "5 perc",
+          "10": "10 perc",
+          "15": "15 perc"
+        }
       }
     },
     "button": {
@@ -497,6 +517,9 @@
       },
       "message_read": {
         "name": "Üzenet olvasott"
+      },
+      "departure_in_15_min": {
+        "name": "Indulás 15 perc múlva"
       }
     },
     "device_tracker": {

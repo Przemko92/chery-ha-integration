@@ -135,6 +135,15 @@ def collect_alerts(data: CheryData | None, language: str | None = None) -> list[
     return alerts
 
 
+def collect_warnings(data: CheryData | None, language: str | None = None) -> list[CheryAlert]:
+    """Return only the car's own warning flags (tyres, battery, service, electrical)."""
+    return [
+        alert
+        for alert in collect_alerts(data, language)
+        if alert.severity == SEVERITY_WARNING
+    ]
+
+
 def alerts_content(alerts: list[CheryAlert], *, empty: str = "") -> str:
     """Return the alert texts joined for display (``empty`` when none)."""
     if not alerts:

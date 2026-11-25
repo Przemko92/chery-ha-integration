@@ -33,6 +33,7 @@ from homeassistant.util import dt as dt_util
 from .alerts import alerts_content, collect_alerts
 from .const import (
     MESSAGES_CONTENT_ITEMS,
+    NO_COMMAND_ERROR,
 )
 from .coordinator import CheryEuropeDataUpdateCoordinator
 from .data import CheryData
@@ -298,6 +299,27 @@ SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
         entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda data: data.max_temperature,
     ),
+    # The cabin temperature the car reports (the same field the climate entity
+    # uses for its current_temperature); exposed on its own so automations can
+    # read it without going through the thermostat. Off by default: the value
+    # already shows on the climate card, so the sensor is opt-in.
+    CheryEuropeSensorEntityDescription(
+        key="interior_temperature",
+        name="Inside temperature",
+        translation_key="interior_temperature",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=1,
+        icon="mdi:thermometer",
+        entity_registry_enabled_default=False,
+        value_fn=lambda data: data.interior_temperature,
+    ),
+    # Disabled by default: the Chery Europe API does not return any outside /
+    # ambient temperature field (verified against a live 88-field status
+    # payload: only inCarTemperature, frontSetTemp* and tyre temperatures are
+    # sent), so this entity would stay unknown forever. Kept for models whose
+    # backend does send the field -- enable it manually if yours does.
     CheryEuropeSensorEntityDescription(
         key="exterior_temperature",
         name="Outside temperature",
@@ -306,6 +328,7 @@ SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         state_class=SensorStateClass.MEASUREMENT,
         suggested_display_precision=1,
+        entity_registry_enabled_default=False,
         value_fn=lambda data: data.exterior_temperature,
     ),
     CheryEuropeSensorEntityDescription(
@@ -432,6 +455,22 @@ STATUS_SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
         value_fn=lambda data: data.command_status,
     ),
     CheryEuropeSensorEntityDescription(
+        key="command_error_code",
+        name="Command error code",
+        translation_key="command_error_code",
+        icon="mdi:alert-circle-outline",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda data: data.command_error_code or NO_COMMAND_ERROR,
+    ),
+    CheryEuropeSensorEntityDescription(
+        key="command_error_text",
+        name="Command error",
+        translation_key="command_error_text",
+        icon="mdi:alert-outline",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda data: data.command_error_text or NO_COMMAND_ERROR,
+    ),
+    CheryEuropeSensorEntityDescription(
         key="wake_status",
         name="Wake result",
         translation_key="wake_status",
@@ -446,6 +485,24 @@ STATUS_SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
         icon="mdi:crosshairs-gps",
         entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda data: data.probe_status,
+    ),
+)
+
+# What the car pushes on the MQTT message-centre topic last: the service code
+# (e.g. 301, 1301) is the state, the frame itself is an attribute. This is how
+# a reply the integration does not act on can still be read from Home
+# Assistant.
+MQTT_REPLY_SENSOR_DESCRIPTIONS: tuple[CheryEuropeSensorEntityDescription, ...] = (
+    CheryEuropeSensorEntityDescription(
+        key="mqtt_last_reply",
+        name="MQTT reply",
+        translation_key="mqtt_last_reply",
+        icon="mdi:message-badge-outline",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        # A debug aid, not a reading: registered off so it stays invisible (and
+        # records no history) until it is enabled by hand.
+        entity_registry_enabled_default=False,
+        value_fn=lambda data: data.mqtt_last_service or NO_COMMAND_ERROR,
     ),
 )
 
@@ -479,6 +536,10 @@ async def async_setup_entry(
         entities.extend(
             CheryEuropeStatusSensor(coordinator, description, entry)
             for description in STATUS_SENSOR_DESCRIPTIONS
+        )
+        entities.extend(
+            CheryEuropeMqttReplySensor(coordinator, description, entry)
+            for description in MQTT_REPLY_SENSOR_DESCRIPTIONS
         )
         entities.extend(
             CheryEuropeTimestampSensor(coordinator, description, entry)
@@ -663,6 +724,31 @@ class CheryEuropeStatusSensor(_CheryEuropeRestoreSensor):
         super().__init__(coordinator, description, entry)
         self._attr_translation_key = description.translation_key
         self._attr_unique_id = stable_unique_id(entry, description.key, coordinator)
+
+
+class CheryEuropeMqttReplySensor(_CheryEuropeRestoreSensor):
+    """Diagnostic: the last frame pushed on the message-centre topic."""
+
+    def __init__(
+        self,
+        coordinator: CheryEuropeDataUpdateCoordinator,
+        description: CheryEuropeSensorEntityDescription,
+        entry: ConfigEntry,
+    ) -> None:
+        super().__init__(coordinator, description, entry)
+        self._attr_translation_key = description.translation_key
+        self._attr_unique_id = stable_unique_id(entry, description.key, coordinator)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        data = self.coordinator.data
+        if data is None:
+            return {}
+        return {
+            "received_at": data.mqtt_last_at,
+            "frames_seen": data.mqtt_frames_seen,
+            "payload": data.mqtt_last_payload,
+        }
 
 
 class CheryEuropeTimestampSensor(_CheryEuropeRestoreSensor):

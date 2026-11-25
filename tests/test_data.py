@@ -52,6 +52,16 @@ def test_dict_camelcase_keys_normalize_correctly():
     assert data.target_temperature == 22.5
 
 
+def test_interior_temperature_parses_from_camelcase_keys():
+    """The cabin temperature arrives as interiorTemperature/interior_temperature."""
+    for key in ("interior_temperature", "interiorTemperature", "insideTemperature"):
+        data = CheryData.from_api_response({"vin": "VIN123", key: "21.5"})
+
+        assert data.interior_temperature == 21.5
+
+    assert CheryData.from_api_response({"vin": "VIN123"}).interior_temperature is None
+
+
 def test_dict_snake_case_keys_normalize_correctly():
     """snake_case API keys map to the canonical fields."""
     response = {
@@ -1176,3 +1186,53 @@ def test_parse_charge_appointment_unwraps_the_tspconsole_body():
     from custom_components.chery_europe.charge_schedule import plan_duration_hours
 
     assert plan_duration_hours(plan) == 13
+
+
+def test_charge_and_departure_entities_move_out_of_the_config_section() -> None:
+    """The stored category wins over the description, so old installs need migrating."""
+    from types import SimpleNamespace
+    from unittest.mock import Mock, call, patch
+
+    from homeassistant.const import EntityCategory
+
+    from custom_components.chery_europe.entity import async_move_to_controls
+
+    entities = [
+        SimpleNamespace(
+            entity_id="time.wspolne_tiggo_ladowanie_godzina_startu",
+            unique_id="wspolne_tiggo_charge_start_time",
+            entity_category=EntityCategory.CONFIG,
+        ),
+        SimpleNamespace(
+            entity_id="switch.wspolne_tiggo_wyjazd_plan",
+            unique_id="wspolne_tiggo_departure",
+            entity_category=EntityCategory.CONFIG,
+        ),
+        SimpleNamespace(
+            entity_id="switch.wspolne_tiggo_automatyczne_aktualizacje",
+            unique_id="wspolne_tiggo_automatic_updates",
+            entity_category=EntityCategory.CONFIG,
+        ),
+        SimpleNamespace(
+            entity_id="sensor.wspolne_tiggo_ladowanie_stan",
+            unique_id="wspolne_tiggo_charge_status",
+            entity_category=None,
+        ),
+    ]
+    registry = Mock()
+    hass = Mock()
+    entry = SimpleNamespace(entry_id="entry-1")
+
+    with (
+        patch("custom_components.chery_europe.entity.er.async_get", return_value=registry),
+        patch(
+            "custom_components.chery_europe.entity.er.async_entries_for_config_entry",
+            return_value=entities,
+        ),
+    ):
+        async_move_to_controls(hass, entry)
+
+    assert registry.async_update_entity.call_args_list == [
+        call("time.wspolne_tiggo_ladowanie_godzina_startu", entity_category=None),
+        call("switch.wspolne_tiggo_wyjazd_plan", entity_category=None),
+    ]

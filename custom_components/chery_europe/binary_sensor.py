@@ -2,6 +2,7 @@
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
@@ -13,11 +14,33 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
+from .alerts import collect_warnings
 from .coordinator import CheryEuropeDataUpdateCoordinator
 from .data import CheryData
 from .entity import CheryEuropeEntity, iter_entry_coordinators, stable_unique_id
 
 PARALLEL_UPDATES = 0
+
+
+def _any_warning(data: CheryData) -> bool | None:
+    """Return True when any of the car's own warning flags is raised.
+
+    The aggregate stays unknown only while the car reported none of the flags.
+    """
+    flags = (
+        data.alert_tire_front_left,
+        data.alert_tire_front_right,
+        data.alert_tire_rear_left,
+        data.alert_tire_rear_right,
+        data.alert_soc_low,
+        data.alert_oil_service,
+        data.alert_electricity,
+    )
+    if any(flag is True for flag in flags):
+        return True
+    if all(flag is None for flag in flags):
+        return None
+    return False
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -151,6 +174,14 @@ BINARY_SENSOR_DESCRIPTIONS: tuple[CheryEuropeBinarySensorEntityDescription, ...]
     # They only say "something is wrong", the measured value stays in the
     # matching sensor (tire pressure, battery level, ...).
     CheryEuropeBinarySensorEntityDescription(
+        key="info",
+        name="Info",
+        translation_key="info",
+        device_class=BinarySensorDeviceClass.PROBLEM,
+        icon="mdi:car-info",
+        value_fn=_any_warning,
+    ),
+    CheryEuropeBinarySensorEntityDescription(
         key="alert_tire_front_left",
         name="Front left tire",
         translation_key="alert_tire_front_left",
@@ -256,3 +287,17 @@ class CheryEuropeBinarySensor(CheryEuropeEntity, BinarySensorEntity, RestoreEnti
         if self._last_known is not None:
             return self._last_known
         return self._restored
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return the active warnings behind the aggregate sensor."""
+        if self.entity_description.key != "info" or self.coordinator.data is None:
+            return {}
+        warnings = collect_warnings(
+            self.chery_data, getattr(self.hass.config, "language", None)
+        )
+        return {
+            "count": len(warnings),
+            "categories": sorted({alert.category for alert in warnings}),
+            "alerts": [alert.as_dict() for alert in warnings],
+        }

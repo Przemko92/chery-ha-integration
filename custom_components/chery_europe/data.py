@@ -147,6 +147,10 @@ class CheryData:
     charge_status: str | None = None
     appointment_charge_status: str | None = None
     command_status: str | None = None
+    # Last refused vehicle command: the tspconsole code and its readable text,
+    # so a failure can be read from the diagnostics entities without the log.
+    command_error_code: str | None = None
+    command_error_text: str | None = None
     wake_status: str | None = None
     probe_status: str | None = None
     heat_everything: bool | None = None
@@ -165,6 +169,13 @@ class CheryData:
     messages_polled_at: str | None = None
     # When the complete inbox was imported for the first time.
     messages_backfilled_at: str | None = None
+    # Diagnostics: the last frame seen on the MQTT message-centre topic. Frames
+    # the integration does not act on still leave a trace here, so a reply the
+    # car sends (e.g. service 301/1301) can be read without the debug log.
+    mqtt_last_service: str | None = None
+    mqtt_last_at: str | None = None
+    mqtt_last_payload: str | None = None
+    mqtt_frames_seen: int | None = None
 
     @classmethod
     def from_api_response(cls, response: dict[str, Any] | VehicleStatus | None) -> CheryData:
@@ -503,6 +514,8 @@ _FRESHNESS_IGNORE = frozenset(
         "gps_direction",
         "gps_speed",
         "command_status",
+        "command_error_code",
+        "command_error_text",
         "wake_status",
         "probe_status",
         "vin",
@@ -522,6 +535,10 @@ _FRESHNESS_IGNORE = frozenset(
         "messages_unread_count",
         "messages_polled_at",
         "messages_backfilled_at",
+        "mqtt_last_service",
+        "mqtt_last_at",
+        "mqtt_last_payload",
+        "mqtt_frames_seen",
     }
 )
 

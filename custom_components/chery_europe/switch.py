@@ -39,7 +39,6 @@ DEPARTURE_SWITCH_DESCRIPTION = SwitchEntityDescription(
     name="Departure plan",
     translation_key="departure",
     icon="mdi:car-clock",
-    entity_category=EntityCategory.CONFIG,
 )
 
 #: One switch per weekday, so the departure plan can be limited per day.
@@ -51,7 +50,6 @@ DEPARTURE_DAY_DESCRIPTIONS: tuple[tuple[int, SwitchEntityDescription], ...] = (
             name="Departure plan Monday",
             translation_key="departure_monday",
             icon="mdi:calendar-today",
-            entity_category=EntityCategory.CONFIG,
         ),
     ),
     (
@@ -61,7 +59,6 @@ DEPARTURE_DAY_DESCRIPTIONS: tuple[tuple[int, SwitchEntityDescription], ...] = (
             name="Departure plan Tuesday",
             translation_key="departure_tuesday",
             icon="mdi:calendar-today",
-            entity_category=EntityCategory.CONFIG,
         ),
     ),
     (
@@ -71,7 +68,6 @@ DEPARTURE_DAY_DESCRIPTIONS: tuple[tuple[int, SwitchEntityDescription], ...] = (
             name="Departure plan Wednesday",
             translation_key="departure_wednesday",
             icon="mdi:calendar-today",
-            entity_category=EntityCategory.CONFIG,
         ),
     ),
     (
@@ -81,7 +77,6 @@ DEPARTURE_DAY_DESCRIPTIONS: tuple[tuple[int, SwitchEntityDescription], ...] = (
             name="Departure plan Thursday",
             translation_key="departure_thursday",
             icon="mdi:calendar-today",
-            entity_category=EntityCategory.CONFIG,
         ),
     ),
     (
@@ -91,7 +86,6 @@ DEPARTURE_DAY_DESCRIPTIONS: tuple[tuple[int, SwitchEntityDescription], ...] = (
             name="Departure plan Friday",
             translation_key="departure_friday",
             icon="mdi:calendar-today",
-            entity_category=EntityCategory.CONFIG,
         ),
     ),
     (
@@ -101,7 +95,6 @@ DEPARTURE_DAY_DESCRIPTIONS: tuple[tuple[int, SwitchEntityDescription], ...] = (
             name="Departure plan Saturday",
             translation_key="departure_saturday",
             icon="mdi:calendar-weekend",
-            entity_category=EntityCategory.CONFIG,
         ),
     ),
     (
@@ -111,7 +104,6 @@ DEPARTURE_DAY_DESCRIPTIONS: tuple[tuple[int, SwitchEntityDescription], ...] = (
             name="Departure plan Sunday",
             translation_key="departure_sunday",
             icon="mdi:calendar-weekend",
-            entity_category=EntityCategory.CONFIG,
         ),
     ),
 )
@@ -316,7 +308,6 @@ SCHEDULED_CHARGING_SWITCH_DESCRIPTION = SwitchEntityDescription(
     name="Scheduled charging",
     translation_key="scheduled_charging",
     icon="mdi:calendar-clock",
-    entity_category=EntityCategory.CONFIG,
 )
 
 

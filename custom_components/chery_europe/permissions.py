@@ -106,6 +106,7 @@ FEATURE_VOICES: dict[str, tuple[int, ...]] = {
     "scheduled_charging": (213,),
     "charge_start_time": (213,),
     "charge_duration_hours": (213,),
+    "charge_end_time": (213,),
     "windows": (206,),
     "sunroof": (207,),
     "trunk": (205,),

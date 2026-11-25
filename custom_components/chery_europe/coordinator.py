@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
@@ -29,6 +30,8 @@ from .const import (
     MESSAGES_POLL_INTERVAL,
     MESSAGES_POLL_PAGE_SIZE,
     MESSAGES_RESCAN_INTERVAL,
+    NO_COMMAND_ERROR,
+    NON_CONTROL_COMMAND_IDS,
     POST_COMMAND_REFRESH_DELAYS,
     PREPARE_POLL_INTERVAL,
     REFRESH_HV_WAIT_SECONDS,
@@ -54,8 +57,13 @@ from .message_history import MessageHistory
 from .messages import parse_messages, unread_count, unread_messages
 from .mqtt import CheryEuropeMqttClient
 from .pin import resolve_pin
+from .vehicle_commands import DEFAULT_AIR_DURATION
 
 _LOGGER = logging.getLogger(__name__)
+
+# The reply sensor keeps an excerpt, not megabytes of telemetry: a status push
+# is easily 100 kB and the attributes are stored in the recorder.
+MQTT_REPLY_MAX_CHARS = 1500
 
 
 def _vehicle_vin(vehicle: object) -> str | None:
@@ -140,6 +148,9 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
         owns_account_session: bool = True,
     ) -> None:
         self.api = api
+        # Every vehicle command outcome, for the diagnostics error entities.
+        if hasattr(api, "command_result_callbacks"):
+            api.command_result_callbacks.append(self._handle_command_result)
         self.entry = entry
         self.vin_filter = vin
         self.entity_slot = entity_slot
@@ -158,7 +169,16 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
         self.departure_draft: str | None = None
         self.departure_days: list[int] | None = None
         self.departure_armed: bool | None = None
+        # Parameters the quick "departure in 15 minutes" button replaced, so a
+        # second press can put the plan back the way the owner had it.
+        self.departure_previous: dict[str, Any] | None = None
         self.charge_duration_hours = 6
+        # airControl "times" (minutes) used by the climate entity after a
+        # remote start; set from select.<vehicle>_czas_pracy_klimatyzacji.
+        self.hvac_duration = DEFAULT_AIR_DURATION
+        # Start, duration and end time share one window: whatever one of them
+        # writes, the other two have to render again.
+        self.charge_schedule_listeners: list = []
         self.poll_enabled = True
         self._mqtt: CheryEuropeMqttClient | None = None
         self._watch_unsub = None
@@ -196,6 +216,32 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
         }
         if updates:
             self.async_set_updated_data(replace(self.data, **updates))
+
+    def _handle_command_result(
+        self, vin: str, command_id: str, result: dict[str, Any]
+    ) -> None:
+        """Keep the last refused command for the diagnostics error entities.
+
+        The response code alone says nothing to a human ("A00082"), so the code
+        and its readable text are stored side by side; a command that goes
+        through puts both back to ``brak`` so a stale failure is never shown.
+        """
+        if self.vin_filter and vin and vin != self.vin_filter:
+            return
+        if result.get("ok"):
+            if command_id in NON_CONTROL_COMMAND_IDS:
+                return
+            self._update_status(
+                command_error_code=NO_COMMAND_ERROR,
+                command_error_text=NO_COMMAND_ERROR,
+            )
+            return
+        code = result.get("code")
+        text = result.get("message") or "kod bez opisu"
+        self._update_status(
+            command_error_code=str(code) if code else "brak kodu",
+            command_error_text=text,
+        )
 
     async def _async_update_data(self) -> CheryData:
         """Fetch the latest data from Chery Europe."""
@@ -283,7 +329,13 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
         if current is None:
             return data
         preserved = {}
-        for field in ("command_status", "wake_status", "probe_status"):
+        for field in (
+            "command_status",
+            "command_error_code",
+            "command_error_text",
+            "wake_status",
+            "probe_status",
+        ):
             value = getattr(current, field)
             if value is not None and getattr(data, field) is None:
                 preserved[field] = value
@@ -348,6 +400,13 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
     def schedule_refresh_after_command(self) -> None:
         """Schedule post-command refreshes without failing the caller."""
         self.hass.async_create_task(self._refresh_after_command_safe())
+
+    def async_notify_charge_schedule(self) -> None:
+        """Push a changed charge window to the start, duration and end entities."""
+        for entity in list(self.charge_schedule_listeners):
+            if getattr(entity, "entity_id", None) is None:
+                continue
+            entity.async_write_ha_state()
 
     def schedule_location_refresh(self) -> None:
         """Poll queryVehicleLocation after a locate command until GPS arrives."""
@@ -866,13 +925,53 @@ class CheryEuropeDataUpdateCoordinator(DataUpdateCoordinator[CheryData]):
         if client.start():
             self._mqtt = client
 
-    def _handle_mqtt_payload(self, service: str, payload: dict) -> None:
-        self.hass.loop.call_soon_threadsafe(self._apply_mqtt_payload, service, payload)
+    def _handle_mqtt_payload(
+        self, service: str, payload: dict, envelope: dict | None = None
+    ) -> None:
+        self.hass.loop.call_soon_threadsafe(
+            self._apply_mqtt_payload, service, payload, envelope
+        )
+
+    def _record_mqtt_frame(
+        self, service: str, payload: dict, envelope: dict | None
+    ) -> None:
+        """Keep the last frame received on the message-centre topic.
+
+        Everything the car pushes ends up here, including frames this
+        integration does not act on, so the reply sensor shows the last
+        answer even when it only carries a notification.
+        """
+        if self.data is None:
+            return
+        raw = payload or envelope or {}
+        try:
+            text = json.dumps(raw, ensure_ascii=False, default=str)
+        except (TypeError, ValueError):
+            text = str(raw)
+        if len(text) > MQTT_REPLY_MAX_CHARS:
+            text = text[:MQTT_REPLY_MAX_CHARS] + "…"
+        updated = replace(
+            self.data,
+            mqtt_last_service=service or None,
+            mqtt_last_at=datetime.now(UTC).isoformat(timespec="seconds"),
+            mqtt_last_payload=text,
+            mqtt_frames_seen=(self.data.mqtt_frames_seen or 0) + 1,
+        )
+        self.async_set_updated_data(self._publish_data(updated))
 
     def _apply_mqtt_payload(
-        self, service: str, payload: dict, *, routed: bool = False
+        self,
+        service: str,
+        payload: dict,
+        envelope: dict | None = None,
+        *,
+        routed: bool = False,
     ) -> None:
         if self.data is None:
+            return
+        if not routed:
+            self._record_mqtt_frame(service, payload, envelope)
+        if not payload:
             return
         incoming = _payload_vin(payload)
         if not routed and incoming and self._mqtt_siblings:

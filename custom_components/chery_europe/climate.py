@@ -28,6 +28,7 @@ from .entity import (
     vehicle_uid,
 )
 from .pin import resolve_pin
+from .vehicle_commands import DEFAULT_AIR_DURATION
 
 PARALLEL_UPDATES = 0
 
@@ -253,6 +254,9 @@ class CheryEuropeClimate(CheryEuropeEntity, ClimateEntity):
             {
                 ATTR_COMMAND_ID: CLIMATE_COMMAND_ID,
                 ATTR_PIN: pin,
+                # airControl "times": runtime picked on the duration select.
+                "duration": getattr(self.coordinator, "hvac_duration", None)
+                or DEFAULT_AIR_DURATION,
                 **data,
             },
             blocking=True,

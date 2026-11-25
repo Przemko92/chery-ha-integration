@@ -95,3 +95,21 @@ def test_plan_duration_reads_a_quarter_hour_window():
 
     assert plan_duration_minutes({"timeConsuming": 795}) == 795
     assert plan_duration_hours({"timeConsuming": 795}) == 13.25
+
+
+def test_window_wraps_into_the_next_day():
+    from custom_components.chery_europe.charge_schedule import window_minutes
+
+    assert window_minutes(1320, 480) == (360, True)  # 22:00 + 8 h -> 06:00 tomorrow
+    assert window_minutes(480, 360) == (840, False)  # 08:00 + 6 h -> 14:00 today
+    assert window_minutes(1320, 60) == (1380, False)
+
+
+def test_duration_for_end_reads_the_end_as_the_next_occurrence():
+    from custom_components.chery_europe.charge_schedule import duration_for_end
+
+    assert duration_for_end(1320, 360) == 480  # 22:00 -> 06:00 is eight hours
+    assert duration_for_end(480, 360) == 1320  # 08:00 -> 06:00 is 22 hours
+    assert duration_for_end(480, 480) == 1440  # the same clock time is a full day
+    assert duration_for_end(1320, 1380) == 60  # 22:00 -> 23:00 is lifted to the 1 h floor
+    assert duration_for_end(480, 615) == 135  # 08:00 -> 10:15 is on the grid
