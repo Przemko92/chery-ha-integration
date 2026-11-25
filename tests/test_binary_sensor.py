@@ -94,3 +94,23 @@ def test_info_aggregate_entity_lists_active_warnings():
     assert attributes["count"] == 1
     assert attributes["categories"] == ["tyre"]
     assert attributes["alerts"][0]["text"] == "Niskie ciśnienie w oponie: przednia lewa"
+
+
+def test_hood_sensor_is_disabled_by_default():
+    """No hood field ever reaches the payload, so the entity starts off."""
+    description = next(desc for desc in BINARY_SENSOR_DESCRIPTIONS if desc.key == "hood")
+
+    assert description.entity_registry_enabled_default is False
+    assert description.value_fn(CheryData(vin=VIN)) is None
+
+
+def test_door_sensors_stay_enabled_by_default():
+    """Only the hood is gated: doors must keep coming up after a fresh install."""
+    doors = [
+        desc
+        for desc in BINARY_SENSOR_DESCRIPTIONS
+        if desc.device_class is BinarySensorDeviceClass.DOOR
+    ]
+
+    assert doors
+    assert all(desc.entity_registry_enabled_default for desc in doors)

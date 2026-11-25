@@ -135,11 +135,18 @@ BINARY_SENSOR_DESCRIPTIONS: tuple[CheryEuropeBinarySensorEntityDescription, ...]
         device_class=BinarySensorDeviceClass.DOOR,
         value_fn=lambda data: data.door_rear_right_open,
     ),
+    # Disabled by default: the Chery Europe backend does not report the bonnet
+    # at all. A live status frame (~87 fields) carries no hood/bonnet field under
+    # any name -- only engineState, trunkDoor, liftgateOperateState, the four
+    # doors, the windows and the sunroof -- so value_fn always resolves to None
+    # and the entity would sit at "unknown" forever. Kept for models whose
+    # backend does send the field: enable it manually if yours does.
     CheryEuropeBinarySensorEntityDescription(
         key="hood",
         name="Hood",
         translation_key="hood",
         device_class=BinarySensorDeviceClass.OPENING,
+        entity_registry_enabled_default=False,
         value_fn=lambda data: data.hood_open,
     ),
     CheryEuropeBinarySensorEntityDescription(

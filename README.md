@@ -45,7 +45,8 @@ or diagnostics.
 **Telemetry & status**
 - Battery, fuel, range, odometer, tyre pressure/temperature, charge status
 - Charging power, traction battery voltage and current
-- Door/window/hood/trunk/engine/HV binary sensors
+- Door/window/trunk/engine/HV binary sensors (the **Hood** sensor is disabled
+  by default — see *Known limitations*)
 - Outside temperature
 - **Warning flags** — tyre pressure on each wheel, low state of charge,
   oil service due, vehicle electrical system
@@ -315,6 +316,11 @@ Chery Europe template and select the **Command result** sensor.
 - **Existing installs** that were added before vehicle selection keep monitoring
   the first vehicle on the account. Open **Options** when more than one vehicle
   is available, or remove the integration and add it again, to choose.
+- **Hood (bonnet) state is not reported** by the Chery Europe backend: a live
+  status frame (~87 fields) carries no hood/bonnet field under any name — only
+  `engineState`, `trunkDoor`, `liftgateOperateState`, the four doors, the windows
+  and the sunroof. The **Hood** binary sensor is therefore **disabled by
+  default**; enable it manually only if your model does send the field.
 - **Unofficial API** — Chery may change the backend without notice.
 - **Deep sleep** — many commands and readings fail with “vehicle asleep” until the car wakes.
 - **Simultaneous app use** — one session per account: HA login signs out the
@@ -361,7 +367,8 @@ PIN **nie** trafia do logów ani diagnostyki.
 **Telemetria i status**
 - Bateria, paliwo, zasięg, przebieg, ciśnienie/temperatura opon, stan ładowania
 - Moc ładowania, napięcie i prąd baterii trakcyjnej
-- Binary sensory: drzwi, maska, okna, silnik, HV itd.
+- Binary sensory: drzwi, okna, silnik, HV itd. (sensor **Maska** jest domyślnie
+  wyłączony — patrz *Znane ograniczenia*)
 - Temperatura zewnętrzna
 - **Flagi alarmów** — ciśnienie w każdym kole, niski poziom baterii
   trakcyjnej, serwis oleju, instalacja elektryczna pojazdu
@@ -627,6 +634,11 @@ szablon Chery Europe i wskaż sensor **Wynik komendy**.
 - **Istniejące instalacje** sprzed wyboru pojazdów nadal śledzą pierwsze auto
   na koncie. Gdy aut jest więcej, wybór jest w **Opcjach**, albo po usunięciu
   i ponownym dodaniu integracji.
+- **Stan maski nie jest raportowany** przez backend Chery Europe: żywa ramka
+  statusu (~87 pól) nie zawiera pola maski pod żadną nazwą — są tylko
+  `engineState` (silnik), `trunkDoor` (bagażnik), `liftgateOperateState` (klapa),
+  cztery drzwi, okna i szyberdach. Binary sensor **Maska** jest dlatego
+  **domyślnie wyłączony**; włącz go ręcznie tylko wtedy, gdy Twój model to pole wysyła.
 - **Nieoficjalne API** — Chery może zmienić backend bez ostrzeżenia.
 - **Głęboki sen** — wiele komend i odczytów pada, dopóki auto nie obudzi.
 - **Równoległa aplikacja** — jedna sesja na konto: logowanie w HA wyloguje
