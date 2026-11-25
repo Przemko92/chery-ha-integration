@@ -35,7 +35,7 @@ def test_adapt_command_drops_heat_fields_the_vehicle_cannot_use():
             "blSeatHeating": "3",
             "steerWheelHeatSwitch": "1",
         },
-        {209: 1, 2047: 1, 20412: 0, 2081: 0},
+        {209: 1, 2093: 1, 2096: 1, 2098: 0, 2094: 0},
     )
     assert endpoint == "heatingControl"
     assert body["mSeatHeating"] == "3"
